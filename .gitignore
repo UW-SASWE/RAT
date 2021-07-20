@@ -1,2 +1,3 @@
 .condaenv/
 backend/models/
+backend/data/
