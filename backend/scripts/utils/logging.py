@@ -38,7 +38,7 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
 
     logger = logging.getLogger(LOG_NAME)
     logger.setLevel(log_level)
-    logger.propograte = True
+    logger.propagate = True
 
     # ---------------------------------------------------------------- #
     # create log file handler
