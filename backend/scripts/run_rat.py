@@ -1,4 +1,4 @@
-from utils.logging import init_logger
+from utils.logging import init_logger, NOTIFICATION
 from core.run_metsim import MetSimRunner
 from core.run_routing import RoutingRunner
 import configparser
@@ -11,8 +11,9 @@ def main():
     #------------ Define Variables ------------#
 
     log = init_logger(
-        "/houston2/pritam/rat_mekong_v3/backend/logs",
+        None, #"/houston2/pritam/rat_mekong_v3/backend/logs",
         verbose=True,
+        notify=True,
         log_level='DEBUG'
     )
 

@@ -6,7 +6,7 @@ import datetime
 import subprocess
 
 from logging import getLogger
-from utils.logging import LOG_NAME
+from utils.logging import LOG_NAME, NOTIFICATION
 from utils.utils import run_command
 
 log = getLogger(LOG_NAME)
@@ -23,7 +23,7 @@ class RoutingRunner():
         self.model_path = model_path
         self.param_path = param_path
 
-        log.info("---------- Started Routing at %s ---------- \n", datetime.datetime.now())
+        log.log(NOTIFICATION, "---------- Started Routing at %s ---------- \n", datetime.datetime.now())
         log.debug("Parameter Directory: %s", self.param_dir)
         log.debug("Result Directory: %s", self.result_dir)
         log.debug("Inflow Directory: %s", self.inflow_dir)
@@ -84,6 +84,7 @@ class RoutingRunner():
 
     def generate_inflow(self):
         # TODO Temp implementation. Later change it so that it operates on a disctionary of stations and generated outputs
+        log.log(NOTIFICATION, "Starting inflow generation")
         files = [os.path.join(self.result_dir, f) for f in os.listdir(self.result_dir) if f.endswith('.day')]
         
         for f in files:
@@ -93,7 +94,7 @@ class RoutingRunner():
 
 
     def _convert_streamflow(self, df_path) -> pd.DataFrame:
-        log.debug("Comvering streamflow: %s", df_path)
+        log.log("Comvering streamflow: %s", df_path)
         df = pd.read_csv(
             df_path, 
             sep=r"\s+", 

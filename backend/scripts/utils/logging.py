@@ -5,10 +5,18 @@ import os
 import sys
 from time import gmtime, strftime
 import logging
+import subprocess
+
 
 # -------------------------------------------------------------------- #
 LOG_NAME = 'rat-mekong'
 FORMATTER = logging.Formatter('%(levelname)s:%(funcName)s>> %(message)s')
+
+NOTIFICATION = 25    # Setting level above INFO, below WARNING
+logging.addLevelName(NOTIFICATION, "NOTIFICATION")
+NOTIFICATION_FOMATTER = logging.Formatter(
+    '%(asctime)s>> %(message)s',
+    datefmt='%Y-%m-%d %I:%M:%S %p')
 # -------------------------------------------------------------------- #
 
 
@@ -30,10 +38,14 @@ class StreamToFile(object):
 
     def flush(self):
         pass
+
+class NotificationHandler(logging.Handler):
+    def emit(self, record):
+        subprocess.run(['ntfy', '-b', 'telegram', 'send', self.format(record)])
 # -------------------------------------------------------------------- #
 
 
-def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
+def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     ''' Setup the logger '''
 
     logger = logging.getLogger(LOG_NAME)
@@ -63,6 +75,15 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
         ch.setFormatter(FORMATTER)
         logger.addHandler(ch)
     # ---------------------------------------------------------------- #
+
+    if notify:
+        # print to console
+        nh = NotificationHandler()
+        nh.setLevel(NOTIFICATION)
+        nh.setFormatter(NOTIFICATION_FOMATTER)
+        logger.addHandler(nh)
+    # ---------------------------------------------------------------- #
+
 
     # ---------------------------------------------------------------- #
     # Redirect stdout and stderr to logger
