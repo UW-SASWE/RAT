@@ -14,7 +14,7 @@ log = getLogger(LOG_NAME)
 
 class RoutingRunner():
     # TODO Clean up UH files
-    def __init__(self, param_dir, project_dir, result_dir, inflow_dir, model_path, param_path, fdr_path, station_path_latlon) -> None:
+    def __init__(self, project_dir, param_dir, result_dir, inflow_dir, model_path, param_path, fdr_path, station_path_latlon) -> None:
         self.param_dir = param_dir
         self.project_dir = project_dir
         self.result_dir = result_dir
@@ -51,6 +51,7 @@ class RoutingRunner():
         log.debug("Intiializing station DF from: %s", station_path)
 
         stations = pd.read_csv(station_path)
+        log.debug(f"{stations}")
         stations['x'] = None
         stations['y'] = None
         stations['filler'] = -9999

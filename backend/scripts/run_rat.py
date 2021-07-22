@@ -1,20 +1,13 @@
 from utils.logging import init_logger
 from core.run_metsim import MetSimRunner
 from core.run_routing import RoutingRunner
+import configparser
 
 
 def main():
     #------------ Define Variables ------------#
-    fdr_path = "/houston2/pritam/rat_mekong_v3/backend/params/routing/DRT_FDR_VIC.asc"
-    station_path = "/houston2/pritam/rat_mekong_v3/backend/data/ancillary/stations_latlon.csv"
-
-    project_dir = "/houston2/pritam/rat_mekong_v3"
-
-    route_param_dir = "/houston2/pritam/rat_mekong_v3/backend/params/routing"
-    route_inflow_dir = "/houston2/pritam/rat_mekong_v3/backend/data/inflow"
-    route_result_dir = "/houston2/pritam/rat_mekong_v3/backend/data/rout_results"
-    route_param_path = "/houston2/pritam/rat_mekong_v3/backend/params/routing/route_param.txt"
-    route_model_path = "/houston2/pritam/rat_mekong_v3/backend/models/route_model/rout"
+    config = configparser.ConfigParser(inline_comment_prefixes=('#', ';'))  
+    config.read("/houston2/pritam/rat_mekong_v3/backend/params/rat_mekong.conf")  # TODO Replace later with command line 
     #------------ Define Variables ------------#
 
     log = init_logger(
@@ -46,15 +39,15 @@ def main():
     #---------------- VIC End -----------------#
 
     #------------- Routing Being --------------#
-    route = RoutingRunner(
-        route_param_dir, 
-        project_dir, 
-        route_result_dir, 
-        route_inflow_dir, 
-        route_model_path, 
-        route_param_path, 
-        fdr_path, 
-        station_path
+    route = RoutingRunner(    # TODO create notification level of logging, where a notification is sent off to telegram/email
+        config.get('GLOBAL', 'project_dir'), 
+        config.get('ROUTING', 'route_param_dir'),
+        config.get('ROUTING', 'route_result_dir'), 
+        config.get('ROUTING', 'route_inflow_dir'), 
+        config.get('ROUTING', 'route_model'),
+        config.get('ROUTING', 'route_param_file'), 
+        config.get('ROUTING', 'flow_direction_file'), 
+        config.get('ROUTING', 'station_file')
     )
     route.create_station_file()
     route.run_routing()
