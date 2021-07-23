@@ -69,7 +69,7 @@ class RoutingRunner():
     def run_routing(self):
         # TODO parse the output of routing model to to remove logs, keep a track of files stations
         #   and their generated output files
-        log.debug("Running Routing model")
+        log.log(NOTIFICATION, "Running Routing model")
 
         args = [self.model_path, self.param_path]
         log.debug("Running: %s", " ".join(args))

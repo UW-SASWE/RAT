@@ -1,3 +1,5 @@
+import numpy as np
+from core.run_vic import VICRunner
 from utils.logging import init_logger, NOTIFICATION
 from core.run_metsim import MetSimRunner
 from core.run_routing import RoutingRunner
@@ -33,10 +35,16 @@ def main():
 
     #--------------- VIC Begin ----------------#
     ## Prepare VIC input data
+    vic = VICRunner(
+        config.get('VIC', 'vic_env'),
+        config.get('VIC', 'vic_param_file'),
+        config.get('VIC', 'vic_result_files'),
+        config.get('ROUTING', 'route_input_dir'),
+        config.get('GLOBAL', 'conda_hook')
+    )
 
-    ## Update VIC parameters
-
-    ## Run VIC and handle outputa
+    vic.run_vic(np=config.getint('VIC', 'vic_multiprocessing'))
+    vic.disagg_results()
     #---------------- VIC End -----------------#
 
     #------------- Routing Being --------------#

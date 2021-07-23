@@ -54,8 +54,8 @@ ALB_SRC         FROM_VEGPARAM
 NODES           2
 SNOW_BAND       FALSE
 
-RESULT_DIR  /houston2/pritam/rat_mekong_v3/backend/data/vic_results/
-LOG_DIR     /houston2/pritam/rat_mekong_v3/backend/data/vic_logs/
+RESULT_DIR  /houston2/pritam/rat_mekong_v3/backend/data/vic_results_conf/
+LOG_DIR     /houston2/pritam/rat_mekong_v3/backend/data/vic_logs_conf/
 OUTFILE     nc_fluxes
 COMPRESS    FALSE
 OUT_FORMAT  NETCDF4
