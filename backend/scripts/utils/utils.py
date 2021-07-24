@@ -1,7 +1,8 @@
 import subprocess
-from utils.logging import LOG_NAME
 from logging import getLogger
+import os
 
+from utils.logging import LOG_NAME
 
 log = getLogger(LOG_NAME)
 
@@ -30,3 +31,8 @@ def run_command(args, **kwargs):
         raise Exception
     
     return exitcode
+
+def create_directory(p):
+    if not os.path.isdir(p):
+        os.makedirs(p)
+    return p

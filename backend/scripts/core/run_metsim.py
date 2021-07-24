@@ -2,9 +2,9 @@ from utils.logging import LOG_NAME
 from logging import getLogger
 import yaml
 
-#----- Setup Logger -----#
+
+
 log = getLogger(f"{LOG_NAME}.{__name__}")
-#------------------------#
 
 
 class MetSimRunner():

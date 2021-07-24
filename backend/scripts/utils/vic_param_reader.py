@@ -4,6 +4,7 @@ from logging import getLogger
 import yaml
 
 from utils.logging import LOG_NAME, NOTIFICATION
+from utils.utils import create_directory
 
 log = getLogger(LOG_NAME)
 
@@ -83,7 +84,7 @@ class VICParameterFile:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         else:
             self.runname = str(runname)
-        self.workspace = self._create_directory(os.path.join(config['VIC']['vic_workspace'], f'run_{self.runname}'))
+        self.workspace = create_directory(os.path.join(config['VIC']['vic_workspace'], f'run_{self.runname}'))
 
         if self.init_param_file:
             self._load_from_vic_param()
@@ -158,7 +159,7 @@ class VICParameterFile:
 
         # Save vic run logs and parameters in `vic_workspace`
         self.vic_param_path = os.path.join(self.workspace, 'vic_param.txt')    # Paramter file will be saved here
-        self.params['results']['LOG_DIR'] = self._create_directory(os.path.join(self.workspace, 'logs'))
+        self.params['results']['LOG_DIR'] = create_directory(os.path.join(self.workspace, 'logs'))
         log.debug("VIC Logs Directory: %s ", self.params['results']['LOG_DIR'])
         if not self.params['results']['LOG_DIR'].endswith(os.sep):
             self.params['results']['LOG_DIR'] = self.params['results']['LOG_DIR'] + f'{os.sep}'
@@ -212,11 +213,6 @@ class VICParameterFile:
                         self.params['model_decisions'][key] = config['VIC PARAMETERS'][key]
                     else:
                         self.params['extras'][key] = config['VIC PARAMETERS'][key]
-            
-    def _create_directory(self, p):
-        if not os.path.isdir(p):
-            os.makedirs(p)
-        return p
 
     def _out_format_params(self):
         # return a VIC compatible string of paramters

@@ -14,17 +14,15 @@ log = getLogger(LOG_NAME)
 
 class RoutingRunner():
     # TODO Clean up UH files
-    def __init__(self, project_dir, param_dir, result_dir, inflow_dir, model_path, param_path, fdr_path, station_path_latlon) -> None:
-        self.param_dir = param_dir
+    def __init__(self, project_dir, result_dir, inflow_dir, model_path, param_path, fdr_path, station_path_latlon, station_xy) -> None:
         self.project_dir = project_dir
         self.result_dir = result_dir
         self.inflow_dir = inflow_dir
-        self.station_path_xy = os.path.join(param_dir, "stations_xy.txt")
+        self.station_path_xy = station_xy
         self.model_path = model_path
         self.param_path = param_path
 
         log.log(NOTIFICATION, "---------- Started Routing at %s ---------- \n", datetime.datetime.now())
-        log.debug("Parameter Directory: %s", self.param_dir)
         log.debug("Result Directory: %s", self.result_dir)
         log.debug("Inflow Directory: %s", self.inflow_dir)
         log.debug("Model Path: %s", self.model_path)
@@ -87,6 +85,9 @@ class RoutingRunner():
         log.log(NOTIFICATION, "Starting inflow generation")
         files = [os.path.join(self.result_dir, f) for f in os.listdir(self.result_dir) if f.endswith('.day')]
         
+        if not os.path.isdir(self.inflow_dir):
+            log.error("Directory does not exist: %s", self.inflow_dir)
+
         for f in files:
             outpath= os.path.join(self.inflow_dir, f.split(os.sep)[-1]).replace('.day', '.csv')
             log.debug("Converting %s, writing to %s", f, outpath)
@@ -94,7 +95,7 @@ class RoutingRunner():
 
 
     def _convert_streamflow(self, df_path) -> pd.DataFrame:
-        log.log("Comvering streamflow: %s", df_path)
+        log.log(NOTIFICATION, "Comvering streamflow: %s", df_path)
         df = pd.read_csv(
             df_path, 
             sep=r"\s+", 

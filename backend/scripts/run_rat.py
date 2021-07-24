@@ -4,6 +4,7 @@ from utils.logging import init_logger, NOTIFICATION
 from core.run_metsim import MetSimRunner
 from core.run_routing import RoutingRunner
 from utils.vic_param_reader import VICParameterFile
+from utils.route_param_reader import RouteParameterFile
 import yaml
 
 
@@ -51,19 +52,20 @@ def main():
     # #---------------- VIC End -----------------#
 
     # #------------- Routing Being --------------#
-    route = RoutingRunner(    
-        config['GLOBAL']['project_dir'], 
-        config['ROUTING']['route_param_dir'],
-        config['ROUTING']['route_result_dir'], 
-        config['ROUTING']['route_inflow_dir'], 
-        config['ROUTING']['route_model'],
-        config['ROUTING']['route_param_file'], 
-        config['ROUTING']['flow_direction_file'], 
-        config['ROUTING']['station_file']
-    )
-    route.create_station_file()
-    route.run_routing()
-    route.generate_inflow()
+    with RouteParameterFile(config, vic_startdate, vic_enddate, clean=False) as r:
+        route = RoutingRunner(    
+            config['GLOBAL']['project_dir'], 
+            r.params['output_dir'], 
+            config['ROUTING']['route_inflow_dir'], 
+            config['ROUTING']['route_model'],
+            r.route_param_path, 
+            r.params['flow_direction_file'], 
+            config['ROUTING']['station_latlon_path'],
+            r.params['station']
+        )
+        route.create_station_file()
+        route.run_routing()
+        route.generate_inflow()
     # #-------------- Routing End ---------------#
 
 
