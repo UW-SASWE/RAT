@@ -1,0 +1,69 @@
+GLOBAL:
+  project_dir: /houston2/pritam/rat_mekong_v3
+  conda_hook: /houston2/pritam/activate_conda.sh
+  begin: 2001-01-01                      # MetSim requires 90 days of spin up data, so data starting from `begin` to `begin`+90 will be used as spin up data
+  end: 2001-04-10                        # 
+  previous_end: 2021-06-10
+
+VIC:
+  # VIC Runner specific parameters
+  vic_env: /houston2/pritam/rat_mekong_v3/backend/models/vic_env
+  vic_multiprocessing: 32                                                             # How many cores to use
+  # vic_result_dir: /houston2/pritam/rat_mekong_v3/backend/data/vic_results_conf/       # Later read from vic_param_file, or make this version override the VIC Param file
+  vic_param_file: /houston2/pritam/rat_mekong_v3/backend/params/vic/vic_params.txt    # Default parameter file. OPTIONAL. If passed, this file will be used to initialize, but will be overriden by any options specified in this config file. If not passed, all necessary options must be specified here.
+  vic_workspace: /houston2/pritam/rat_mekong_v3/backend/data/vic_workspace            # Logs and Parameter file will be saved here for each run
+
+##---- VIC Parameters (Optional; must match the option names of [global parameter file of VIC](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/)).
+##---- If not provided, then the parameter file defined by `vic_param_file` will be used as the 
+##---- parameter file
+VIC PARAMETERS:
+  ## VIC Simulation start date. Since metsim requires 90 days of data to spin up, the vic inputs start 
+  ##   at `begin`+91 days. So, just add 3 months to start date of the RAT-Mekong model
+  ## If not specified, VIC Start date will be calculated as `begin + timedelta(days=90)`
+  ## and VIC End date will be calcualted from this config file
+  # STARTYEAR: '2001'                     # Alternatively, the start date and end date can
+  # STARTMONTH: '04'                      #   overridden by specifying these 6 parameters
+  # STARTDAY: '02'         
+  # ENDYEAR: '2021'
+  # ENDMONTH: '04'
+  # ENDDAY: '01'
+
+  # # Any other option goes here
+  # DOMAIN_TYPE:
+  #   LAT: lat
+  #   LON: lon
+  #   MASK: mask
+  #   AREA: area
+  #   FRAC: frac
+  #   YDIM: lat
+  #   XDIM: lon
+  # FORCING1: /houston2/pritam/rat_mekong_v3/backend/data/forcings/forcing_
+  # FORCE_TYPE:
+  #   AIR_TEMP: temp
+  #   PREC: prec
+  #   PRESSURE: air_pressure
+  #   SWDOWN: shortwave
+  #   LWDOWN: longwave
+  #   VP: vapor_pressure
+  #   WIND: wind
+  # OUTVAR:             # Specify as list
+  #   - OUT_PREC
+  #   - OUT_EVAP
+  #   - OUT_RUNOFF
+  #   - OUT_BASEFLOW
+  RESULT_DIR: /houston2/pritam/rat_mekong_v3/backend/data/vic_results_temp/
+
+ROUTING:
+  # Directories
+  route_param_dir: /houston2/pritam/rat_mekong_v3/backend/params/routing
+  route_result_dir: /houston2/pritam/rat_mekong_v3/backend/data/rout_results_conf
+  route_input_dir: /houston2/pritam/rat_mekong_v3/backend/data/rout_input_conf   # can be set equal to vic output directory later TODO
+  route_inflow_dir: /houston2/pritam/rat_mekong_v3/backend/data/inflow_conf
+
+  # Parameter files
+  route_param_file: /houston2/pritam/rat_mekong_v3/backend/params/routing/route_param.txt
+  flow_direction_file: /houston2/pritam/rat_mekong_v3/backend/params/routing/DRT_FDR_VIC.asc
+  uh_file: /houston2/pritam/rat_mekong_v3/backend/params/routing/uh.txt
+  station_file: /houston2/pritam/rat_mekong_v3/backend/data/ancillary/stations_latlon.csv  # In lat lon format
+
+  route_model: /houston2/pritam/rat_mekong_v3/backend/models/route_model/rout

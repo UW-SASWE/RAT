@@ -13,6 +13,7 @@ import math
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
 from utils.utils import run_command
+from utils.vic_param_reader import VICParameterFile
 
 log = getLogger(LOG_NAME)
 
@@ -62,4 +63,4 @@ class VICRunner():
                         # pbar.update(1)
         # See how many files were created
         disagg_n = len(os.listdir(self.rout_input))
-        log.log(NOTIFICATION, "Finished disaggregating %s/%s files in %s seconds", disagg_n, total, f"{(time.time()-s)}:.3f")
+        log.log(NOTIFICATION, "Finished disaggregating %s/%s files in %s seconds", disagg_n, total, f"{(time.time()-s):.3f}")
