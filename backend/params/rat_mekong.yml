@@ -9,7 +9,6 @@ VIC:
   # VIC Runner specific parameters
   vic_env: /houston2/pritam/rat_mekong_v3/backend/models/vic_env
   vic_multiprocessing: 32                                                             # How many cores to use
-  # vic_result_dir: /houston2/pritam/rat_mekong_v3/backend/data/vic_results_conf/       # Later read from vic_param_file, or make this version override the VIC Param file
   vic_param_file: /houston2/pritam/rat_mekong_v3/backend/params/vic/vic_params.txt    # Default parameter file. OPTIONAL. If passed, this file will be used to initialize, but will be overriden by any options specified in this config file. If not passed, all necessary options must be specified here.
   vic_workspace: /houston2/pritam/rat_mekong_v3/backend/data/vic_workspace            # Logs and Parameter file will be saved here for each run
 

@@ -77,6 +77,8 @@ class VICParameterFile:
         self.init_param_file = self.config['VIC'].get('vic_param_file', None)
         self.vic_param_path = None
         self.vic_result_file = None
+        self.vic_startdate = None
+        self.vic_enddate = None
         if runname is None:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         else:
@@ -338,7 +340,11 @@ class VICParameterFile:
 
         # Determine output file
         # Assuming only one file is generated
-        self.vic_result_file = os.path.join(self.params['results']['RESULT_DIR'], f'{self.params["results"]["OUTFILE"]}.{self.params["dates"]["STARTYEAR"]}-{self.params["dates"]["STARTMONTH"]}-{self.params["dates"]["STARTDAY"]}.nc')
+        startddate_str = f'{self.params["dates"]["STARTYEAR"]}-{self.params["dates"]["STARTMONTH"]}-{self.params["dates"]["STARTDAY"]}'
+        self.vic_startdate = datetime.datetime.strptime(startddate_str, '%Y-%m-%d')
+        enddate_str = f'{self.params["dates"]["ENDYEAR"]}-{self.params["dates"]["ENDMONTH"]}-{self.params["dates"]["ENDDAY"]}'
+        self.vic_enddate = datetime.datetime.strptime(enddate_str, '%Y-%m-%d')
+        self.vic_result_file = os.path.join(self.params['results']['RESULT_DIR'], f'{self.params["results"]["OUTFILE"]}.{startddate_str}.nc')
 
         self._write()
         return self
