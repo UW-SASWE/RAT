@@ -4,14 +4,14 @@ MetSim:
     # Forcings begin here (year-month-day)
     start: 2001-4-1
     # Forcings end at this date (year-month-day)
-    stop: '2021-06-10'
+    stop: 2021-6-10
     # Input and output directories
     forcing: '/houston2/pritam/rat_mekong_v3/backend/data/metsim_inputs/forcings_all.nc'
     domain: '/houston2/pritam/rat_mekong_v3/backend/params/metsim/domain.nc'
     state: '/houston2/pritam/rat_mekong_v3/backend/params/metsim/state.nc'
     forcing_fmt: 'netcdf'
     in_format: 'netcdf'
-    out_dir: '/houston2/pritam/rat_mekong_v3/backend/data/metsim_results'
+    out_dir: '/houston2/pritam/rat_mekong_v3/backend/data/metsim_results_conf'
     out_prefix: '6H_VIC'
 #     out_prefix: 'yaml_output'
 #     prec_type: 'triangle'

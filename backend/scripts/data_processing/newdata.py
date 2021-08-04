@@ -6,6 +6,13 @@ import os
 import shutil
 import tempfile
 import xarray as xr
+from logging import getLogger
+import pandas as pd
+
+from utils.logging import LOG_NAME, NOTIFICATION
+
+
+log = getLogger(LOG_NAME)
 
 
 def run_command(cmd):
@@ -15,7 +22,7 @@ def run_command(cmd):
     res = subprocess.run(cmd, check=True, capture_output=True)
     
     if res.returncode != 0:
-        print(f"Error with return code {res.returncode}")
+        log.error(f"Error with return code {res.returncode}")
         raise Exception
     return res.returncode
 
@@ -75,6 +82,7 @@ def download_precip(date, version, outputpath):
             link,
             '--no-proxy'
         ]
+    log.debug("Downloading precipitation file: %s (%s)", date.strftime('%Y-%m-%d'), version)
     return run_command(cmd)
 
 def download_tmax(year, outputpath):
@@ -89,6 +97,7 @@ def download_tmax(year, outputpath):
         f'{outputpath}', 
         f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmax.{year}.nc'
     ]
+    log.debug("Downloading tmax: %s", year)
     return run_command(cmd)
 
 def download_tmin(year, outputpath):
@@ -103,6 +112,7 @@ def download_tmin(year, outputpath):
         f'{outputpath}', 
         f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmin.{year}.nc'
     ]
+    log.debug("Downloading tmin: %s", year)
     return run_command(cmd)
 
 def download_uwnd(year, outputpath):
@@ -117,6 +127,7 @@ def download_uwnd(year, outputpath):
         f'{outputpath}', 
         f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/uwnd.10m.gauss.{year}.nc'
     ]
+    log.debug("Downloading uwnd: %s", year)
     return run_command(cmd)
 
 def download_vwnd(year, outputpath):
@@ -130,6 +141,7 @@ def download_vwnd(year, outputpath):
         '-O', 
         f'{outputpath}', 
         f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/vwnd.10m.gauss.{year}.nc']
+    log.debug("Downloading vwnd: %s", year)
     return run_command(cmd)
 
 def download_data(begin, end, datadir):
@@ -142,39 +154,40 @@ def download_data(begin, end, datadir):
     """
 
     # Obtain list of dates to be downloaded
-    required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
+    # required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
+    required_dates = pd.date_range(begin, end)
     required_years = list(set([d.strftime("%Y") for d in required_dates]))
 
-    # # Download Precipitation
-    # print("Downloading Precipitation")
+    # Download Precipitation
+    log.debug("Downloading Precipitation")
     # with tqdm(required_dates) as pbar:
-    #     for date in required_dates:
-    #         # determine what kind of data is required
-    #         data_version = determine_precip_version(date)
-    #         outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
-    #         pbar.set_description(f"{date.strftime('%Y-%m-%d')} ({data_version})")
-    #         download_precip(date, data_version, outputpath)
-    #         pbar.update(1)
+    for date in required_dates:
+        # determine what kind of data is required
+        data_version = determine_precip_version(date)
+        outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
+        # pbar.set_description(f"{date.strftime('%Y-%m-%d')} ({data_version})")
+        download_precip(date, data_version, outputpath)
+        # pbar.update(1)
     
     # Download other forcing data
-    print("Downloading TMax, TMin, UWnd, and VWnd")
-    with tqdm(required_years, total=len(required_years)*4) as pbar:
-        for year in required_years:
-            pbar.set_description(f"{year} (TMax)")
-            download_tmax(year, os.path.join(datadir, "tmax", year+'.nc'))
-            pbar.update(1)
+    log.debug("Downloading TMax, TMin, UWnd, and VWnd")
+    # with tqdm(required_years, total=len(required_years)*4) as pbar:
+    for year in required_years:
+        # pbar.set_description(f"{year} (TMax)")
+        download_tmax(year, os.path.join(datadir, "tmax", year+'.nc'))
+        # pbar.update(1)
 
-            pbar.set_description(f"{year} (TMin)")
-            download_tmin(year, os.path.join(datadir, "tmin", year+'.nc'))
-            pbar.update(1)
+        # pbar.set_description(f"{year} (TMin)")
+        download_tmin(year, os.path.join(datadir, "tmin", year+'.nc'))
+        # pbar.update(1)
 
-            pbar.set_description(f"{year} (UWnd)")
-            download_uwnd(year, os.path.join(datadir, "uwnd", year+'.nc'))
-            pbar.update(1)
+        # pbar.set_description(f"{year} (UWnd)")
+        download_uwnd(year, os.path.join(datadir, "uwnd", year+'.nc'))
+        # pbar.update(1)
 
-            pbar.set_description(f"{year} (VWnd)")
-            download_vwnd(year, os.path.join(datadir, "vwnd", year+'.nc'))
-            pbar.update(1)
+        # pbar.set_description(f"{year} (VWnd)")
+        download_vwnd(year, os.path.join(datadir, "vwnd", year+'.nc'))
+        # pbar.update(1)
 
 def process_precip(srcpath, dstpath, temp_datadir=None):
     """For any IMERG Precipitation file located at `srcpath` is clipped, scaled and converted to
@@ -184,6 +197,8 @@ def process_precip(srcpath, dstpath, temp_datadir=None):
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
         raise Exception(f"ERROR: {temp_datadir} directory doesn't exist")
     
+    log.debug("Processing Precipitation file: %s", srcpath)
+
     with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
         clipped_temp_file = os.path.join(tempdir, 'clipped.tif')
         cmd = [
@@ -246,6 +261,8 @@ def process_nc(date, srcpath, dstpath, temp_datadir=None):
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
         raise Exception(f"ERROR: {temp_datadir} directory doesn't exist")
     
+    log.debug("Processing NC file: %s for date %s", srcpath, date.strftime('%Y-%m-%d'))
+
     with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
         # Convert from NC to Tif
         band = date.strftime("%-j")   # required band number is defined by `day of year`
@@ -284,52 +301,59 @@ def process_nc(date, srcpath, dstpath, temp_datadir=None):
         shutil.move(aai_temp_file, dstpath)
 
 def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
-    # #### Process precipitation ####
-    # print("Processing Precipitation")
-    # raw_datadir_precip = os.path.join(raw_datadir, "precipitation")
-    # processed_datadir_precip = os.path.join(processed_datadir, "precipitation")
+    if not os.path.isdir(temp_datadir):
+        os.makedirs(temp_datadir)
+
+    #### Process precipitation ####
+    log.debug("Processing Precipitation")
+    raw_datadir_precip = os.path.join(raw_datadir, "precipitation")
+    processed_datadir_precip = os.path.join(processed_datadir, "precipitation")
+
 
     # with tqdm(os.listdir(raw_datadir_precip)) as pbar:
-    #     for srcname in os.listdir(raw_datadir_precip):
-    #         srcpath = os.path.join(raw_datadir_precip, srcname)
-    #         dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
+    ds = pd.date_range(begin, end)
+    for srcname in os.listdir(raw_datadir_precip):
+        if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
+            srcpath = os.path.join(raw_datadir_precip, srcname)
+            dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
 
-    #         pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
-    #         process_precip(srcpath, dstpath, temp_datadir)
-    #         pbar.update(1)
+            # pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
+            process_precip(srcpath, dstpath, temp_datadir)
+            # pbar.update(1)
 
     #### Process NC files ####
-    required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
+    # required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
+    required_dates = pd.date_range(begin, end)
     #### Process TMAX ####
-    print("Processing TMAX")
+    log.debug("Processing TMAX")
     raw_datadir_tmax = os.path.join(raw_datadir, "tmax")
     processed_datadir_tmax = os.path.join(processed_datadir, "tmax")
 
-    with tqdm(required_dates) as pbar:
-        for date in required_dates:
-            srcpath = os.path.join(raw_datadir_tmax, date.strftime('%Y')+'.nc')
-            dstpath = os.path.join(processed_datadir_tmax, f"{date.strftime('%Y-%m-%d')}_TMAX.asc")
+    # with tqdm(required_dates) as pbar:
+    for date in required_dates:
+        srcpath = os.path.join(raw_datadir_tmax, date.strftime('%Y')+'.nc')
+        dstpath = os.path.join(processed_datadir_tmax, f"{date.strftime('%Y-%m-%d')}_TMAX.asc")
 
-            pbar.set_description(f"TMAX: {date.strftime('%Y-%m-%d')}")
-            process_nc(date, srcpath, dstpath, temp_datadir)
-            pbar.update(1)
+        # pbar.set_description(f"TMAX: {date.strftime('%Y-%m-%d')}")
+        process_nc(date, srcpath, dstpath, temp_datadir)
+        # pbar.update(1)
     
     #### Process TMin ####
-    print("Processing TMIN")
+    log.debug("Processing TMIN")
     raw_datadir_tmin = os.path.join(raw_datadir, "tmin")
     processed_datadir_tmin = os.path.join(processed_datadir, "tmin")
 
-    with tqdm(required_dates) as pbar:
-        for date in required_dates:
-            srcpath = os.path.join(raw_datadir_tmin, date.strftime('%Y')+'.nc')
-            dstpath = os.path.join(processed_datadir_tmin, f"{date.strftime('%Y-%m-%d')}_TMIN.asc")
+    # with tqdm(required_dates) as pbar:
+    for date in required_dates:
+        srcpath = os.path.join(raw_datadir_tmin, date.strftime('%Y')+'.nc')
+        dstpath = os.path.join(processed_datadir_tmin, f"{date.strftime('%Y-%m-%d')}_TMIN.asc")
 
-            pbar.set_description(f"TMIN: {date.strftime('%Y-%m-%d')}")
-            process_nc(date, srcpath, dstpath, temp_datadir)
-            pbar.update(1)
+        # pbar.set_description(f"TMIN: {date.strftime('%Y-%m-%d')}")
+        process_nc(date, srcpath, dstpath, temp_datadir)
+        # pbar.update(1)
 
     #### Process UWND ####
-    print("Processing UWND")
+    log.debug("Processing UWND")
     raw_datadir_uwnd = os.path.join(raw_datadir, "uwnd")
     daily_datadir_uwnd = os.path.join(raw_datadir, "uwnd_daily")
     processed_datadir_uwnd = os.path.join(processed_datadir, "uwnd")
@@ -340,17 +364,17 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
         xr.open_dataset(uwnd_f).resample(time='1D').mean().to_netcdf(os.path.join(daily_datadir_uwnd, uwnd_f.split(os.sep)[-1]))
         # xr.open_dataset(vwnd_f).resample(time='1D').mean().to_netcdf(os.path.join(vwnd_outdir, vwnd_f.split(os.sep)[-1]))
 
-    with tqdm(required_dates) as pbar:
-        for date in required_dates:
-            srcpath = os.path.join(daily_datadir_uwnd, date.strftime('%Y')+'.nc')
-            dstpath = os.path.join(processed_datadir_uwnd, f"{date.strftime('%Y-%m-%d')}_UWND.asc")
+    # with tqdm(required_dates) as pbar:
+    for date in required_dates:
+        srcpath = os.path.join(daily_datadir_uwnd, date.strftime('%Y')+'.nc')
+        dstpath = os.path.join(processed_datadir_uwnd, f"{date.strftime('%Y-%m-%d')}_UWND.asc")
 
-            pbar.set_description(f"UWND: {date.strftime('%Y-%m-%d')}")
-            process_nc(date, srcpath, dstpath, temp_datadir)
-            pbar.update(1)
+        # pbar.set_description(f"UWND: {date.strftime('%Y-%m-%d')}")
+        process_nc(date, srcpath, dstpath, temp_datadir)
+        # pbar.update(1)
 
     #### Process VWND ####
-    print("Processing VWND")
+    log.debug("Processing VWND")
     raw_datadir_vwnd = os.path.join(raw_datadir, "vwnd")
     daily_datadir_vwnd = os.path.join(raw_datadir, "vwnd_daily")
     processed_datadir_vwnd = os.path.join(processed_datadir, "vwnd")
@@ -360,14 +384,39 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
     for vwnd_f in vwnd_files:
         xr.open_dataset(vwnd_f).resample(time='1D').mean().to_netcdf(os.path.join(daily_datadir_vwnd, vwnd_f.split(os.sep)[-1]))
 
-    with tqdm(required_dates) as pbar:
-        for date in required_dates:
-            srcpath = os.path.join(daily_datadir_vwnd, date.strftime('%Y')+'.nc')
-            dstpath = os.path.join(processed_datadir_vwnd, f"{date.strftime('%Y-%m-%d')}_VWND.asc")
+    # with tqdm(required_dates) as pbar:
+    for date in required_dates:
+        srcpath = os.path.join(daily_datadir_vwnd, date.strftime('%Y')+'.nc')
+        dstpath = os.path.join(processed_datadir_vwnd, f"{date.strftime('%Y-%m-%d')}_VWND.asc")
 
-            pbar.set_description(f"VWND: {date.strftime('%Y-%m-%d')}")
-            process_nc(date, srcpath, dstpath, temp_datadir)
-            pbar.update(1)
+        # pbar.set_description(f"VWND: {date.strftime('%Y-%m-%d')}")
+        process_nc(date, srcpath, dstpath, temp_datadir)
+        # pbar.update(1)
+
+
+def get_newdata(project_base, startdate, enddate, download=True, process=True):
+    datadir = os.path.join(project_base, "data")
+    raw_datadir = os.path.join(datadir, "raw")
+    processed_datadir = os.path.join(datadir, "processed")
+    temp_datadir = os.path.join(datadir, "temp")
+
+    enddate = enddate
+
+    startdate_str = startdate.strftime("%Y-%m-%d")
+    enddate_str = enddate.strftime("%Y-%m-%d")
+
+    log.log(NOTIFICATION, "Started Downloading and Processing data from %s -> %s", startdate_str, enddate_str)
+    log.debug("Raw data directory: %s", raw_datadir)
+    log.debug("Processed data directory: %s", processed_datadir)
+
+    #### DATA DOWNLOADING ####
+    if download:
+        download_data(startdate, enddate, raw_datadir)
+
+    #### DATA PROCESSING ####
+    if process:
+        process_data(raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
+
 
 
 def main():
@@ -383,7 +432,7 @@ def main():
     # startdate = datetime.strptime(meta['lastran'], "%Y-%m-%d") + timedelta(days=1)
     # enddate = datetime.strptime(meta['enddate'], "%Y-%m-%d")
 
-    # print(f"We need data from {startdate} to {enddate}")
+    # log.debug(f"We need data from {startdate} to {enddate}")
     
     datadir = os.path.join(project_base, "data")
     raw_datadir = os.path.join(datadir, "raw")
@@ -400,11 +449,11 @@ def main():
     #### OPTIONALLY OVERRIDE END   ####
 
 
-    # #### DATA DOWNLOADING ####
+    # # #### DATA DOWNLOADING ####
     # download_data(startdate, enddate, raw_datadir)
 
-    #### DATA PROCESSING ####
-    process_data(raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
+    # #### DATA PROCESSING ####
+    # process_data(raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
 
 
 

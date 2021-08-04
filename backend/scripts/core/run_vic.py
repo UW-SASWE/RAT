@@ -1,8 +1,6 @@
 import pandas as pd
 import rasterio as rio
 import os
-import datetime
-import subprocess
 import xarray as xr
 import numpy as np
 from tqdm import tqdm
@@ -12,7 +10,7 @@ import math
 
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import run_command
+from utils.utils import create_directory, run_command
 from utils.vic_param_reader import VICParameterFile
 
 log = getLogger(LOG_NAME)
@@ -44,6 +42,8 @@ class VICRunner():
         total = len(nonnans)
 
         log.debug("Total files to be created: %s", total)
+
+        create_directory(self.rout_input)
 
         # VIC Routing doesn't round, it truncates the lat long values. Important for file names.
         lats_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lat.values)))

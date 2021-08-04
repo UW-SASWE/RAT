@@ -9,7 +9,7 @@ from utils.utils import create_directory
 log = getLogger(LOG_NAME)
 
 class VICParameterFile:
-    def __init__(self, config, runname=None):
+    def __init__(self, config, forcing_prefix=None, runname=None):
         self.params = {
             'steps': {
                 'MODEL_STEPS_PER_DAY'   : None,
@@ -75,11 +75,15 @@ class VICParameterFile:
             'extras': {}
         }
         self.config = config
+        # self.forcing = forcing
         self.init_param_file = self.config['VIC'].get('vic_param_file', None)
         self.vic_param_path = None
         self.vic_result_file = None
         self.vic_startdate = None
         self.vic_enddate = None
+
+        self.straight_from_metsim = False
+
         if runname is None:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         else:
@@ -89,6 +93,10 @@ class VICParameterFile:
         if self.init_param_file:
             self._load_from_vic_param()
         
+        if forcing_prefix:
+            self.straight_from_metsim = True
+            self.forcing_prefix = forcing_prefix
+
         self._load_from_config()
         # self._write()
 
@@ -156,6 +164,10 @@ class VICParameterFile:
         self.params['dates']['ENDYEAR'] = config['GLOBAL']['end'].strftime('%Y')
         self.params['dates']['ENDMONTH'] = config['GLOBAL']['end'].strftime('%m')
         self.params['dates']['ENDDAY'] = config['GLOBAL']['end'].strftime('%d')
+
+        # Rename forcing file
+        if self.straight_from_metsim:
+            self.params['forcings']['FORCING1'] = self.forcing_prefix
 
         # Save vic run logs and parameters in `vic_workspace`
         self.vic_param_path = os.path.join(self.workspace, 'vic_param.txt')    # Paramter file will be saved here
