@@ -6,6 +6,7 @@ backend/data/
 *archive
 *dask-worker-space/
 *route_model/
+extras/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,data
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,visualstudiocode,data
