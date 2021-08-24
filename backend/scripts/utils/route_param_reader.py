@@ -22,7 +22,7 @@ class RouteParameterFile:
             'input_file_precision': None,
             'output_dir': None,
             'start_date': start.strftime("%Y %m %d"),
-            'end_date': start.strftime("%Y %m %d"),
+            'end_date': end.strftime("%Y %m %d"),
             'uh': None
         }
         self.route_param_path = None
