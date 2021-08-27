@@ -83,6 +83,7 @@ class RoutingRunner():
     def generate_inflow(self):
         # TODO Temp implementation. Later change it so that it operates on a disctionary of stations and generated outputs
         log.log(NOTIFICATION, "Starting inflow generation")
+        log.debug(f"Looking at directory: {self.result_dir}")
         files = [os.path.join(self.result_dir, f) for f in os.listdir(self.result_dir) if f.endswith('.day')]
         
         if not os.path.isdir(self.inflow_dir):
@@ -95,7 +96,7 @@ class RoutingRunner():
 
 
     def _convert_streamflow(self, df_path) -> pd.DataFrame:
-        log.log(NOTIFICATION, "Comvering streamflow: %s", df_path)
+        
         df = pd.read_csv(
             df_path, 
             sep=r"\s+", 
@@ -104,5 +105,7 @@ class RoutingRunner():
         ).rename({"year_month_day": "date"}, axis=1)
         
         df['streamflow'] = df['streamflow'] * 0.028316847
+
+        log.log(NOTIFICATION, "Converting streamflow: %s - %s", df_path, df.tail())
 
         return df

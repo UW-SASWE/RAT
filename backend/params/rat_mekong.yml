@@ -3,22 +3,25 @@ GLOBAL:
   conda_hook: /houston2/pritam/activate_conda.sh
   # MetSim requires 90 days of spin up data, so data starting from `begin` to `begin`+90 will be used as spin up data
   begin: 2001-01-01
-  end: 2021-07-23
-  previous_end: 2021-07-21
+  # end: 2021-04-25
+  # previous_end: 2020-01-01
+  end: 2021-08-23
+  previous_end: 2021-08-22
   multiprocessing: 32                    # How many cores to use
 
 METSIM:
   metsim_env: /houston2/pritam/conda/envs/metsim
   metsim_param_file: /houston2/pritam/rat_mekong_v3/backend/params/metsim/params.yaml
   metsim_workspace: /houston2/pritam/rat_mekong_v3/backend/data/metsim_workspace            # Logs and Parameter file will be saved here for each run
-  metsim_results: /houston2/pritam/rat_mekong_v3/backend/data/metsim_results_conf/6H_VIC_20010401-20210722.nc  # optional
+  # metsim_results: /houston2/pritam/rat_mekong_v3/backend/data/metsim_results_conf/6H_VIC_20010401-20210722.nc  # optional
+  out_dir: /houston2/pritam/rat_mekong_v3/backend/data/metsim_results/
 
 VIC:
   # VIC Runner specific parameters
   vic_env: /houston2/pritam/rat_mekong_v3/backend/models/vic_env
-  vic_param_file: /houston2/pritam/rat_mekong_v3/backend/params/vic/vic_params.txt    # Default parameter file. OPTIONAL. If passed, this file will be used to initialize, but will be overriden by any options specified in this config file. If not passed, all necessary options must be specified here.
-  vic_workspace: /houston2/pritam/rat_mekong_v3/backend/data/vic_workspace            # Logs and Parameter file will be saved here for each run
-  vic_forcings_dir: /houston2/pritam/rat_mekong_v3/backend/data/forcings_conf
+  vic_param_file: /houston2/pritam/rat_mekong_v3/backend/params/vic/vic_params.txt              # Default parameter file. OPTIONAL. If passed, this file will be used to initialize, but will be overriden by any options specified in this config file. If not passed, all necessary options must be specified here.
+  vic_workspace: /houston2/pritam/rat_mekong_v3/backend/data/vic_workspace                      # Logs and Parameter file will be saved here for each run
+  vic_forcings_dir: /houston2/pritam/rat_mekong_v3/backend/data/forcings
 
 ##---- VIC Parameters (Optional; must match the option names of [global parameter file of VIC](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/)).
 ##---- If not provided, then the parameter file defined by `vic_param_file` will be used as the 
@@ -58,14 +61,14 @@ VIC PARAMETERS:
   #   - OUT_EVAP
   #   - OUT_RUNOFF
   #   - OUT_BASEFLOW
-  RESULT_DIR: /houston2/pritam/rat_mekong_v3/backend/data/vic_results_conf/
+  RESULT_DIR: /houston2/pritam/rat_mekong_v3/backend/data/vic_results
 
 ROUTING:
   # Directories
   # route_param_dir: /houston2/pritam/rat_mekong_v3/backend/params/routing
-  route_input_dir: /houston2/pritam/rat_mekong_v3/backend/data/rout_input_conf   # can be set equal to vic output directory later TODO
+  route_input_dir: /houston2/pritam/rat_mekong_v3/backend/data/rout_input   # can be set equal to vic output directory later TODO
   # route_result_dir: /houston2/pritam/rat_mekong_v3/backend/data/rout_results_conf
-  route_inflow_dir: /houston2/pritam/rat_mekong_v3/backend/data/inflow_conf
+  route_inflow_dir: /houston2/pritam/rat_mekong_v3/backend/data/inflow
   route_workspace: /houston2/pritam/rat_mekong_v3/backend/data/route_workspace
 
   # Parameter files
@@ -84,4 +87,5 @@ ROUTING PARAMETERS:  # (Optional; if passed, will override the `route_param_file
   input_file_precision: 2     # Default. Hardcoded. Works fine for 0.0625° grid.
   # start_date: null
   # end_date: null
+  output_dir: /houston2/pritam/rat_mekong_v3/backend/data/rout_results
   uh: /houston2/pritam/rat_mekong_v3/backend/params/routing/uh.txt
