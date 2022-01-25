@@ -11,7 +11,6 @@ from utils.utils import run_command
 
 log = getLogger(LOG_NAME)
 
-
 class RoutingRunner():
     # TODO Clean up UH files
     def __init__(self, project_dir, result_dir, inflow_dir, model_path, param_path, fdr_path, station_path_latlon, station_xy) -> None:
@@ -59,10 +58,18 @@ class RoutingRunner():
         log.debug("Creating station file (X-Y) at: %s", self.station_path_xy)
 
         self.stations[['y', 'x']] = self.stations.apply(
-            lambda row: pd.Series(self._get_xy(row['lat'], row['lon']), index=['x', 'y']), axis=1)
-
-        self.stations[['run', 'name', 'x', 'y', 'filler']] \
-            .to_csv(self.station_path_xy, sep='\t', header=False, index=False, line_terminator='\nNONE\n')
+            lambda row: pd.Series(
+                    self._get_xy(row['lat'], row['lon']), 
+                    index=['x', 'y']), 
+                    axis=1
+                )
+        self.stations[['run', 'name', 'x', 'y', 'filler']].to_csv(
+            self.station_path_xy, 
+            sep='\t', 
+            header=False, 
+            index=False, 
+            line_terminator='\nNONE\n'
+        )
 
     def run_routing(self):
         # TODO parse the output of routing model to to remove logs, keep a track of files stations
@@ -89,6 +96,7 @@ class RoutingRunner():
         if not os.path.isdir(self.inflow_dir):
             log.error("Directory does not exist: %s", self.inflow_dir)
 
+        
         for f in files:
             outpath= os.path.join(self.inflow_dir, f.split(os.sep)[-1]).replace('.day', '.csv')
             log.debug("Converting %s, writing to %s", f, outpath)

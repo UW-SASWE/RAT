@@ -4,6 +4,7 @@
 import os
 import sys
 from time import gmtime, strftime
+import datetime
 import logging
 import subprocess
 
@@ -41,7 +42,7 @@ class StreamToFile(object):
 
 class NotificationHandler(logging.Handler):
     def emit(self, record):
-        subprocess.run(['ntfy', '-b', 'telegram', 'send', self.format(record)])
+        subprocess.run(['/houston2/pritam/rat_mekong_v3/.condaenv/bin/ntfy', '-b', 'telegram', 'send', self.format(record)])
 # -------------------------------------------------------------------- #
 
 
@@ -92,6 +93,7 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     # ---------------------------------------------------------------- #
 
     logger.info('-------------------- INITIALIZED RAT-Mekong LOG ------------------')
+    logger.info('TIME: %s', datetime.datetime.now())
     logger.info('LOG LEVEL: %s', log_level)
     logger.info('Logging To Console: %s', verbose)
     logger.info('LOG FILE: %s', log_file)

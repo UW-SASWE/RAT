@@ -80,3 +80,13 @@ OUTVAR OUT_AIR_TEMP
 OUTVAR OUT_LAI
 OUTVAR OUT_FCANOPY
 OUTVAR OUT_ALBEDO
+
+# For Evaporation calcuation
+# Net Radiation at surface [W/m2] = R_N
+OUTVAR OUT_R_NET
+# Vapor Pressure [kPa] = e_a
+OUTVAR OUT_VP
+# Wind speed [m/s] = v_a
+OUTVAR OUT_WIND
+# Air Pressure [kPa] = P
+OUTVAR OUT_PRESSURE

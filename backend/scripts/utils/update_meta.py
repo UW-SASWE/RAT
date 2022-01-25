@@ -10,8 +10,11 @@ def main():
 
     config = yaml.safe_load(open(config_path, 'r'))
 
-    previous_end = (config['GLOBAL']['end'] - datetime.timedelta(days=2)).strftime('%Y-%m-%d')
-    new_end = (datetime.datetime.now() - datetime.timedelta(days=2)).strftime('%Y-%m-%d')
+    lag_of_days = 3
+
+    previous_end = (config['GLOBAL']['end'] - datetime.timedelta(days=lag_of_days)).strftime('%Y-%m-%d')
+    new_end = (datetime.datetime.now() - datetime.timedelta(days=lag_of_days)).strftime('%Y-%m-%d')
+
 
     lines = []
     with open(config_path, 'r') as f:

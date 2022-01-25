@@ -6,13 +6,19 @@ from core.run_vic import VICRunner
 from utils.logging import init_logger, NOTIFICATION
 from core.run_metsim import MetSimRunner
 from core.run_routing import RoutingRunner
+from core.run_sarea import run_sarea
+from core.run_postprocessing import run_postprocessing
+from core.run_altimetry import run_altimetry
+
 from utils.vic_param_reader import VICParameterFile
 from utils.route_param_reader import RouteParameterFile
 from utils.metsim_param_reader import MSParameterFile
+
 from data_processing.newdata import get_newdata
 from data_processing.metsim_input_processing import generate_state_and_inputs
 from data_processing.metsim_input_processing import ForcingsNCfmt
-
+# from utils.temp_postprocessing import run_old_model, copy_generate_inflow, run_postprocess, publish
+from utils.convert_for_website import convert_dels_outflow, convert_sarea, convert_inflow, convert_altimeter
 
 def main():
     #------------ Define Variables ------------#
@@ -45,7 +51,6 @@ def main():
     )
     #---------- Download Data End -----------#
 
-    
     combined_datapath = os.path.join(config['GLOBAL']['project_dir'], 'backend', 'data', 'nc', 'combined_data.nc')
     #----------- Process Data Begin -----------#
     processed_datadir = os.path.join(config['GLOBAL']['project_dir'], 'backend', 'data', 'processed')
@@ -91,12 +96,12 @@ def main():
         )
         log.log(NOTIFICATION, f'Starting metsim from {config["GLOBAL"]["previous_end"].strftime("%Y-%m-%d")} to {config["GLOBAL"]["end"].strftime("%Y-%m-%d")}')
         ms.run_metsim()
-        # prefix = ms.diasgg_results(config['VIC']['vic_forcings_dir'])
+        # # prefix = ms.diasgg_results(config['VIC']['vic_forcings_dir'])
         prefix = ms.convert_to_vic_forcings(config['VIC']['vic_forcings_dir'])
     #--------------- Metsim End ---------------#
 
 
-    #--------------- VIC Begin ----------------# 
+    # --------------- VIC Begin ----------------# 
     with VICParameterFile(config) as p:
         vic = VICRunner(
             config['VIC']['vic_env'],
@@ -113,8 +118,8 @@ def main():
 
 
 
-    # # vic_startdate = config['GLOBAL']['begin'] + datetime.timedelta(days=90)
-    # # vic_enddate = config['GLOBAL']['end']
+    # vic_startdate = config['GLOBAL']['begin'] + datetime.timedelta(days=90)
+    # vic_enddate = config['GLOBAL']['end']
     #------------- Routing Being --------------#
     with RouteParameterFile(config, vic_startdate, vic_enddate, clean=False) as r:
         route = RoutingRunner(    
@@ -133,6 +138,26 @@ def main():
         route.run_routing()
         route.generate_inflow()
     #-------------- Routing End ---------------#
+
+    #----------- Remote Sensing Begin -----------#
+    # Get Sarea
+    run_sarea(config['GLOBAL']['end'].strftime("%Y-%m-%d"))
+
+    # Altimerter
+    run_altimetry("/houston2/pritam/rat_mekong_v3")
+    #----------- Remote Sensing End -----------#
+
+    #---------- Postprocessing Begin ----------#
+    run_postprocessing(config['GLOBAL']['project_dir'])
+
+    # Convert to format that is expected by the website
+    convert_sarea(config['GLOBAL']['project_dir'])
+    convert_inflow(config['GLOBAL']['project_dir'])
+    convert_dels_outflow(config['GLOBAL']['project_dir'])
+    convert_altimeter(config['GLOBAL']['project_dir'])
+    # ----------- Postprocessing End -----------#
+
+    # # Publish from .sh file
 
 
 if __name__ == '__main__':
