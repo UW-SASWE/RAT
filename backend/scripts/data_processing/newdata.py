@@ -10,10 +10,11 @@ from logging import getLogger
 import pandas as pd
 
 from utils.logging import LOG_NAME, NOTIFICATION
-
+import configparser
 
 log = getLogger(LOG_NAME)
-
+secrets = configparser.ConfigParser()
+secrets.read('../../params/secrets.ini')  # assuming there's a secret ini file with user/pwd
 
 def run_command(cmd):
     """Safely runs a command, and returns the returncode silently in case of no error. Otherwise,
@@ -67,7 +68,7 @@ def download_precip(date, version, outputpath):
             outputpath,
             '--ssl-reqd',
             '-u',
-            'SECRET:SECRET',
+            f'{secrets["imerg"]["username"]}:{secrets["imerg"]["pwd"]}',
             link
         ]
     else:
@@ -76,9 +77,9 @@ def download_precip(date, version, outputpath):
             "-O",
             outputpath,
             "--user",
-            'SECRET',
+            f'{secrets["imerg"]["username"]}',
             '--password',
-            'SECRET',
+            f'{secrets["imerg"]["pwd"]}',
             link,
             '--no-proxy'
         ]
