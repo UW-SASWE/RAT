@@ -3,8 +3,8 @@ GLOBAL:
   conda_hook: /houston2/pritam/activate_conda.sh
   # MetSim requires 90 days of spin up data, so data starting from `begin` to `begin`+90 will be used as spin up data
   begin: 2001-01-01
-  end: 2022-01-22
-  previous_end: 2022-01-18
+  end: 2022-02-18
+  previous_end: 2022-02-14
   multiprocessing: 32                    # How many cores to use
 
 METSIM:
