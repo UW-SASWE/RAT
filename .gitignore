@@ -199,3 +199,4 @@ cython_debug/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,data
 backend/scripts/_send_files.py
+.DS_Store
