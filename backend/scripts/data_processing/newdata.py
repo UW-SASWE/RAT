@@ -13,8 +13,6 @@ from utils.logging import LOG_NAME, NOTIFICATION
 import configparser
 
 log = getLogger(LOG_NAME)
-secrets = configparser.ConfigParser()
-secrets.read('../../params/secrets.ini')  # assuming there's a secret ini file with user/pwd
 
 def run_command(cmd):
     """Safely runs a command, and returns the returncode silently in case of no error. Otherwise,
@@ -44,7 +42,7 @@ def determine_precip_version(date):
         version = "IMERG-EARLY"
     return version
 
-def download_precip(date, version, outputpath):
+def download_precip(date, version, outputpath, secrets):
     """
     Parameters:
         date: datetime object that defines the date for which data is required
@@ -145,7 +143,7 @@ def download_vwnd(year, outputpath):
     log.debug("Downloading vwnd: %s", year)
     return run_command(cmd)
 
-def download_data(begin, end, datadir):
+def download_data(begin, end, datadir, secrets):
     """Downloads the data between dates defined by begin and end
 
     Parameters:
@@ -167,7 +165,7 @@ def download_data(begin, end, datadir):
         data_version = determine_precip_version(date)
         outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
         # pbar.set_description(f"{date.strftime('%Y-%m-%d')} ({data_version})")
-        download_precip(date, data_version, outputpath)
+        download_precip(date, data_version, outputpath, secrets)
         # pbar.update(1)
     
     # Download other forcing data
@@ -401,6 +399,11 @@ def get_newdata(project_base, startdate, enddate, download=True, process=True):
     processed_datadir = os.path.join(datadir, "processed")
     temp_datadir = os.path.join(datadir, "temp")
 
+    
+    secrets = configparser.ConfigParser()
+    secrets_path = os.path.join(project_base, 'params/secrets.ini')
+    secrets.read(secrets_path)  # assuming there's a secret ini file with user/pwd
+
     enddate = enddate
 
     startdate_str = startdate.strftime("%Y-%m-%d")
@@ -412,7 +415,7 @@ def get_newdata(project_base, startdate, enddate, download=True, process=True):
 
     #### DATA DOWNLOADING ####
     if download:
-        download_data(startdate, enddate, raw_datadir)
+        download_data(startdate, enddate, raw_datadir, secrets)
 
     #### DATA PROCESSING ####
     if process:
