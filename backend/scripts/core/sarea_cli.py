@@ -83,7 +83,7 @@ def generate_timeseries(dates):
     return imcoll
 
 def postprocess(im):
-    hist = ee.List(gswd.reduceRegion(reducer=ee.Reducer.autoHistogram(minBucketWidth=1), geometry=aoi, scale=30, maxPixels=1e6).get('occurrence'))
+    hist = ee.List(gswd.reduceRegion(reducer=ee.Reducer.autoHistogram(minBucketWidth=1), geometry=aoi, scale=30, maxPixels=1e10).get('occurrence'))
     
     counts = ee.Array(hist).transpose().toList()
 
