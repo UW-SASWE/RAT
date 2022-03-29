@@ -12,6 +12,8 @@ extras/
 notebooks/metsim_sample
 **/secrets.ini
 .git*/
+_send_files.py
+_send_files_adpc.py
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,data
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,visualstudiocode,data
