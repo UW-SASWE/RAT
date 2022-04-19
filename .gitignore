@@ -1,5 +1,6 @@
 .paramiko/
 .condaenv/
+.condaenv.bak/
 backend/models/
 backend/data/
 *.log
