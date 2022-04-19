@@ -14,7 +14,7 @@ def run_sarea(end_date):
         "Sirindhorn", "Sre_Pok_4", "Ubol_Ratana", "Xe_Kaman_1","Yali", "5117", "5138", "5143",
         "5147", "5148", "5151", "5152", "5155", "5156", "5160", "5162", "5795", "5797", "7000",
         "7001", "7002", "7004", "7037", "7087", "7158", "7159", "7164", "7181", "7201", "7232",
-        "7284", "7303"
+        "7284", "7303", "Nam_Theun_2", "Phumi_Svay_Chrum"#, "Nam_Ton"
     ]
     start_date = "2013-01-01"
     # end_date = datetime.datetime.today().strftime("%Y-%m-%d")
