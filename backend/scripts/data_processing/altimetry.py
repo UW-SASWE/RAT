@@ -275,7 +275,7 @@ def extract_data(datadir, savedir, minlat, maxlat, passnum, series, suffix="auto
     if series == 3:
         pattern = os.path.join(datadir, "gdr_f", "cycle_*", "*.nc")
         allpath = glob.glob(pattern)
-        for fn in tqdm(range(len(allpath)), desc="Extracting Data"):
+        for fn in range(len(allpath)):
             allpath1 = str(allpath[fn])
             allpath11 = os.path.basename(allpath1)
             data = netCDF4.Dataset(allpath1)
