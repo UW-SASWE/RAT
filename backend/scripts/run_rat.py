@@ -38,8 +38,8 @@ def main():
     log = init_logger(
         "/houston2/pritam/rat_mekong_v3/backend/logs",
         verbose=True,
-        notify=True,
-        # notify=False,
+        # notify=True,
+        notify=False,
         log_level='DEBUG'
     )
 
@@ -116,8 +116,6 @@ def main():
         vic_enddate = p.vic_enddate
     #---------------- VIC End -----------------#
 
-
-
     # vic_startdate = config['GLOBAL']['begin'] + datetime.timedelta(days=90)
     # vic_enddate = config['GLOBAL']['end']
     #------------- Routing Being --------------#
@@ -157,7 +155,7 @@ def main():
     convert_altimeter(config['GLOBAL']['project_dir'])
     # ----------- Postprocessing End -----------#
 
-    # # Publish from .sh file
+    # Publish from .sh file
 
 
 if __name__ == '__main__':

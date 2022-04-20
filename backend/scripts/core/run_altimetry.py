@@ -41,7 +41,7 @@ def altimeter_routine(reservoirpath, j3tracks, user, password, metafile, project
 def run_altimetry(project_dir):
     reservoirs_dir = os.path.join(project_dir, 'backend/data/ancillary/reservoirs')
 
-    to_process = ['7003', 'Xe_Kaman_1', 'Siridhorn', '5796']
+    to_process = ['7003', 'Xe_Kaman_1', 'Siridhorn', '5796', 'Lam_Pao']
 
     reservoirs = [os.path.join(reservoirs_dir, f) for f in os.listdir(reservoirs_dir) if f.endswith(".shp") and f.split('.')[0] in to_process]
 

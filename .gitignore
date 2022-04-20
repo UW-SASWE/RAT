@@ -1,5 +1,6 @@
 .paramiko/
 .condaenv/
+.condaenv.bak/
 backend/models/
 backend/data/
 *.log
@@ -12,6 +13,8 @@ extras/
 notebooks/metsim_sample
 **/secrets.ini
 .git*/
+_send_files.py
+_send_files_adpc.py
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,data
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,visualstudiocode,data
@@ -200,3 +203,4 @@ cython_debug/
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,data
 backend/scripts/_send_files.py
 .DS_Store
+backend/scripts/data_processing/_download_data.py
