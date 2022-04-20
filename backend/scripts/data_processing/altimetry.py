@@ -6,6 +6,7 @@ import pandas as pd
 from scipy.fft import fft
 from shapely.geometry.linestring import LineString
 import netCDF4 
+import os
 
 def get_j3_tracks(respath, trackspath):
     """Returns a list of Jason-3 ground tracks and the min-max latitudes of intersection
@@ -24,6 +25,7 @@ def get_j3_tracks(respath, trackspath):
     gdf = gpd.read_file(trackspath, driver='GeoJSON')
     res = gpd.read_file(respath)
 
+    resname = respath.split(os.sep)[-1].split('.')[0]
     res_geom = res['geometry'].unary_union
 
     tracks = gdf[gdf.intersects(res_geom)]['track'].unique()
@@ -32,14 +34,13 @@ def get_j3_tracks(respath, trackspath):
     minmax_lats = []
 
     ranges = {
-        '/houston2/pritam/rat_mekong_v3/backend/data/ancillary/reservoirs/Siridhorn.shp': (14.88, 14.895),
-        '/houston2/pritam/rat_mekong_v3/backend/data/ancillary/reservoirs/5796.shp': (14.88, 14.895)
+        'Siridhorn': (14.88, 14.895),
+        '5796': (14.88, 14.895)
     }
 
-    if respath in ranges.keys():
+    if resname in ranges.keys():
         minmax_lats.append(ranges[respath])
     else:
-
         for track in tracks:
             track_geom = gdf[gdf['track']==track]#.geometry
             intersect = gpd.clip(track_geom, res)
