@@ -1,5 +1,6 @@
 import configparser
 import os
+import argparse
 
 from data_processing import altimetry as alt
 
@@ -61,6 +62,12 @@ def run_altimetry(project_dir):
         altimeter_routine(reservoir, j3_tracks, username, pwd, metafile, project_dir, geoidpath)
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('proj_dir')
+
+    run_altimetry(parser.proj_dir)
+
 
 if __name__ == '__main__':
-    run_altimetry("/houston2/pritam/rat_mekong_v3")
+    run_altimetry()
