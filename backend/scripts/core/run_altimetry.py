@@ -66,8 +66,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('proj_dir')
 
-    run_altimetry(parser.proj_dir)
+    args = parser.parse_args()
+    run_altimetry(args.proj_dir)
 
 
 if __name__ == '__main__':
-    run_altimetry()
+    main()
