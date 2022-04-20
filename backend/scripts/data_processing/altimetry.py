@@ -28,18 +28,25 @@ def get_j3_tracks(respath, trackspath):
     resname = respath.split(os.sep)[-1].split('.')[0]
     res_geom = res['geometry'].unary_union
 
-    tracks = gdf[gdf.intersects(res_geom)]['track'].unique()
 
+    predetermined_tracks = {
+        'Lam_Pao': [179]
+    }
+    if resname in predetermined_tracks.keys():
+        tracks = predetermined_tracks[resname]
+    else:
+        tracks = gdf[gdf.intersects(res_geom)]['track'].unique()
 
     minmax_lats = []
 
     ranges = {
         'Siridhorn': (14.88, 14.895),
-        '5796': (14.88, 14.895)
+        '5796': (14.88, 14.895),
+        'Lam_Pao': (16.912, 16.918)
     }
 
     if resname in ranges.keys():
-        minmax_lats.append(ranges[respath])
+        minmax_lats.append(ranges[resname])
     else:
         for track in tracks:
             track_geom = gdf[gdf['track']==track]#.geometry
