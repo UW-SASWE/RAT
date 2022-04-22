@@ -10,8 +10,7 @@ log = getLogger(LOG_NAME)
 
 
 class MSParameterFile:
-    def __init__(self, config, start, end, init_param, forcings=None, state=None, runname=None):
-        self.config = config
+    def __init__(self, workspace, start, end, init_param, forcings=None, state=None, runname=None):
         self.params = yaml.safe_load(open(init_param, 'r'))   # Initialize from a parameter file
         
         self.params['MetSim']['start'] = start.strftime("%Y-%-m-%d")
@@ -19,7 +18,7 @@ class MSParameterFile:
 
         self.start = start
         self.end = end
-        self.workspace = None
+        self.workspace = workspace
         self.ms_param_path = None
         self.results = None
         self.forcings = forcings
@@ -30,9 +29,9 @@ class MSParameterFile:
         else:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        self._load_from_config()
+        self._load()
 
-    def _load_from_config(self):
+    def _load(self):
         # Date modification
         # start = self.config['GLOBAL']['begin'] + datetime.timedelta(days=90)
         # self.params['MetSim']['start'] = start.strftime("%Y-%-m-%d")
@@ -44,7 +43,7 @@ class MSParameterFile:
 
         self.results = os.path.join(self.params['MetSim']['out_dir'], f"{self.params['MetSim']['out_prefix']}_{self.start.strftime('%Y%m%d')}-{self.end.strftime('%Y%m%d')}.nc")
 
-        self.workspace = create_directory(os.path.join(self.config['METSIM']['metsim_workspace'], f'run_{self.runname}'))
+        self.workspace = create_directory(os.path.join(self.workspace, f'run_{self.runname}'))
 
     def __enter__(self):
         # save params

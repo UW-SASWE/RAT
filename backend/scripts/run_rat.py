@@ -79,7 +79,7 @@ def main():
 
     #-------------- Metsim Begin --------------#
     with MSParameterFile(
-        config, 
+        config['METSIM']['metsim_workspace'], 
         config['GLOBAL']['previous_end'],
         config['GLOBAL']['end'],
         config['METSIM']['metsim_param_file'], 
