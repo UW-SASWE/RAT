@@ -9,7 +9,7 @@ from utils.utils import create_directory
 log = getLogger(LOG_NAME)
 
 class VICParameterFile:
-    def __init__(self, config, forcing_prefix=None, runname=None):
+    def __init__(self, config, startdate=None, enddate=None, vic_section='VIC', forcing_prefix=None, runname=None):
         self.params = {
             'steps': {
                 'MODEL_STEPS_PER_DAY'   : None,
@@ -76,11 +76,13 @@ class VICParameterFile:
         }
         self.config = config
         # self.forcing = forcing
-        self.init_param_file = self.config['VIC'].get('vic_param_file', None)
+        self.init_param_file = self.config[vic_section].get('vic_param_file', None)
         self.vic_param_path = None
         self.vic_result_file = None
         self.vic_startdate = None
         self.vic_enddate = None
+        self.fn_param_vic_startdate = datetime.datetime.strptime(startdate, '%Y-%m-%d')
+        self.fn_param_vic_enddate = datetime.datetime.strptime(enddate, '%Y-%m-%d')
 
         self.straight_from_metsim = False
 
@@ -88,7 +90,7 @@ class VICParameterFile:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         else:
             self.runname = str(runname)
-        self.workspace = create_directory(os.path.join(config['VIC']['vic_workspace'], f'run_{self.runname}'))
+        self.workspace = create_directory(os.path.join(config[vic_section]['vic_workspace'], f'run_{self.runname}'))
 
         if self.init_param_file:
             self._load_from_vic_param()
@@ -98,6 +100,7 @@ class VICParameterFile:
             self.forcing_prefix = forcing_prefix
 
         self._load_from_config()
+
         # self._write()
 
     def _load_from_vic_param(self):
@@ -226,8 +229,18 @@ class VICParameterFile:
                     else:
                         self.params['extras'][key] = config['VIC PARAMETERS'][key]
 
-    def _out_format_params(self):
-        # return a VIC compatible string of paramters
+        # if start and enddates were passed using the constructor parameters, override the dates with them
+        if self.fn_param_vic_startdate:
+            self.params['dates']['STARTYEAR'] = self.fn_param_vic_startdate.strftime('%Y')
+            self.params['dates']['STARTMONTH'] = self.fn_param_vic_startdate.strftime('%m')
+            self.params['dates']['STARTDAY'] = self.fn_param_vic_startdate.strftime('%d')
+        
+        if self.fn_param_vic_enddate:
+            self.params['dates']['ENDYEAR'] = self.fn_param_vic_enddate.strftime('%Y')
+            self.params['dates']['ENDMONTH'] = self.fn_param_vic_enddate.strftime('%m')
+            self.params['dates']['ENDDAY'] = self.fn_param_vic_enddate.strftime('%d')
+
+    def _out_format_params(self): # return a VIC compatible string of paramters
         header = '\n'.join([
             f'#------------------------- VIC Parameter File -------------------------#',
             f'### VIC Parameter file created by VICParamerFile() on {datetime.datetime.now().strftime("%Y-%m-%d %X")}'
