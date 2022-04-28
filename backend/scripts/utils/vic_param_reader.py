@@ -81,8 +81,8 @@ class VICParameterFile:
         self.vic_result_file = None
         self.vic_startdate = None
         self.vic_enddate = None
-        self.fn_param_vic_startdate = datetime.datetime.strptime(startdate, '%Y-%m-%d')
-        self.fn_param_vic_enddate = datetime.datetime.strptime(enddate, '%Y-%m-%d')
+        self.fn_param_vic_startdate = datetime.datetime.strptime(startdate, '%Y-%m-%d') if startdate else None
+        self.fn_param_vic_enddate = datetime.datetime.strptime(enddate, '%Y-%m-%d') if enddate else None
 
         self.straight_from_metsim = False
 
