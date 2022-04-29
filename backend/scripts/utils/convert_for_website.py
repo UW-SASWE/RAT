@@ -191,7 +191,7 @@ def convert_dels_outflow(project_dir):
 def convert_altimeter(project_dir):
     mapping = {
         # 'Battambang_1': '99999',
-        # 'Lam_Pao': '5150',
+        'Lam_Pao': '5150',
         # 'Lower_Sesan_2': '7303',
         # 'Nam_Ngum_1': '5136', 
         # 'Phumi_Svay_Chrum': '99999',
