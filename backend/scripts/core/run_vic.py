@@ -25,10 +25,14 @@ class VICRunner():
         self.conda_hook = conda_hook
         self.model_path = os.path.join(vic_env, 'vic_image.exe')
 
-    def run_vic(self, np=16):
+    def run_vic(self, np=16, cd=None):
         log.log(NOTIFICATION, "Running VIC Model using %s cores", np)
 
-        arg = f"source {self.conda_hook} && conda activate {self.vic_env} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
+        if cd:
+            arg = f"source {self.conda_hook} && conda activate {self.vic_env} && cd {cd} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
+        else:
+            arg = f"source {self.conda_hook} && conda activate {self.vic_env} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
+
         ret_code = run_command(arg, shell=True)
 
     def disagg_results(self):
