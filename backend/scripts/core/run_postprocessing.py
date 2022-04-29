@@ -64,7 +64,7 @@ def calc_dels(aecpath, sareapath, savepath):
 
 def calc_E(res_path, forcings_path, vic_res_path, sarea_path, savepath):
     ds = xr.open_dataset(vic_res_path)#.load()
-    forcings_ds = xr.open_mfdataset(forcings_path)
+    forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
 
     res_name = res_path.split(os.sep)[-1]
 

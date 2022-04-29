@@ -10,7 +10,7 @@ from utils.logging import LOG_NAME, NOTIFICATION
 log = getLogger(LOG_NAME)
 
 class RouteParameterFile:
-    def __init__(self, config, start, end, clean=False, runname=None):
+    def __init__(self, config, start, end, clean=False, runname=None, config_section='ROUTING'):
         self.params = {
             'flow_direction_file': None,
             'velocity': None,
@@ -28,6 +28,10 @@ class RouteParameterFile:
         self.route_param_path = None
         self.workspace = None
         self.clean = clean
+
+        self.startdate = start
+        self.enddate = end
+        self.config_section = config_section
 
         self.config = config
         if runname is None:
@@ -47,8 +51,15 @@ class RouteParameterFile:
         if self.params['end_date'] is not None:
             self.params['end_date'] = config['GLOBAL']['end'].strftime("%Y %m %d")
 
+        # If passed as parameters, replace them
+        if self.startdate:
+            self.params['start_date'] = self.startdate.strftime('%Y %m %d')
+
+        if self.enddate:
+            self.params['end_date'] = self.enddate.strftime('%Y %m %d')
+
         # setup workspace
-        self.workspace = create_directory(os.path.join(config['ROUTING']['route_workspace'], f'run_{self.runname}'))
+        self.workspace = create_directory(os.path.join(config[self.config_section]['route_workspace'], f'run_{self.runname}'))
         
         ## Route parameter file, this is where the parameter file will be saved
         self.route_param_path = os.path.relpath(os.path.join(self.workspace, 'route_param.txt'))
@@ -59,13 +70,13 @@ class RouteParameterFile:
         ## stations
         self.params['station'] = os.path.join(self.workspace, 'stations_xy.txt')
 
-        # self.route_input_dir = config['ROUTING']['route_input_dir']
+        # self.route_input_dir = config[self.config_section]['route_input_dir']
 
-        self.params['input_files_prefix'] = os.path.join(config['ROUTING']['route_input_dir'], 'fluxes_')
+        self.params['input_files_prefix'] = os.path.join(config[self.config_section]['route_input_dir'], 'fluxes_')
 
         # load from config
-        for key in config['ROUTING PARAMETERS']:
-            val = config['ROUTING PARAMETERS'][key]
+        for key in config[f'{self.config_section} PARAMETERS']:
+            val = config[f'{self.config_section} PARAMETERS'][key]
             self.params[key] = val
     
     # TODO create _load_from_param
