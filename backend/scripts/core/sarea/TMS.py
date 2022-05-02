@@ -28,8 +28,6 @@ class TMS():
 
         self.AREA_DEVIATION_THRESHOLD = self.area * AREA_DEVIATION_THRESHOLD_PCNT/100
 
-        return self
-
     def tms_os(self,
             l8_dfpath: str, 
             s2_dfpath: str, 
@@ -67,7 +65,7 @@ class TMS():
         sar['date'] = sar['date'].apply(lambda d: np.datetime64(d.strftime('%Y-%m-%d')))
         sar.set_index('date', inplace=True)
         sar.sort_index(inplace=True)
-        sar = sar.loc[MIN_DATE:]
+        sar = sar.loc[MIN_DATE:, :]
 
         # Combine the l8 and s2 datasets
         l8df_filtered['sat'] = 'l8'
