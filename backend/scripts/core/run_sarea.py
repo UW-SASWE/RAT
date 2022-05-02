@@ -28,11 +28,16 @@ def run_sarea(start_date, end_date, datadir):
     # Sentinel-2
     for reservoir in reservoirs:
         log.debug(f"Reservoir: {reservoir}; Downloading data from {start_date} to {end_date}")
-        sarea_s2(reservoir, start_date, end_date, datadir)
+        sarea_s2(reservoir, start_date, end_date, os.path.join(datadir, 's2'))
+    
+    # Landsat-8
+    for reservoir in reservoirs:
+        log.debug(f"Reservoir: {reservoir}; Downloading data from {start_date} to {end_date}")
+        sarea_l8(reservoir, start_date, end_date, os.path.join(datadir, 'l8'))
 
 
 def main():
-    run_sarea("2022-03-01", "2022-05-02", datadir='backend/data/sarea_tmsos/s2')
+    run_sarea("2022-03-01", "2022-05-02", datadir='backend/data/sarea_tmsos')
 
 
 if __name__ == '__main__':
