@@ -446,7 +446,7 @@ def run_process_long(res_name, start, end, datadir):
 
 # User-facing wrapper function
 def sarea_s2(reservoir, start, end, datadir):
-    run_process_long(reservoir, start, end, datadir)
+    return run_process_long(reservoir, start, end, datadir)
 
 
 def main():
