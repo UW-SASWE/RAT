@@ -2,6 +2,7 @@ import ee
 import numpy as np
 import pandas as pd
 import argparse
+import os
 
 ee.Initialize()
 
@@ -124,6 +125,21 @@ def retrieve_sar(start_date, end_date, res='ys'):
 # data = retrieve_sar(start_date, end_date, res='6MS')
 
 # data.to_csv(f"../data/sar/{reservoir}_12d_sar.csv")
+
+def sarea_s1(reservoir, start_date, end_date, datadir):
+    global ROI 
+    reservoir_ee = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
+    ROI = reservoir_ee.geometry().buffer(BUFFER_DIST)
+
+    results = retrieve_sar(start_date, end_date, res='6MS')
+    
+    if not os.path.isdir(datadir):
+        os.makedirs(datadir)
+    savepath = os.path.join(datadir, f"{reservoir}_12d_sar.csv")
+    results.to_csv(savepath, index=False)
+
+    return savepath
+
 
 def main():
     # Setup argument parser
