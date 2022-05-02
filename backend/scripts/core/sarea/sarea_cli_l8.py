@@ -312,7 +312,7 @@ def get_first_obs(start_date, end_date):
     str_fmt = 'YYYY-MM-dd'
     return ee.Date.parse(str_fmt, ee.Date(first_im.get('system:time_start')).format(str_fmt))
 
-def run_process_long(res_name, start, end):
+def run_process_long(res_name, start, end, datadir):
     fo = start
     enddate = end
 
@@ -324,7 +324,6 @@ def run_process_long(res_name, start, end):
     global aoi
     aoi = reservoir.geometry().buffer(BUFFER_DIST)
 
-    datadir = "data/l8"
     scratchdir = os.path.join(datadir, "_scratch")
 
     # flag = True
@@ -448,6 +447,9 @@ def run_process_long(res_name, start, end):
 
     return savepath
 
+# User-facing wrapper function
+def sarea_l8(reservoir, start, end, datadir):
+    run_process_long(reservoir, start, end, datadir)
 
 def main():
     # Setup argument parser
@@ -464,7 +466,7 @@ def main():
     end = args.end_date
 
     # print(f"{reservoir = }, {start = }, {end = }")
-    run_process_long(reservoir, start, end)
+    run_process_long(reservoir, start, end, "data/l8")
 
 
 
