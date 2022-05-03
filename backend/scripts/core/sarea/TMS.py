@@ -59,6 +59,13 @@ class TMS():
         s2df['cloud_percent'] = s2df['cloud_area']*100/(s2df['water_area_NDWI']+s2df['non_water_area_NDWI']+s2df['cloud_area'])
         s2df.replace(-1, np.nan, inplace=True)
         s2df_filtered = s2df[s2df['cloud_percent']<CLOUD_THRESHOLD]
+        # Fill in the gaps in s2_df created due to high cloud cover with np.nan values
+        s2df_filtered_inteprolated = s2df_filtered.reindex(pd.date_range(s2df_filtered.index[0], s2df_filtered.index[-1], freq='5D'))
+        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['cloud_area']), 'cloud_area'] = max(s2df_filtered_inteprolated['cloud_area'])
+        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['cloud_percent']), 'cloud_percent'] = 100
+        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['water_area_cordeiro']), 'water_area_cordeiro'] = 0
+        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['non_water_area_cordeiro']), 'non_water_area_cordeiro'] = 0
+        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['water_area_NDWI']), 'water_area_NDWI'] = 0
 
         # Read in Sentinel-1 data
         sar = pd.read_csv(s1_dfpath, parse_dates=['time']).rename({'time': 'date'}, axis=1)
@@ -69,10 +76,9 @@ class TMS():
 
         # Combine the l8 and s2 datasets
         l8df_filtered['sat'] = 'l8'
-        s2df_filtered['sat'] = 's2'
+        s2df_filtered_inteprolated.loc[:, 'sat'] = 's2'
 
-        l8df_filtered, s2df_filtered = clip_ts(l8df_filtered, s2df_filtered)
-        df_filtered = pd.concat([l8df_filtered, s2df_filtered]).sort_index()   # merge and save into a dataframe called df_filtered
+        df_filtered = s2df_filtered_inteprolated.sort_index()   # Special case for Kaptai, L8 data now downloaded yet, just see S2
         df_filtered = df_filtered.loc[~df_filtered.index.duplicated(keep='last')]  # when both s2 and l8 are present, keep s2
 
         sarea_df = df_filtered[['corrected_area_cordeiro']].rename({'corrected_area_cordeiro': 'area'}, axis=1).dropna()
@@ -116,6 +122,7 @@ def deviation_from_sar(optical_areas, sar_areas, DEVIATION_THRESHOLD = 20, LOW_S
 
     return optical_areas['area']
 
+# helper functions
 def sar_trend(d1, d2, sar):
     subset = sar['area'].resample('1D').interpolate('linear')
     subset = subset.loc[d1:d2]
@@ -123,7 +130,6 @@ def sar_trend(d1, d2, sar):
         trend = np.nan
     else:
         trend = (subset.iloc[-1]-subset.iloc[0])/((np.datetime64(d2)-np.datetime64(d1))/np.timedelta64(1, 'D'))
-    
     return trend
 
 def backcalculate(areas, trends, who_needs_correcting):
@@ -216,7 +222,7 @@ def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATI
     sar = sar[~sar.index.duplicated(keep='first')]   # https://stackoverflow.com/a/34297689/4091712
     trend_generator = lambda arg: sar_trend(arg.index[0], arg.index[-1], sar)
 
-    area_filtered.loc[:, 'sar_trend'] = area_filtered['filtered_area'].rolling(2).apply(trend_generator)
+    area_filtered.loc[:, 'sar_trend'] = area_filtered['filtered_area'].rolling(2, min_periods=0).apply(trend_generator)
 
     deviation_correction_results = deviation_correction(area_filtered, TREND_DEVIATION_THRESHOLD, AREA_COL_NAME='filtered_area')
     area_filtered['corrected_areas_1'] = deviation_correction_results['filtered_area']
@@ -225,7 +231,7 @@ def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATI
     area['corrected_areas_1'] = area_filtered['corrected_areas_1']
     area['corrected_trend_1'] = area_filtered['corrected_trend_1']
 
-    area.loc[:, 'sar_trend'] = area['unfiltered_area'].rolling(2).apply(trend_generator)
+    area.loc[:, 'sar_trend'] = area['unfiltered_area'].rolling(2, min_periods=0).apply(trend_generator)
     area.loc[:, 'days_passed'] = area.index.to_series().diff().dt.days
     
     area, sar = clip_ts(area, sar)
