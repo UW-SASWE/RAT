@@ -56,44 +56,43 @@ grand_areas = {                   # Areas in km2, from GRAND if available, or ca
 
 def run_sarea(start_date, end_date, datadir):
     reservoirs =[
-        # "Battambang_1", 
-        # "Lam_Pao", 
-        "Lower_Sesan_2", 
-        # "Nam_Ngum_1", 
-        # "Phumi_Svay_Chrum", "Sesan_4", 
-        # "Sirindhorn", 
-        # "Sre_Pok_4", "Ubol_Ratana", "Xe_Kaman_1","Yali", "5117", "5138", "5143",
-        # "5147", "5148", "5151", "5152", "5155", "5156", "5160", "5162", "5795", "5797", "7000",
-        # "7001", "7002", "7004", "7037", "7087", "7158", "7159", "7164", "7181", "7201", "7232",
-        # "7284", "7303", "Nam_Theun_2", "Phumi_Svay_Chrum"#, "Nam_Ton"
+        "Battambang_1", "Lam_Pao", "Lower_Sesan_2", "Nam_Ngum_1", 
+        "Phumi_Svay_Chrum", "Sesan_4", "Sirindhorn", 
+        "Sre_Pok_4", "Ubol_Ratana", "Xe_Kaman_1","Yali", "5117", "5138", "5143",
+        "5147", "5148", "5151", "5152", "5155", "5156", "5160", "5162", "5795", "5797", "7000",
+        "7001", "7002", "7004", "7037", "7087", "7158", "7159", "7164", "7181", "7201", "7232",
+        "7284", "7303", "Nam_Theun_2", "Phumi_Svay_Chrum"#, "Nam_Ton"
     ]
     
+    for reservoir in reservoirs:
+        run_sarea_for_res(reservoir, start_date, end_date, datadir)
+
+
+def run_sarea_for_res(reservoir, start_date, end_date, datadir):
     # Obtain surface areas
     # Sentinel-2
-    for reservoir in reservoirs:
-        log.debug(f"Reservoir: {reservoir}; Downloading Sentinel-2 data from {start_date} to {end_date}")
-        sarea_s2(reservoir, start_date, end_date, os.path.join(datadir, 's2'))
-        s2_dfpath = os.path.join(datadir, 's2', reservoir+'.csv')
-    
-        # Landsat-8
-        log.debug(f"Reservoir: {reservoir}; Downloading Landsat-8 data from {start_date} to {end_date}")
-        sarea_l8(reservoir, start_date, end_date, os.path.join(datadir, 'l8'))
-        l8_dfpath = os.path.join(datadir, 'l8', reservoir+'.csv')
+    log.debug(f"Reservoir: {reservoir}; Downloading Sentinel-2 data from {start_date} to {end_date}")
+    sarea_s2(reservoir, start_date, end_date, os.path.join(datadir, 's2'))
+    s2_dfpath = os.path.join(datadir, 's2', reservoir+'.csv')
 
-        # Sentinel-1
-        log.debug(f"Reservoir: {reservoir}; Downloading Sentinel-1 data from {start_date} to {end_date}")
-        s1_dfpath = sarea_s1(reservoir, start_date, end_date, os.path.join(datadir, 'sar'))
+    # Landsat-8
+    log.debug(f"Reservoir: {reservoir}; Downloading Landsat-8 data from {start_date} to {end_date}")
+    sarea_l8(reservoir, start_date, end_date, os.path.join(datadir, 'l8'))
+    l8_dfpath = os.path.join(datadir, 'l8', reservoir+'.csv')
 
-        tmsos = TMS(reservoir, grand_areas[reservoir])
-        result = tmsos.tms_os(l8_dfpath, s2_dfpath, s1_dfpath)
-        result = result.rename({'filled_area': 'area'}, axis=1)
+    # Sentinel-1
+    log.debug(f"Reservoir: {reservoir}; Downloading Sentinel-1 data from {start_date} to {end_date}")
+    s1_dfpath = sarea_s1(reservoir, start_date, end_date, os.path.join(datadir, 'sar'))
 
-        tmsos_savepath = os.path.join(datadir, reservoir+'.csv')
-        log.debug(f"Saving surface area of {reservoir} at {tmsos_savepath}")
-        result.to_csv(tmsos_savepath)
+    tmsos = TMS(reservoir, grand_areas[reservoir])
+    result = tmsos.tms_os(l8_dfpath, s2_dfpath, s1_dfpath)
+
+    tmsos_savepath = os.path.join(datadir, reservoir+'.csv')
+    log.debug(f"Saving surface area of {reservoir} at {tmsos_savepath}")
+    result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
 
 def main():
-    run_sarea("2022-01-01", "2022-05-02", datadir='backend/data/sarea_tmsos')
+    run_sarea("2021-01-01", "2022-05-02", datadir='backend/data/sarea_tmsos')
 
 
 if __name__ == '__main__':
