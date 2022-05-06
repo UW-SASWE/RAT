@@ -48,24 +48,23 @@ class TMS():
 
         # Read in Landsat-8
         l8df = pd.read_csv(l8_dfpath, parse_dates=['mosaic_enddate']).rename({'mosaic_enddate': 'date'}, axis=1).set_index('date')
-        l8df = l8df[['water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 'corrected_area_cordeiro', 'corrected_area_NDWI']]
-        l8df['cloud_percent'] = l8df['cloud_area']*100/(l8df['water_area_NDWI']+l8df['non_water_area_NDWI']+l8df['cloud_area'])
+        l8df = l8df[['water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'corrected_area_cordeiro']]
+        l8df['cloud_percent'] = l8df['cloud_area']*100/(l8df['water_area_cordeiro']+l8df['non_water_area_cordeiro']+l8df['cloud_area'])
         l8df.replace(-1, np.nan, inplace=True)
         l8df_filtered = l8df[l8df['cloud_percent']<CLOUD_THRESHOLD]
 
         # Read in Sentinel-2 data
         s2df = pd.read_csv(s2_dfpath, parse_dates=['mosaic_enddate']).rename({'mosaic_enddate': 'date'}, axis=1).set_index('date')
-        s2df = s2df[['water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 'corrected_area_cordeiro', 'corrected_area_NDWI']]
-        s2df['cloud_percent'] = s2df['cloud_area']*100/(s2df['water_area_NDWI']+s2df['non_water_area_NDWI']+s2df['cloud_area'])
+        s2df = s2df[['water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'corrected_area_cordeiro']]
+        s2df['cloud_percent'] = s2df['cloud_area']*100/(s2df['water_area_cordeiro']+s2df['non_water_area_cordeiro']+s2df['cloud_area'])
         s2df.replace(-1, np.nan, inplace=True)
         s2df_filtered = s2df[s2df['cloud_percent']<CLOUD_THRESHOLD]
         # Fill in the gaps in s2_df created due to high cloud cover with np.nan values
         s2df_filtered_inteprolated = s2df_filtered.reindex(pd.date_range(s2df_filtered.index[0], s2df_filtered.index[-1], freq='5D'))
         s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['cloud_area']), 'cloud_area'] = max(s2df_filtered_inteprolated['cloud_area'])
         s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['cloud_percent']), 'cloud_percent'] = 100
-        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['water_area_cordeiro']), 'water_area_cordeiro'] = 0
         s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['non_water_area_cordeiro']), 'non_water_area_cordeiro'] = 0
-        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['water_area_NDWI']), 'water_area_NDWI'] = 0
+        s2df_filtered_inteprolated.loc[np.isnan(s2df_filtered_inteprolated['water_area_cordeiro']), 'water_area_cordeiro'] = 0
 
         # Read in Sentinel-1 data
         sar = pd.read_csv(s1_dfpath, parse_dates=['time']).rename({'time': 'date'}, axis=1)
