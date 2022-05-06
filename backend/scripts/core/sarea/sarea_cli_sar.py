@@ -1,8 +1,10 @@
+from core.sarea.sarea_cli_s2 import TEMPORAL_RESOLUTION
 import ee
 import numpy as np
 import pandas as pd
 import argparse
 import os
+from datetime import datetime, timedelta
 
 ee.Initialize()
 
@@ -130,13 +132,33 @@ def sarea_s1(reservoir, start_date, end_date, datadir):
     global ROI 
     reservoir_ee = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
     ROI = reservoir_ee.geometry().buffer(BUFFER_DIST)
+    TEMPORAL_RESOLUTION = 12
+
+    savepath = os.path.join(datadir, f"{reservoir}_12d_sar.csv")
+    if os.path.isfile(savepath):
+        existing_df = pd.read_csv(savepath, parse_dates=['time']).set_index('time')
+
+        last_date = existing_df.index[-1].to_pydatetime()
+        start_date = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
+        to_combine = [existing_df]
+        print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
+
+        # If <TEMPORAL RESOLUTION> days have not passed since last observation, skip the processing
+        days_passed = (datetime.strptime(end_date, "%Y-%m-%d") - last_date).days
+        print(f"No. of days passed since: {days_passed}")
+        if days_passed < TEMPORAL_RESOLUTION:
+            print(f"No new observation expected. Quitting early")
+            return savepath
+    else:
+        to_combine = []
 
     results = retrieve_sar(start_date, end_date, res='6MS')
+    to_combine.append(results)
+    data = pd.concat(to_combine).drop_duplicates().sort_values("time")
     
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
-    savepath = os.path.join(datadir, f"{reservoir}_12d_sar.csv")
-    results.to_csv(savepath, index=False)
+    data.to_csv(savepath, index=False)
 
     return savepath
 
