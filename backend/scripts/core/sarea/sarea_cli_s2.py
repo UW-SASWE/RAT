@@ -392,24 +392,25 @@ def run_process_long(res_name, start, end, datadir):
         corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
         print("Corrected - Cordeiro", corrected_final_data_cordeiro)
 
-        res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
-        corrected_final_data_NDWI_ee = res_corrected_NDWI \
-                                            .filterMetadata('corrected_area', 'not_equals', None) \
-                                            .reduceColumns(
-                                                ee.Reducer.toList(
-                                                    len(corrected_columns_to_extract)), 
-                                                    corrected_columns_to_extract
-                                                    ).get('list')
+        # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
+        # corrected_final_data_NDWI_ee = res_corrected_NDWI \
+        #                                     .filterMetadata('corrected_area', 'not_equals', None) \
+        #                                     .reduceColumns(
+        #                                         ee.Reducer.toList(
+        #                                             len(corrected_columns_to_extract)), 
+        #                                             corrected_columns_to_extract
+        #                                             ).get('list')
         
-        corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
+        # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
         
-        print(uncorrected_final_data, corrected_final_data_cordeiro, corrected_final_data_NDWI)
+        # print(uncorrected_final_data, corrected_final_data_cordeiro, corrected_final_data_NDWI)
 
         uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
         corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
-        corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
-        corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
-        df = pd.merge(uncorrected_df, corrected_df, 'left', 'to_date')
+        # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
+        # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
+        # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
+        df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
 
         df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
         df['to_date'] = pd.to_datetime(df['to_date'], format="%Y-%m-%d")
