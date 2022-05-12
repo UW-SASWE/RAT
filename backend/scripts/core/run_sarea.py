@@ -20,6 +20,7 @@ grand_areas = {                   # Areas in km2, from GRAND if available, or ca
     "Nam_Theun_2": 414.34,
     "Xe_Kaman_1": 101.43,
     "Lower_Sesan_2": 53.08,  # GRAND ID 7203
+    "Sesan_4": 53.08,
     "Sre_Pok_4": 3.7,
     # "7303": 332.96,
     "5117": 36.91,
@@ -51,21 +52,26 @@ grand_areas = {                   # Areas in km2, from GRAND if available, or ca
     "7303": 332.96,
     "Phumi_Svay_Chrum": 0.8,
     "Battambang_1": 15,
-    "Kaptai": 600
+    "Kaptai": 600,
+    "Yali": 50
 }
 
 def run_sarea(start_date, end_date, datadir):
     reservoirs =[
-        "Battambang_1", "Lam_Pao", "Lower_Sesan_2", "Nam_Ngum_1", 
-        "Phumi_Svay_Chrum", "Sesan_4", "Sirindhorn", 
-        "Sre_Pok_4", "Ubol_Ratana", "Xe_Kaman_1","Yali", "5117", "5138", "5143",
+        "Battambang_1", "Lam_Pao", 
+        # "Lower_Sesan_2", 
+        "Nam_Ngum_1", 
+        # "Phumi_Svay_Chrum", 
+        "Sesan_4", "Sirindhorn", 
+        "Sre_Pok_4", "Ubol_Ratana", "Xe_Kaman_1", "Yali", "5117", "5138", "5143",
         "5147", "5148", "5151", "5152", "5155", "5156", "5160", "5162", "5795", "5797", "7000",
         "7001", "7002", "7004", "7037", "7087", "7158", "7159", "7164", "7181", "7201", "7232",
         "7284", "7303", "Nam_Theun_2", "Phumi_Svay_Chrum"#, "Nam_Ton"
     ]
     
     for reservoir in reservoirs:
-        run_sarea_for_res(reservoir, start_date, end_date, datadir)
+        if reservoir in grand_areas.keys():
+            run_sarea_for_res(reservoir, start_date, end_date, datadir)
 
 
 def run_sarea_for_res(reservoir, start_date, end_date, datadir):
