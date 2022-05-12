@@ -14,11 +14,11 @@ import configparser
 
 log = getLogger(LOG_NAME)
 
-def run_command(cmd):
+def run_command(cmd,shell_bool=False):
     """Safely runs a command, and returns the returncode silently in case of no error. Otherwise,
     raises an Exception
     """
-    res = subprocess.run(cmd, check=True, capture_output=True)
+    res = subprocess.run(cmd, check=True, capture_output=True,shell=shell_bool)
     
     if res.returncode != 0:
         log.error(f"Error with return code {res.returncode}")
@@ -188,7 +188,7 @@ def download_data(begin, end, datadir, secrets):
         download_vwnd(year, os.path.join(datadir, "vwnd", year+'.nc'))
         # pbar.update(1)
 
-def process_precip(srcpath, dstpath, temp_datadir=None):
+def process_precip(basin_bounds,srcpath, dstpath, temp_datadir=None):
     """For any IMERG Precipitation file located at `srcpath` is clipped, scaled and converted to
     ASCII grid file and saved at `dstpath`. All of this is done in a temporarily created directory
     which can be controlled by the `datadir` path
@@ -208,10 +208,10 @@ def process_precip(srcpath, dstpath, temp_datadir=None):
             "0.0625",
             "0.0625",
             "-te",
-            "93.875",
-            "9.5625",
-            "108.6875",
-            "33.8125",
+            str(basin_bounds[0]),
+            str(basin_bounds[1]),
+            str(basin_bounds[2]),
+            str(basin_bounds[3]),
             '-of',
             'GTiff',
             '-overwrite', 
@@ -247,7 +247,7 @@ def process_precip(srcpath, dstpath, temp_datadir=None):
         # Move to destination
         shutil.move(aai_temp_file, dstpath)
 
-def process_nc(date, srcpath, dstpath, temp_datadir=None):
+def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
     """For TMax, TMin, UWnd and VWnd, the processing steps are same, and can be performed using
     this function.
 
@@ -267,9 +267,32 @@ def process_nc(date, srcpath, dstpath, temp_datadir=None):
         band = date.strftime("%-j")   # required band number is defined by `day of year`
         converted_tif_temp_file = os.path.join(tempdir, "converted.tif")
 
+        # NC to tiff format
         cmd = ["gdal_translate", "-of", "Gtiff", "-b", band, srcpath, converted_tif_temp_file]
         run_command(cmd)
 
+        #warping it so that lon represents -180 to 180 rather than 0 to 360
+        warped_temp_file = os.path.join(tempdir, "warped.tif")
+        cmd = ["gdalwarp", 
+        "-s_srs",
+        "'+proj=latlong +datum=WGS84 +pm=180dW'",
+        "-dstnodata",
+        "-9999.0",
+        "-te",
+        "-180",
+        "-90",
+        "180",
+        "90",
+        "-of",
+        "GTiff",
+        "-overwrite", 
+        converted_tif_temp_file, 
+        warped_temp_file]
+        # runs and return non-zero code, so don't use run_command
+        cmd = " ".join(cmd)
+        subprocess.run(cmd,shell=True,stdout=subprocess.DEVNULL)
+        
+        
         # Change resolution
         scaled_temp_file = os.path.join(tempdir, "scaled.tif")
         cmd = [
@@ -280,15 +303,17 @@ def process_nc(date, srcpath, dstpath, temp_datadir=None):
             "0.0625",
             "0.0625",
             "-te",
-            "93.875",
-            "9.5625",
-            "108.6875",
-            "33.8125",
+            str(basin_bounds[0]),
+            str(basin_bounds[1]),
+            str(basin_bounds[2]),
+            str(basin_bounds[3]),
             '-of',
             'GTiff',
             '-overwrite',  
-            converted_tif_temp_file, 
+            warped_temp_file, 
             scaled_temp_file]
+
+            
         run_command(cmd)
 
         # Convert GeoTiff to AAI
@@ -299,7 +324,8 @@ def process_nc(date, srcpath, dstpath, temp_datadir=None):
         # Move file to destination
         shutil.move(aai_temp_file, dstpath)
 
-def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
+
+def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_datadir):
     if not os.path.isdir(temp_datadir):
         os.makedirs(temp_datadir)
 
@@ -317,7 +343,7 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
             dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
 
             # pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
-            process_precip(srcpath, dstpath, temp_datadir)
+            process_precip(basin_bounds,srcpath, dstpath, temp_datadir)
             # pbar.update(1)
 
     #### Process NC files ####
@@ -334,7 +360,7 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
         dstpath = os.path.join(processed_datadir_tmax, f"{date.strftime('%Y-%m-%d')}_TMAX.asc")
 
         # pbar.set_description(f"TMAX: {date.strftime('%Y-%m-%d')}")
-        process_nc(date, srcpath, dstpath, temp_datadir)
+        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
         # pbar.update(1)
     
     #### Process TMin ####
@@ -348,7 +374,7 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
         dstpath = os.path.join(processed_datadir_tmin, f"{date.strftime('%Y-%m-%d')}_TMIN.asc")
 
         # pbar.set_description(f"TMIN: {date.strftime('%Y-%m-%d')}")
-        process_nc(date, srcpath, dstpath, temp_datadir)
+        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
         # pbar.update(1)
 
     #### Process UWND ####
@@ -369,7 +395,7 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
         dstpath = os.path.join(processed_datadir_uwnd, f"{date.strftime('%Y-%m-%d')}_UWND.asc")
 
         # pbar.set_description(f"UWND: {date.strftime('%Y-%m-%d')}")
-        process_nc(date, srcpath, dstpath, temp_datadir)
+        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
         # pbar.update(1)
 
     #### Process VWND ####
@@ -389,20 +415,42 @@ def process_data(raw_datadir, processed_datadir, begin, end, temp_datadir):
         dstpath = os.path.join(processed_datadir_vwnd, f"{date.strftime('%Y-%m-%d')}_VWND.asc")
 
         # pbar.set_description(f"VWND: {date.strftime('%Y-%m-%d')}")
-        process_nc(date, srcpath, dstpath, temp_datadir)
+        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
         # pbar.update(1)
 
 
-def get_newdata(project_base, startdate, enddate, download=True, process=True):
-    datadir = os.path.join(project_base, "data")
-    raw_datadir = os.path.join(datadir, "raw")
-    processed_datadir = os.path.join(datadir, "processed")
-    temp_datadir = os.path.join(datadir, "temp")
+def get_newdata(basin_name,basin_bounds,data_dir, startdate, enddate, secrets_file, download=True, process=True):
+    datadir = os.path.join(data_dir,basin_name,'')
+    raw_datadir = os.path.join(data_dir, "raw",'')
+    processed_datadir = os.path.join(datadir, "processed",'')
+    temp_datadir = os.path.join(datadir, "temp",'')
+    
+    ####Creating the required directories####
 
+    dir_paths=[raw_datadir,processed_datadir]
+    #Creating data directory if does not exist
+    create_directory(datadir)
+
+    #Creating temp directory if does not exist
+    create_directory(temp_datadir)
+    data_vars_folder_names=['precipitation','tmax','tmin','uwnd','vwnd']
+    raw_data_vars_folder_names=['uwnd_daily','vwnd_daily']
+    
+    for dir_path in dir_paths:
+        
+        # Making directories with each name in data_vars_folder_names in dir_paths
+        for data_var_name in data_vars_folder_names:
+            temp_dir_path_var=os.path.join(dir_path,data_var_name,'')
+            create_directory(temp_dir_path_var)
+
+        # Making directories with each name in raw_data_vars_folder_names in raw_datadir
+        if(dir_path==raw_datadir):
+            for data_var_name in raw_data_vars_folder_names:
+                temp_dir_path_var=os.path.join(dir_path,data_var_name,'')
+                create_directory(temp_dir_path_var)
     
     secrets = configparser.ConfigParser()
-    secrets_path = os.path.join(project_base, 'params/secrets.ini')
-    secrets.read(secrets_path)  # assuming there's a secret ini file with user/pwd
+    secrets.read(secrets_file)  # assuming there's a secret ini file with user/pwd
 
     enddate = enddate
 
@@ -419,47 +467,4 @@ def get_newdata(project_base, startdate, enddate, download=True, process=True):
 
     #### DATA PROCESSING ####
     if process:
-        process_data(raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
-
-
-
-def main():
-    #### INITIALIZATION ####
-    try:
-        project_base = os.environ["PROJECT_BASE"]
-    except:
-        project_base = "/houston2/pritam/rat_mekong_v3/backend"
-
-    # metapath = os.path.join(project_base, "metadata.yml")
-    # meta = yaml.load(open(metapath).read(), yaml.SafeLoader)
-
-    # startdate = datetime.strptime(meta['lastran'], "%Y-%m-%d") + timedelta(days=1)
-    # enddate = datetime.strptime(meta['enddate'], "%Y-%m-%d")
-
-    # log.debug(f"We need data from {startdate} to {enddate}")
-    
-    datadir = os.path.join(project_base, "data")
-    raw_datadir = os.path.join(datadir, "raw")
-    processed_datadir = os.path.join(datadir, "processed")
-    temp_datadir = os.path.join(datadir, "temp")
-    
-    
-    #### OPTIONALLY OVERRIDE START ####
-    # raw_datadir = os.path.join(project_base, "temp", "data", "imerg_early_raw")
-    # processed_datadir = os.path.join(project_base, "temp", "data", "imerg_early_processed")
-
-    startdate = datetime.strptime("2001-01-01", "%Y-%m-%d")
-    enddate = datetime.strptime("2021-06-14", "%Y-%m-%d")
-    #### OPTIONALLY OVERRIDE END   ####
-
-
-    # # #### DATA DOWNLOADING ####
-    # download_data(startdate, enddate, raw_datadir)
-
-    # #### DATA PROCESSING ####
-    # process_data(raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
-
-
-
-if __name__ == '__main__':
-    main()
+        process_data(basin_bounds,raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
