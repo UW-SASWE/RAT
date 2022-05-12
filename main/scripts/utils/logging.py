@@ -7,10 +7,10 @@ from time import gmtime, strftime
 import datetime
 import logging
 import subprocess
-
+from utils.utils import directory_check
 
 # -------------------------------------------------------------------- #
-LOG_NAME = 'rat-mekong'
+LOG_NAME = 'rat-logger'
 FORMATTER = logging.Formatter('%(levelname)s:%(funcName)s>> %(message)s')
 
 NOTIFICATION = 25    # Setting level above INFO, below WARNING
@@ -48,6 +48,11 @@ class NotificationHandler(logging.Handler):
 
 def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     ''' Setup the logger '''
+    #Creating log directory if does not exist
+    directory_check(log_dir)
+      
+    #Extracting basin name from the log_dir_path
+    basin_name=os.path.basename(os.path.normpath(log_dir))
 
     logger = logging.getLogger(LOG_NAME)
     logger.setLevel(log_level)
@@ -56,7 +61,7 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     # ---------------------------------------------------------------- #
     # create log file handler
     if log_dir:
-        log_file = os.path.join(log_dir, 'RAT-Mekong-' + strftime('%Y%m%d-%H%M%S',
+        log_file = os.path.join(log_dir, 'RAT-'+ basin_name + strftime('%Y%m%d-%H%M%S',
                                 gmtime()) + '.log')
         fh = logging.FileHandler(log_file)
         fh.setLevel(log_level)
@@ -92,7 +97,7 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     sys.stderr = StreamToFile(log_level=logging.ERROR)
     # ---------------------------------------------------------------- #
 
-    logger.info('-------------------- INITIALIZED RAT-Mekong LOG ------------------')
+    logger.info('-------------------- INITIALIZED RAT-'+basin_name+' LOG ------------------')
     logger.info('TIME: %s', datetime.datetime.now())
     logger.info('LOG LEVEL: %s', log_level)
     logger.info('Logging To Console: %s', verbose)
