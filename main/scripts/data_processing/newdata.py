@@ -420,7 +420,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
 
 
 def get_newdata(basin_name,basin_bounds,data_dir, startdate, enddate, secrets_file, download=True, process=True):
-    datadir = os.path.join(data_dir,basin_name,'')
+    datadir = os.path.join(data_dir,'basins',basin_name,'')
     raw_datadir = os.path.join(data_dir, "raw",'')
     processed_datadir = os.path.join(datadir, "processed",'')
     temp_datadir = os.path.join(datadir, "temp",'')
