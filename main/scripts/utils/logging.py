@@ -7,7 +7,7 @@ from time import gmtime, strftime
 import datetime
 import logging
 import subprocess
-from utils.utils import directory_check
+from utils.utils import create_directory
 
 # -------------------------------------------------------------------- #
 LOG_NAME = 'rat-logger'
@@ -49,8 +49,8 @@ class NotificationHandler(logging.Handler):
 def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     ''' Setup the logger '''
     #Creating log directory if does not exist
-    directory_check(log_dir)
-      
+    create_directory(log_dir)
+
     #Extracting basin name from the log_dir_path
     basin_name=os.path.basename(os.path.normpath(log_dir))
 
