@@ -17,7 +17,7 @@ from utils.logging import LOG_NAME, NOTIFICATION
 
 log = getLogger(LOG_NAME)
 
-class ForcingsNCfmt:
+class CombinedNC:
     def __init__(self, start, end, datadir, basingridpath, outputdir):
         """
         Parameters:
