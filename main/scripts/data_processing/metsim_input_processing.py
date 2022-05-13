@@ -17,7 +17,6 @@ from utils.logging import LOG_NAME, NOTIFICATION
 
 log = getLogger(LOG_NAME)
 
-
 class ForcingsNCfmt:
     def __init__(self, start, end, datadir, basingridpath, outputdir):
         """
@@ -164,27 +163,6 @@ class ForcingsNCfmt:
         # log.debug(f"Saving {len(paths)} files at {self._outputdir}")
         # xr.save_mfdataset(datasets, paths)
 
-
-def date_range(start, end):
-    # start = datetime.datetime.strptime(start,strfmt)
-    # end = datetime.datetime.strptime(end,strfmt)
-
-    start_year = start.year
-    end_year = end.year
-    
-    if not start_year == end_year:
-        res = [(start, datetime.datetime(start_year, 12, 31))]
-
-        for year in range(start_year+1, end_year):
-            res.append((datetime.datetime(year, 1, 1), datetime.datetime(year, 12, 31)))
-        
-        res.append((datetime.datetime(end_year, 1, 1), end))
-    else:
-        res = [(start, end)]
-
-    return res
-
-
 def generate_state_and_inputs(forcings_startdate, forcings_enddate, combined_datapath, out_dir):
     # Generate state. Assuming `nc_fmt_data` contains all the data, presumably containing enough data
     # to create state file (upto 90 days prior data from forcings_startdate)
@@ -205,104 +183,3 @@ def generate_state_and_inputs(forcings_startdate, forcings_enddate, combined_dat
     forcings_ds.to_netcdf(forcings_outpath)
 
     return state_outpath, forcings_outpath
-
-
-# def metsim_input_processing(project_base, start, end):
-#     basingridfile = os.path.join(project_base, "data", "ancillary", "MASK.tif")
-#     datadir = os.path.join(project_base, "data", "processed")
-#     nc_outputdir = os.path.join(project_base, "data", "nc")
-#     metsim_inputdir = os.path.join(project_base, "data", "metsim_inputs")
-#     # state_dir = os.path.join(project_base, "data", "metsim_inputs", "state")
-
-#     startdate = start
-#     enddate = end
-
-#     startdate_str = start.strftime("%Y-%m-%d")
-#     enddate_str = end.strftime("%Y-%m-%d")
-
-#     log.log(NOTIFICATION, "Starting metsim input processing from %s to %s", startdate_str, enddate_str)
-
-#     # ForcingsNCfmt(startdate, enddate, datadir, basingridfile, os.path.join(nc_outputdir, "forcings_all.nc"))
-
-#     # nc_fmt_data = xr.open_dataset(os.path.join(nc_outputdir, "forcings_all.nc")).load()
-#     # state_outpath, forcings_outpath = generate_state_and_inputs(startdate, enddate, nc_fmt_data, metsim_inputdir)
-
-#     # ## Create State file
-#     # # Take first year's forcing file, and section off 90 days of data as state.nc
-#     # forcings_dspath = os.path.join(metsim_inputdir, "forcings_all.nc")
-#     # log.debug('Creating statefile from: %s', forcings_dspath)
-
-#     # first_year_ds = xr.open_dataset(forcings_dspath).load()   # Load to read off of disk. Allows for writing back to same name https://github.com/pydata/xarray/issues/2029#issuecomment-377572708
-#     # state_startdate = startdate - datetime.timedelta(days=90)
-#     # state_enddate = startdate - datetime.timedelta(days=1)
-#     # forcings_startdate = startdate
-#     # forcings_enddate = pd.to_datetime(first_year_ds.time[-1].values).to_pydatetime()
-
-#     # log.debug("Creating state file using data from %s to %s", startdate, state_enddate.strftime('%Y-%m-%d'))
-#     # log.debug("Creating MS input file using data from %s to %s", forcings_startdate.strftime('%Y-%m-%d'), forcings_enddate.strftime('%Y-%m-%d'))
-    
-#     # state_ds = first_year_ds.sel(time=slice(startdate, state_enddate))
-#     # stateoutpath = os.path.join(metsim_inputdir, "state.nc")
-#     # log.debug(f"Saving state at: {stateoutpath}")
-#     # state_ds.to_netcdf(stateoutpath)
-
-#     # # Save rest of the file as forcing file
-#     # forcing_ds = first_year_ds.sel(time=slice(forcings_startdate, forcings_enddate))
-#     # first_year_ds.close()
-
-#     # outpath = os.path.join(metsim_inputdir, f"{forcings_startdate.strftime('%Y')}.nc")
-#     # log.debug(f"Saving forcings: {outpath}")
-
-#     # ms_input_path = os.path.join(metsim_inputdir, f"{forcings_startdate.strftime('%Y')}.nc")
-#     # forcing_ds.to_netcdf(ms_input_path)
-
-#     return (state_outpath, forcings_outpath)
-
-
-def main():
-    project_base = "/houston2/pritam/rat_mekong_v3/backend"
-
-    basingridfile = os.path.join(project_base, "data", "ancillary", "MASK.tif")
-    datadir = os.path.join(project_base, "data", "processed")
-    nc_outputdir = os.path.join(project_base, "data", "nc")
-    metsim_inputdir = os.path.join(project_base, "data", "metsim_inputs")
-    state_dir = os.path.join(project_base, "data", "metsim_inputs", "state")
-    # vicfmt_outputdir = os.path.join(project_base, "data", "forcings")
-
-    startdate = datetime.datetime.strptime("2001-01-01", "%Y-%m-%d")
-    enddate = datetime.datetime.strptime("2001-12-31", "%Y-%m-%d")
-
-    dateranges = date_range(startdate, enddate)
-    log.debug(dateranges)
-    # for start, end in tqdm(dateranges):
-    #     ForcingsNCfmt(start, end, datadir, basingridfile, os.path.join(metsim_inputdir, f"{start.year}.nc"))
-
-    ## Create State file
-    # Take first year's forcing file, and section off 90 days of data as state.nc
-    first_year_dspath = os.path.join(metsim_inputdir, f"{startdate.year}.nc")
-    log.debug(f"Modifying {first_year_dspath}")
-
-    first_year_ds = xr.open_dataset(first_year_dspath).load()   # Load to read off of disk. Allows for writing back to same name https://github.com/pydata/xarray/issues/2029#issuecomment-377572708
-    log.debug(first_year_ds)
-    state_enddate = startdate + datetime.timedelta(days=89)
-    forcings_startdate = startdate + datetime.timedelta(days=90)
-    
-    state_ds = first_year_ds.sel(time=slice(startdate, state_enddate))
-    log.debug(state_ds)
-    stateoutpath = os.path.join(state_dir, "state.nc")
-    log.debug(f"Saving state at: {stateoutpath}")
-    state_ds.to_netcdf(stateoutpath)
-
-    # Save rest of the file as forcing file
-    forcings_enddate = first_year_ds.time[-1]
-    forcing_ds = first_year_ds.sel(time=slice(forcings_startdate, forcings_enddate))
-    first_year_ds.close()
-
-    outpath = os.path.join(metsim_inputdir, f"{forcings_startdate.strftime('%Y')}.nc")
-    log.debug(f"Saving forcings: {outpath}")
-
-    forcing_ds.to_netcdf(os.path.join(metsim_inputdir, f"{forcings_startdate.strftime('%Y')}.nc"))
-
-
-if __name__ == '__main__':
-    main()
