@@ -140,7 +140,7 @@ def sarea_s1(reservoir, start_date, end_date, datadir):
 
         last_date = existing_df.index[-1].to_pydatetime()
         start_date = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
-        to_combine = [existing_df]
+        to_combine = [existing_df.reset_index()]
         print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
 
         # If <TEMPORAL RESOLUTION> days have not passed since last observation, skip the processing
