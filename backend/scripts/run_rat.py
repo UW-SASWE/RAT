@@ -139,9 +139,9 @@ def main():
 
     #----------- Remote Sensing Begin -----------#
     # Get Sarea
-    run_sarea(config['GLOBAL']['end'].strftime("%Y-%m-%d"))
+    run_sarea("2019-01-01", config['GLOBAL']['end'].strftime("%Y-%m-%d"), os.path.join(config['GLOBAL']['project_dir'], "backend/data/sarea_tmsos"))
 
-    # Altimerter
+    # Altimeter
     run_altimetry("/houston2/pritam/rat_mekong_v3")
     #----------- Remote Sensing End -----------#
 

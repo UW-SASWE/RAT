@@ -147,7 +147,7 @@ class ForcingsNCfmt:
             log.debug(f"Found existing file at {self._outputpath} -- Updating in-place")
             # Assuming the existing file structure is same as the one generated now. Basically
             #   assuming that the previous file was also created by MetSimRunner
-            existing = xr.open_dataset(self._outputpath).load()
+            existing = xr.open_dataset(self._outputpath, engine='netcdf4').load()
             existing.close()
             # xr.merge([existing, ds]).to_netcdf(self._outputpath)
             # xr.merge([existing, ds], compat='override', join='outer').to_netcdf(self._outputpath)
@@ -190,7 +190,7 @@ def generate_state_and_inputs(forcings_startdate, forcings_enddate, combined_dat
     # to create state file (upto 90 days prior data from forcings_startdate)
     combined_data = xr.open_dataset(combined_datapath)
 
-    state_startdate = forcings_startdate - datetime.timedelta(days=90)
+    state_startdate = forcings_startdate - datetime.timedelta(days=91)
     state_enddate = forcings_startdate - datetime.timedelta(days=1)
 
     state_ds = combined_data.sel(time=slice(state_startdate, state_enddate))

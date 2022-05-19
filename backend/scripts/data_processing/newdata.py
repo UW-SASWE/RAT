@@ -54,9 +54,15 @@ def download_precip(date, version, outputpath, secrets):
     if version == "IMERG-FINAL":
         link = f"ftp://arthurhou.pps.eosdis.nasa.gov/gpmdata/{date.strftime('%Y')}/{date.strftime('%m')}/{date.strftime('%d')}/gis/3B-DAY-GIS.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S000000-E235959.0000.V06A.tif"
     elif version == "IMERG-LATE":
-        link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-L.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
+        if date >= datetime(2022, 5, 8):  # Version was changed from V06B to V06C
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-L.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06C.1day.tif"
+        else:
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-L.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
     else:
-        link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/early/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-E.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
+        if date >= datetime(2022, 5, 8):  # Version was changed from V06B to V06C
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/early/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-E.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06C.1day.tif"
+        else:
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/early/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-E.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
 
     # Define the command (different for FINAL, same for EARLY and LATE)
     if version == "IMERG-FINAL":
@@ -399,7 +405,6 @@ def get_newdata(project_base, startdate, enddate, download=True, process=True):
     processed_datadir = os.path.join(datadir, "processed")
     temp_datadir = os.path.join(datadir, "temp")
 
-    
     secrets = configparser.ConfigParser()
     secrets_path = os.path.join(project_base, 'params/secrets.ini')
     secrets.read(secrets_path)  # assuming there's a secret ini file with user/pwd

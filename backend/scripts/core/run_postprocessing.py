@@ -18,37 +18,37 @@ from utils.science import penman
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
 
-def sarea_postprocessor(dfpath, savepath):
-    df = pd.read_csv(dfpath, parse_dates=['mosaic_enddate'])
+# def sarea_postprocessor(dfpath, savepath):
+    # df = pd.read_csv(dfpath, parse_dates=['date'])
 
-    # Filter out drastic changes
-    df['std'] = df['corrected_area'].rolling(5).std()
-    df['mean'] = df['corrected_area'].rolling(5).mean()
-    df = df[(df['corrected_area'] <= df['mean']+1.68*df['std']) & (df['corrected_area'] >= df['mean']-1.68*df['std'])]
+    # # Filter out drastic changes
+    # df['std'] = df['area'].rolling(5).std()
+    # df['mean'] = df['area'].rolling(5).mean()
+    # df = df[(df['area'] <= df['mean']+1.68*df['std']) & (df['area'] >= df['mean']-1.68*df['std'])]
 
-    log.debug(f"Filtering out spikes from {dfpath}; Saving at -> {savepath}")
-    df.to_csv(savepath, index=False)
+    # log.debug(f"Filtering out spikes from {dfpath}; Saving at -> {savepath}")
+    # df.to_csv(savepath, index=False)
 
 
 def calc_dels(aecpath, sareapath, savepath):
     aec = pd.read_csv(aecpath)
-    df = pd.read_csv(sareapath, parse_dates=['mosaic_enddate']).rename({'mosaic_enddate': 'date'}, axis=1)
+    df = pd.read_csv(sareapath, parse_dates=['date'])
 
     df = df.drop_duplicates('date')
 
     get_elev = lambda area: np.interp(area, aec['CumArea'], aec['Elevation'])
 
-    df['wl (m)'] = df['corrected_area'].apply(get_elev)
+    df['wl (m)'] = df['area'].apply(get_elev)
 
     # Even after filtering, use the rolling mean
-    df['wl (m)'] = df['wl (m)'].rolling(5).mean()
-    df['corrected_area'] = df['corrected_area'].rolling(5).mean()
+    # df['wl (m)'] = df['wl (m)'].rolling(5).mean()
+    # df['area'] = df['area'].rolling(5).mean()
 
     # Convert area from km^2 to m^2
-    df['corrected_area'] = df['corrected_area'] * 1e6
+    df['area'] = df['area'] * 1e6
 
-    A0 = df['corrected_area'].iloc[:-1]
-    A1 = df['corrected_area'].iloc[1:]
+    A0 = df['area'].iloc[:-1]
+    A1 = df['area'].iloc[1:]
 
     h0 = df['wl (m)'].iloc[:-1]
     h1 = df['wl (m)'].iloc[1:]
@@ -86,7 +86,7 @@ def calc_E(res_path, forcings_path, vic_res_path, sarea_path, savepath):
 
     # get sarea
     log.debug("Getting surface areas")
-    sarea = pd.read_csv(sarea_path, parse_dates=['mosaic_enddate']).rename({'mosaic_enddate': 'time'}, axis=1)[['time', 'corrected_area']]
+    sarea = pd.read_csv(sarea_path, parse_dates=['date']).rename({'date': 'time'}, axis=1)[['time', 'area']]
     sarea = sarea.set_index('time')
     upsampled_sarea = sarea.resample('D').mean()
     sarea_interpolated = upsampled_sarea.interpolate(method='linear')
@@ -116,7 +116,7 @@ def calc_E(res_path, forcings_path, vic_res_path, sarea_path, savepath):
         # res_geom = res.iloc[0].geometry
         P = forcings.sel(lat=points_within.y, lon=points_within.x, method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
 
-    data['area'] = sarea_interpolated['corrected_area']
+    data['area'] = sarea_interpolated['area']
     data['P'] = P
     data = data.dropna()
     data['penman_E'] = data.apply(lambda row: penman(row['OUT_R_NET'], row['OUT_AIR_TEMP'], row['OUT_WIND'], row['OUT_VP'], row['P'], row['area']), axis=1)
@@ -163,17 +163,17 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
 
 def run_postprocessing(project_dir):
     # SArea
-    log.debug("Started Postprocessing Surface Area")
-    sarea_raw_dir = os.path.join(project_dir, "backend/data/sarea")
-    sarea_postprocessing_dir = os.path.join(sarea_raw_dir, "postprocessed")
+    # log.debug("Started Postprocessing Surface Area")
+    sarea_raw_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
+    # sarea_postprocessing_dir = os.path.join(sarea_raw_dir, "postprocessed")
 
-    raw_sareas = [os.path.join(sarea_raw_dir, f) for f in os.listdir(sarea_raw_dir) if f.endswith('.csv')]
-    for raw_sarea in raw_sareas:
-        sarea_name = os.path.split(raw_sarea)[-1]
-        savepath = os.path.join(sarea_postprocessing_dir, sarea_name)
+    # raw_sareas = [os.path.join(sarea_raw_dir, f) for f in os.listdir(sarea_raw_dir) if f.endswith('.csv')]
+    # for raw_sarea in raw_sareas:
+    #     sarea_name = os.path.split(raw_sarea)[-1]
+    #     savepath = os.path.join(sarea_postprocessing_dir, sarea_name)
         
-        log.debug(f"Postprocessing SArea {sarea_name}")
-        sarea_postprocessor(raw_sarea, savepath)
+    #     log.debug(f"Postprocessing SArea {sarea_name}")
+    #     sarea_postprocessor(raw_sarea, savepath)
     
     # DelS
     log.debug("Calculating ∆S")
@@ -191,7 +191,7 @@ def run_postprocessing(project_dir):
         'Xe_Kaman_1': '7003'
     }
 
-    postprocessed_sareas = [os.path.join(sarea_postprocessing_dir, f) for f in os.listdir(sarea_postprocessing_dir) if f.endswith('.csv')]
+    postprocessed_sareas = [os.path.join(sarea_raw_dir, f) for f in os.listdir(sarea_raw_dir) if f.endswith('.csv')]
     for postprocessed_sarea in postprocessed_sareas:
         sarea_name = os.path.split(postprocessed_sarea)[-1]
         savepath = os.path.join(dels_savedir, sarea_name)
@@ -214,7 +214,7 @@ def run_postprocessing(project_dir):
     evap_datadir = os.path.join(project_dir, "backend/data/E")
     res_dir = os.path.join(project_dir, "backend/data/ancillary/reservoirs")
     vic_results_path = os.path.join(project_dir, "backend/data/vic_results/nc_fluxes.2001-04-01.nc")
-    sarea_dir = os.path.join(project_dir, "backend/data/sarea")
+    sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
     forcings_path = os.path.join(project_dir, "backend/data/forcings/*.nc")
 
     reservoirs = [os.path.join(res_dir, f) for f in os.listdir(res_dir) if f.endswith(".shp")]

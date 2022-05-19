@@ -36,3 +36,14 @@ def create_directory(p):
     if not os.path.isdir(p):
         os.makedirs(p)
     return p
+
+# https://gist.github.com/pritamd47/e7ddc49f25ae7f1b06c201f0a8b98348
+# Clip time-series
+def clip_ts(*tss):
+    mint = max([min(ts.index) for ts in tss])
+    maxt = min([max(ts.index) for ts in tss])
+
+    # clipped_tss = [ts[mint:maxt] for ts in tss]
+    clipped_tss = [ts.loc[(ts.index>=mint)&(ts.index<=maxt)] for ts in tss]
+
+    return clipped_tss
