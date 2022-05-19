@@ -214,7 +214,7 @@ def run_postprocessing(project_dir):
     evap_datadir = os.path.join(project_dir, "backend/data/E")
     res_dir = os.path.join(project_dir, "backend/data/ancillary/reservoirs")
     vic_results_path = os.path.join(project_dir, "backend/data/vic_results/nc_fluxes.2001-04-01.nc")
-    sarea_dir = os.path.join(project_dir, "backend/data/sarea")
+    sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
     forcings_path = os.path.join(project_dir, "backend/data/forcings/*.nc")
 
     reservoirs = [os.path.join(res_dir, f) for f in os.listdir(res_dir) if f.endswith(".shp")]

@@ -5,8 +5,8 @@ import numpy as np
 
 
 def convert_sarea(project_dir):
-    sarea_dir = os.path.join(project_dir, "backend/data/sarea/postprocessed")
-    website_v_dir = os.path.join(project_dir, "backend/data/sarea/website_version")
+    sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
+    website_v_dir = os.path.join(project_dir, "backend/data/sarea_tmsos/website_version")
 
     names_to_ids = {
         # 'Battambang_1': '99999',
@@ -59,9 +59,9 @@ def convert_sarea(project_dir):
             savepath = os.path.join(website_v_dir, f"{savename}.txt")
 
             df = pd.read_csv(sarea_path)
-            df = df[['mosaic_enddate', 'corrected_area']].rename({
-                'mosaic_enddate': 'Date',
-                'corrected_area': 'NDWI'
+            df = df[['date', 'area']].rename({
+                'date': 'Date',
+                'area': 'NDWI'  # need to change NDWI to area in front-end, then this renaming won't have to happen
             }, axis=1)
             df['NDWI'] = np.round(df['NDWI'], 2)
 
@@ -184,6 +184,7 @@ def convert_dels_outflow(project_dir):
             'outflow_rate': 'Streamflow'
         }, axis=1)
         df['Streamflow'] = np.round(df['Streamflow'], 2)
+        df.loc[df['Streamflow']<0, 'Streamflow'] = 0
 
         print(f"Converting [Outflow]: {res_name}")
         df.to_csv(savepath, index=False)
