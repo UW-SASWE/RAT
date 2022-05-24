@@ -1,4 +1,5 @@
 import os
+import math
 
 def round_pixels(x):
     if((x*10)%10<5):
@@ -8,7 +9,15 @@ def round_pixels(x):
     return(x)
 
 
-def create_directory(p):
+def create_directory(p,path_return=False):
     if not os.path.isdir(p):
         os.makedirs(p)
-    return p
+    if path_return:
+        return p
+
+def round_up(n, decimals=0): 
+    multiplier = 10 ** decimals 
+    if n>0:
+        return math.ceil(n * multiplier) / multiplier
+    else:
+        return -math.ceil(abs(n) * multiplier) / multiplier
