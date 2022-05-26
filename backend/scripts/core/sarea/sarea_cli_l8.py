@@ -39,6 +39,7 @@ ee.Initialize()
 # NEW STUFF
 l8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
 gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater")
+reservoir_geom_prefix = "users/saswegee/pritam/RAT-Mekong/"
 reservoir = ee.FeatureCollection("users/pdas47/RAT/Sirindhorn")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
@@ -322,7 +323,7 @@ def run_process_long(res_name, start, end, datadir):
     fo = start
     enddate = end
 
-    reservoir = ee.FeatureCollection("users/pdas47/RAT/" + res_name)
+    reservoir = ee.FeatureCollection(reservoir_geom_prefix + res_name)
     
     fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
     first_obs = datetime.strptime(fo, '%Y-%m-%d')

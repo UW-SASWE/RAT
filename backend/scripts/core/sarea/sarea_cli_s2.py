@@ -40,6 +40,7 @@ ee.Initialize()
 # NEW STUFF
 s2 = ee.ImageCollection("COPERNICUS/S2_SR")
 gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater")
+reservoir_geom_prefix = "users/saswegee/pritam/RAT-Mekong/"
 reservoir = ee.FeatureCollection("users/pdas47/RAT/Sirindhorn")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
@@ -320,7 +321,7 @@ def run_process_long(res_name, start, end, datadir):
     fo = start
     enddate = end
 
-    reservoir = ee.FeatureCollection("users/pdas47/RAT/" + res_name)
+    reservoir = ee.FeatureCollection(reservoir_geom_prefix + res_name)
     global aoi
     aoi = reservoir.geometry().buffer(BUFFER_DIST)
     
