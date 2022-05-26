@@ -12,6 +12,7 @@ ee.Initialize()
 reservoir = "Lam_Pao"
 
 s1 = ee.ImageCollection("COPERNICUS/S1_GRD")
+reservoir_geom_prefix = "users/saswegee/pritam/RAT-Mekong/"
 # ROI = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
 
 start_date = '2018-07-01'
@@ -130,7 +131,8 @@ def retrieve_sar(start_date, end_date, res='ys'):
 
 def sarea_s1(reservoir, start_date, end_date, datadir):
     global ROI 
-    reservoir_ee = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
+    # reservoir_ee = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
+    reservoir_ee = ee.FeatureCollection(reservoir_geom_prefix + reservoir)
     ROI = reservoir_ee.geometry().buffer(BUFFER_DIST)
     TEMPORAL_RESOLUTION = 12
 
