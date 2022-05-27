@@ -58,12 +58,12 @@ def create_vic_domain_param_file(global_vic_param_file,global_vic_domain_file,ba
 
     #Inserting run_cell as mask of basin_grid in vic_param.nc
     basin_vic_param=gl_param.interp(lon=np.array([round_up(x,5) for x in basin_grid.lon.data ]),lat=np.array([round_up(x,5) for x in basin_grid.lat.data ]))
-    basin_vic_param['run_cell']=(('lat','lon'),basin_grid.data)
+    basin_vic_param['run_cell']=(('lat','lon'),basin_grid.data.astype('int32'))
     #Saving vic_param.nc
     basin_vic_param.to_netcdf(os.path.join(output_dir_path,'vic_soil_param.nc'))
 
     #Inserting run_cell as mask of basin_grid in vic_param.nc
     basin_vic_domain=gl_domain.interp(lon=np.array([round_up(x,5) for x in basin_grid.lon.data ]),lat=np.array([round_up(x,5) for x in basin_grid.lat.data ]))
-    basin_vic_domain['mask']=(('lat','lon'),basin_grid.data)
+    basin_vic_domain['mask']=(('lat','lon'),basin_grid.data.astype('int32'))
     #Saving vic_domain.nc
     basin_vic_domain.to_netcdf(os.path.join(output_dir_path,'vic_domain.nc'))
