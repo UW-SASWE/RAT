@@ -9,6 +9,7 @@ from core.run_routing import RoutingRunner
 from core.run_sarea import run_sarea
 from core.run_postprocessing import run_postprocessing
 from core.run_altimetry import run_altimetry
+from core.generate_plots import generate_plots
 
 from utils.vic_param_reader import VICParameterFile
 from utils.route_param_reader import RouteParameterFile
@@ -154,6 +155,10 @@ def main():
     convert_dels_outflow(config['GLOBAL']['project_dir'])
     convert_altimeter(config['GLOBAL']['project_dir'])
     # ----------- Postprocessing End -----------#
+
+    # ---------- Create Visualization ----------#
+    generate_plots(config['GLOBAL']['reservoirs_db_fn'], config['GLOBAL']['project_dir'])
+    # ---------- Create Visualization ----------#
 
     # Publish from .sh file
 
