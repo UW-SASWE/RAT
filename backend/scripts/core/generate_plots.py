@@ -317,5 +317,5 @@ def generate_plots(reservoir_db_fn, project_dir):
         name = reservoirs.loc[RAT_ID, 'NAME']
         save_fn = os.path.join(project_dir, f"backend/data/website_plots/{RAT_ID}.html")
 
-        if inflow_fn and dels_fn and outflow_fn and sarea_fn:
+        if inflow_fns[RAT_ID] and dels_outflow_fns[RAT_ID] and sarea_fns[RAT_ID]:
             plot_reservoir(inflow_fn, outflow_fn, dels_fn, sarea_fn, name, save_fn)
