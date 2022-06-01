@@ -1,6 +1,7 @@
-import os
 import datetime
+import os
 from logging import getLogger
+
 import yaml
 
 from utils.logging import LOG_NAME, NOTIFICATION
@@ -9,7 +10,10 @@ from utils.utils import create_directory
 log = getLogger(LOG_NAME)
 
 class VICParameterFile:
-    def __init__(self, config, startdate=None, enddate=None, vic_section='VIC', forcing_prefix=None, runname=None):
+    def __init__(self, config, basin_name, startdate=None, enddate=None, vic_output_path=None, vic_section='VIC',
+                                     forcing_prefix=None, runname=None, init_state_date=None, save_init_state=True,
+                                      intermediate_files= False):
+        
         self.params = {
             'steps': {
                 'MODEL_STEPS_PER_DAY'   : None,
@@ -37,6 +41,15 @@ class VICParameterFile:
                     'XDIM': None
                 },
             },
+            'state_file_params': {
+                'INIT_STATE'    : None,
+                'STATENAME'     : None,
+                'STATEYEAR'     : None,
+                'STATEMONTH'    : None,
+                'STATEDAY'      : None,
+                'STATESEC'      : 0,
+                'STATE_FORMAT'  : 'NETCDF4',
+            },
             'forcings': {
                 'FORCING1'      : None,
                 'FORCE_TYPE': {
@@ -51,12 +64,15 @@ class VICParameterFile:
                 'WIND_H'        : 10.0
             },
             'parameters': {
-                'PARAMETERS'    : None,
-                'LAI_SRC'       : 'FROM_VEGPARAM',
-                'FCAN_SRC'      : 'FROM_DEFAULT',
-                'ALB_SRC'       : 'FROM_VEGPARAM',
-                'NODES'         : 2,
-                'SNOW_BAND'     : 'FALSE'
+                'PARAMETERS'        : None,
+                'VEGPARAM_LAI'      : 'TRUE',
+                'LAI_SRC'           : 'FROM_VEGPARAM',
+                'VEGPARAM_FCAN'     : 'TRUE',
+                'FCAN_SRC'          : 'FROM_VEGPARAM',
+                'VEGPARAM_ALBEDO'   : 'TRUE',
+                'ALB_SRC'           : 'FROM_VEGPARAM',
+                'NODES'             :  2,
+                'SNOW_BAND'         : 'FALSE'
             },
             'results': {
                 'RESULT_DIR'    : None,
@@ -75,22 +91,31 @@ class VICParameterFile:
             'extras': {}
         }
         self.config = config
+        self.basin_name = basin_name
         # self.forcing = forcing
         self.init_param_file = self.config[vic_section].get('vic_param_file', None)
+        self.workspace = self.config[vic_section].get('vic_workspace', None)
         self.vic_param_path = None
         self.vic_result_file = None
         self.vic_startdate = None
         self.vic_enddate = None
-        self.fn_param_vic_startdate = datetime.datetime.strptime(startdate, '%Y-%m-%d') if startdate else None
-        self.fn_param_vic_enddate = datetime.datetime.strptime(enddate, '%Y-%m-%d') if enddate else None
+        self.fn_param_vic_startdate = startdate if startdate else None
+        self.fn_param_vic_enddate = enddate if enddate else None
+        self.init_state_date = init_state_date if init_state_date else None
 
+        self.vic_output_path = vic_output_path
+        self.intermediate_files = intermediate_files
         self.straight_from_metsim = False
+        self.save_init_state = save_init_state
 
         if runname is None:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         else:
             self.runname = str(runname)
-        self.workspace = create_directory(os.path.join(config[vic_section]['vic_workspace'], f'run_{self.runname}'))
+        if self.workspace:
+            self.workspace = create_directory(os.path.join(self.workspace, f'run_{self.runname}'),True)
+        else :
+            self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',basin_name,'vic_workspace',f'run_{self.runname}'),True)
 
         if self.init_param_file:
             self._load_from_vic_param()
@@ -140,6 +165,9 @@ class VICParameterFile:
             elif line[0] in self.params['domain']:
                 self.params['domain'][line[0]] = ' '.join(line[1:])
 
+            elif line[0] in self.params['state_file_params']:
+                self.params['state_file_params'][line[0]] = ' '.join(line[1:])
+
             elif line[0] in self.params['forcings']:
                 self.params['forcings'][line[0]] = ' '.join(line[1:])
 
@@ -161,9 +189,10 @@ class VICParameterFile:
 
         # Start and End date
         # Initialize by calculating first. Will get overriden later if specified in configuration
-        self.params['dates']['STARTYEAR'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%Y')
-        self.params['dates']['STARTMONTH'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%m')
-        self.params['dates']['STARTDAY'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%d')
+        if (config['GLOBAL'].get('begin',None)):
+            self.params['dates']['STARTYEAR'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%Y')
+            self.params['dates']['STARTMONTH'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%m')
+            self.params['dates']['STARTDAY'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%d')
         self.params['dates']['ENDYEAR'] = config['GLOBAL']['end'].strftime('%Y')
         self.params['dates']['ENDMONTH'] = config['GLOBAL']['end'].strftime('%m')
         self.params['dates']['ENDDAY'] = config['GLOBAL']['end'].strftime('%d')
@@ -171,14 +200,33 @@ class VICParameterFile:
         # Rename forcing file
         if self.straight_from_metsim:
             self.params['forcings']['FORCING1'] = self.forcing_prefix
-
-        # Save vic run logs and parameters in `vic_workspace`
-        self.vic_param_path = os.path.join(self.workspace, 'vic_param.txt')    # Paramter file will be saved here
-        self.params['results']['LOG_DIR'] = create_directory(os.path.join(self.workspace, 'logs'))
+        
+        # Puttting the path of vic_domain and vic_soil_param NC files in global vic param file
+        self.params['parameters']['PARAMETERS'] = config['VIC']['vic_soil_param_file']
+        self.params['domain']['DOMAIN'] = config['VIC']['vic_domain_file']
+ 
+        # Save vic run logs and parameters in `vic_workspace` if intermediate_files is true 
+        # else just replacing the init_param_file if given in config or will update(or create) it in vic_basin_params 
+        # and log file will be update(or created) in data_dir/vic_logs/basin_name/
+        if (self.intermediate_files):
+            self.vic_param_path = os.path.join(self.workspace, 'vic_param.txt')    # Paramter file will be saved here
+            self.params['results']['LOG_DIR'] = create_directory(os.path.join(self.workspace, 'logs',''),True)
+            
+        else:
+            if self.init_param_file:
+                self.vic_param_path = self.init_param_file   # Paramter file will be replaced
+            else:
+                self.vic_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+                                                            'basins',self.basin_name,'vic_basin_params'),True)
+            self.params['results']['LOG_DIR'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+                                                             'vic_logs',self.basin_name,''),True) 
         log.debug("VIC Logs Directory: %s ", self.params['results']['LOG_DIR'])
-        if not self.params['results']['LOG_DIR'].endswith(os.sep):
-            self.params['results']['LOG_DIR'] = self.params['results']['LOG_DIR'] + f'{os.sep}'
+        # if not self.params['results']['LOG_DIR'].endswith(os.sep):
+        #     self.params['results']['LOG_DIR'] = self.params['results']['LOG_DIR'] + f'{os.sep}'
 
+            
+
+        # Reading vic parameters directly from rat_runner config file
         if config['VIC PARAMETERS'] is not None:
             if 'STARTYEAR' in config['VIC PARAMETERS']:
                 log.debug("Updating from config: %s", 'MODEL RUN PERIOD')
@@ -220,6 +268,8 @@ class VICParameterFile:
                         self.params['dates'][key] = config['VIC PARAMETERS'][key]
                     elif key in self.params['forcings']:
                         self.params['forcings'][key] = config['VIC PARAMETERS'][key]
+                    elif key in self.params['state_file_params']:
+                        self.params['state_file_params'][key] = config['VIC PARAMETERS'][key]
                     elif key in self.params['parameters']:
                         self.params['parameters'][key] = config['VIC PARAMETERS'][key]
                     elif key in self.params['results']:
@@ -239,6 +289,30 @@ class VICParameterFile:
             self.params['dates']['ENDYEAR'] = self.fn_param_vic_enddate.strftime('%Y')
             self.params['dates']['ENDMONTH'] = self.fn_param_vic_enddate.strftime('%m')
             self.params['dates']['ENDDAY'] = self.fn_param_vic_enddate.strftime('%d')
+        
+        # If vic_output_path is passed as constructor parameter, override it
+        if self.vic_output_path:
+            self.params['results']['RESULT_DIR'] = self.vic_output_path
+        
+        # Saving initital state file for vic's next run  if save_init_state is True else deleting STATENAME from state_file_params
+        if (self.save_init_state):
+            create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',self.basin_name,'vic_init_states'),False)
+            self.params['state_file_params']['STATENAME'] = os.path.join(config['GLOBAL']['data_dir'],'basins',self.basin_name,'vic_init_states','state_')
+            self.params['state_file_params']['STATEYEAR'] = self.params['dates']['ENDYEAR']
+            self.params['state_file_params']['STATEMONTH'] = self.params['dates']['ENDMONTH']
+            self.params['state_file_params']['STATEDAY'] = self.params['dates']['ENDDAY']
+        else:
+            del self.params['state_file_params']['STATENAME']
+
+        # Using initital state file for this run if init_state_date is not None else deleting INIT_STATE from state_file_params
+        if (self.init_state_date):
+            init_state_date_str = str(self.init_state_date.strftime('%Y'))+str(self.init_state_date.strftime('%m'))+\
+                                  str(self.init_state_date.strftime('%d'))
+            self.params['state_file_params']['INIT_STATE'] = os.path.join(config['GLOBAL']['data_dir'],
+                                                            'basins',self.basin_name,'vic_init_states',
+                                                            'state_'+init_state_date_str)
+        else:
+            del self.params['state_file_params']['INIT_STATE']
 
     def _out_format_params(self): # return a VIC compatible string of paramters
         header = '\n'.join([
@@ -275,6 +349,25 @@ class VICParameterFile:
             val = self.params['domain']['DOMAIN_TYPE'][key]
             domain.append(f'DOMAIN_TYPE           {key}\t{val}')
         domain = '\n'.join(domain)
+
+        if self.init_state_date:
+            init_state_prefix=''
+        else:
+            init_state_prefix='#'
+        if self.save_init_state:
+            statename_prefix=''
+        else:
+            statename_prefix='#'
+        state_file_parameters = '\n'.join([
+            '# State Files and Parameters',
+            f"{init_state_prefix}INIT_STATE           {self.params['state_file_params'].get('INIT_STATE','')}",
+            f"{statename_prefix}STATENAME             {self.params['state_file_params'].get('STATENAME','')}",
+            f"STATEYEAR             {self.params['state_file_params'].get('STATEYEAR','')}",
+            f"STATEMONTH            {self.params['state_file_params'].get('STATEMONTH','')}",
+            f"STATEDAY              {self.params['state_file_params'].get('STATEDAY','')}",
+            f"STATESEC              {self.params['state_file_params'].get('STATESEC','')}",
+            f"STATE_FORMAT          {self.params['state_file_params'].get('STATE_FORMAT','')}"
+        ])
 
         forcings = '\n'.join([
             '# Forcings',
@@ -334,6 +427,7 @@ class VICParameterFile:
             simulation_period, 
             model_decisions, 
             domain, 
+            state_file_parameters,
             forcings, 
             parameters,
             extras, 
