@@ -162,52 +162,294 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
 
 
 def run_postprocessing(project_dir):
-    # SArea
-    # log.debug("Started Postprocessing Surface Area")
-    sarea_raw_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
-    # sarea_postprocessing_dir = os.path.join(sarea_raw_dir, "postprocessed")
+    # read file defining mapped resrvoirs
+    reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
+    reservoirs = gpd.read_file(reservoirs_fn)
+    ids = reservoirs['RAT_ID'].tolist()
 
-    # raw_sareas = [os.path.join(sarea_raw_dir, f) for f in os.listdir(sarea_raw_dir) if f.endswith('.csv')]
-    # for raw_sarea in raw_sareas:
-    #     sarea_name = os.path.split(raw_sarea)[-1]
-    #     savepath = os.path.join(sarea_postprocessing_dir, sarea_name)
-        
-    #     log.debug(f"Postprocessing SArea {sarea_name}")
-    #     sarea_postprocessor(raw_sarea, savepath)
-    
+    # define mappings according to RAT_ID
+    aec_names = {
+        1: "Sre_Pok_4",
+        2: "Phumi_Svay_Chrum",
+        3: "Battambang_1",
+        4: "5117",
+        5: "5136",
+        6: "5138",
+        7: "5143",
+        8: "5147",
+        9: "5148",
+        10: "5149",
+        11: "5150",
+        12: "5151",
+        13: "5152",
+        14: "5155",
+        15: "5156",
+        16: "5160",
+        17: "5162",
+        18: "5795",
+        19: "5796",
+        20: "5797",
+        21: "6999",
+        22: "7000",
+        23: "7001",
+        24: "7002",
+        25: "7003",
+        26: "7004",
+        27: "7037",
+        28: "7159",
+        29: "7164",
+        30: "7181",
+        31: "7201",
+        32: "7203",
+        33: "7232",
+        34: "7284",
+        35: "7303",
+        36: "Yali"
+    }
+    sarea_names = {
+        1: "Sre_Pok_4",
+        2: "Phumi_Svay_Chrum",
+        3: "Battambang_1",
+        4: "5117",
+        5: "Nam_Ngum_1",
+        6: "5138",
+        7: "5143",
+        8: "5147",
+        9: "5148",
+        10: "Ubol_Ratana",
+        11: "Lam_Pao",
+        12: "5151",
+        13: "5152",
+        14: "5155",
+        15: "5156",
+        16: "5160",
+        17: "5162",
+        18: "5795",
+        19: "Sirindhorn",
+        20: "5797",
+        21: "Nam_Theun_2",
+        22: "7000",
+        23: "7001",
+        24: "7002",
+        25: "Xe_Kaman_1",
+        26: "7004",
+        27: "7037",
+        28: "7159",
+        29: "7164",
+        30: "7181",
+        31: "7201",
+        32: "Sesan_4",
+        33: "7232",
+        34: "7284",
+        35: "Lower_Sesan_2",
+        36: "Yali"
+    }
+    dels_names = {
+        1: "Sre_Pok_4",
+        2: "Phumi_Svay_Chrum",
+        3: "Battambang_1",
+        4: "5117",
+        5: "Nam_Ngum_1",
+        6: "5138",
+        7: "5143",
+        8: "5147",
+        9: "5148",
+        10: "Ubol_Ratana",
+        11: "Lam_Pao",
+        12: "5151",
+        13: "5152",
+        14: "5155",
+        15: "5156",
+        16: "5160",
+        17: "5162",
+        18: "5795",
+        19: "Sirindhorn",
+        20: "5797",
+        21: "Nam_Theun_2",
+        22: "7000",
+        23: "7001",
+        24: "7002",
+        25: "Xe_Kaman_1",
+        26: "7004",
+        27: "7037",
+        28: "7159",
+        29: "7164",
+        30: "7181",
+        31: "7201",
+        32: "Sesan_4",
+        33: "7232",
+        34: "7284",
+        35: "Lower_Sesan_2",
+        36: "Yali"
+    }
+    res_shp_names = {
+        1: "Sre_Pok_4",
+        2: "Phumi_Svay_Chrum",
+        3: "Battambang_1",
+        4: "5117",
+        5: "Nam_Ngum_1",
+        6: "5138",
+        7: "5143",
+        8: "5147",
+        9: "5148",
+        10: "Ubol_Ratana",
+        11: "Lam_Pao",
+        12: "5151",
+        13: "5152",
+        14: "5155",
+        15: "5156",
+        16: "5160",
+        17: "5162",
+        18: "5795",
+        19: "Siridhorn",
+        20: "5797",
+        21: "Nam_Theun_2",
+        22: "7000",
+        23: "7001",
+        24: "7002",
+        25: "Xe_Kaman_1",
+        26: "7004",
+        27: "7037",
+        28: "7159",
+        29: "7164",
+        30: "7181",
+        31: "7201",
+        32: "Sesan_4",
+        33: "7232",
+        34: "7284",
+        35: "Lower_Sesan_2",
+        36: "Yali"
+    }
+    outflow_names = {
+        1: "Sre_Pok_4",
+        2: "Phumi_Svay_Chrum",
+        3: "Battambang_1",
+        4: "5117",
+        5: "Nam_Ngum_1",
+        6: "5138",
+        7: "5143",
+        8: "5147",
+        9: "5148",
+        10: "Ubol_Ratana",
+        11: "Lam_Pao",
+        12: "5151",
+        13: "5152",
+        14: "5155",
+        15: "5156",
+        16: "5160",
+        17: "5162",
+        18: "5795",
+        19: "Sirindhorn",
+        20: "5797",
+        21: "Nam_Theun_2",
+        22: "7000",
+        23: "7001",
+        24: "7002",
+        25: "Xe_Kaman_1",
+        26: "7004",
+        27: "7037",
+        28: "7159",
+        29: "7164",
+        30: "7181",
+        31: "7201",
+        32: "Sesan_4",
+        33: "7232",
+        34: "7284",
+        35: "Lower_Sesan_2",
+        36: "Yali"
+    }
+    areas = {                   # Areas in km2, from GRAND if available, or calcualted
+        1: 3.4,
+        2: 0.7,
+        3: 15,
+        4: 36.91,
+        5: 436.93,
+        6: 9.23,
+        7: 38.44,
+        8: 73.22,
+        9: 15.79,
+        10: 313.38,
+        11: 202.51,
+        12: 6.96,
+        13: 1.84,
+        14: 4.78,
+        15: 26.89,
+        16: 9.69,
+        17: 11.57,
+        18: 86.9,
+        19: 235.58,
+        20: 31,
+        21: 414.34,
+        22: 10.4,
+        23: 93.77,
+        24: 4.42,
+        25: 101.43,
+        26: 4.12,
+        27: 20.46,
+        28: 6.82,
+        29: 12.85,
+        30: 24.91,
+        31: 43.95,
+        32: 53.08,
+        33: 246.16,
+        34: 154.34,
+        35: 332.96,
+        36: 45,
+    }
+    inflow_names = {
+        1: "Sre_P",
+        2: "Phumi",
+        3: "Batta",
+        4: "5117 ",
+        5: "Nam_N",
+        6: "5138 ",
+        7: "5143 ",
+        8: "5147 ",
+        9: "5148 ",
+        10: "Ubol_",
+        11: "Lam_P",
+        12: "5151 ",
+        13: "5152 ",
+        14: "5155 ",
+        15: "5156 ",
+        16: "5160 ",
+        17: "5162 ",
+        18: "5795 ",
+        19: "Sirid",
+        20: "5797 ",
+        21: "Nam_T",
+        22: "7000 ",
+        23: "7001 ",
+        24: "7002 ",
+        25: "Xe_Ka",
+        26: "7004 ",
+        27: "7037 ",
+        28: "7159 ",
+        29: "7164 ",
+        30: "7181 ",
+        31: "7201 ",
+        32: "Sesan",
+        33: "7232 ",
+        34: "7284 ",
+        35: "Lower",
+        36: "Yali "
+    }
+
+    # SArea
+    sarea_raw_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
+
     # DelS
     log.debug("Calculating ∆S")
     dels_savedir = os.path.join(project_dir, "backend/data/dels")
     aec_dir = os.path.join(project_dir, "backend/data/aec")
 
-    aec_mapping = {
-        'Lam_Pao': '5150',
-        'Lower_Sesan_2': '7303',
-        'Nam_Ngum_1': '5136', 
-        'Sesan_4': '7203',
-        'Sirindhorn': '5796',
-        'Ubol_Ratana': '5149',
-        'Nam_Theun_2': '6999',
-        'Xe_Kaman_1': '7003'
-    }
+    for RAT_ID in ids:
+        sarea_path = os.path.join(sarea_raw_dir, sarea_names[RAT_ID] + ".csv")
+        savepath = os.path.join(dels_savedir, dels_names[RAT_ID] + ".csv")
+        aecpath = os.path.join(aec_dir, aec_names[RAT_ID] + ".txt")
 
-    postprocessed_sareas = [os.path.join(sarea_raw_dir, f) for f in os.listdir(sarea_raw_dir) if f.endswith('.csv')]
-    for postprocessed_sarea in postprocessed_sareas:
-        sarea_name = os.path.split(postprocessed_sarea)[-1]
-        savepath = os.path.join(dels_savedir, sarea_name)
-
-        aecpath = os.path.join(aec_dir, sarea_name.replace(".csv", ".txt"))
-        print(aecpath)
-        if not os.path.isfile(aecpath):
-            if sarea_name.replace(".csv", "") in aec_mapping.keys():
-                aecpath = os.path.join(aec_dir, f"{aec_mapping[sarea_name.replace('.csv', '')]}.txt")
-            else:
-                log.debug(f"∆S will not be calculated for {sarea_name} It is not mapped in RAT yet")
-                continue
-
-        savepath = os.path.join(dels_savedir, sarea_name)
-        log.debug(f"Calculating ∆S for {sarea_name}, saving at: {savepath}")
-        calc_dels(aecpath, postprocessed_sarea, savepath)
+        log.debug(f"Calculating ∆S for {sarea_names[RAT_ID]}, saving at: {savepath}")
+        calc_dels(aecpath, sarea_path, savepath)
 
     # Evaporation
     log.debug("Retrieving Evaporation")
@@ -217,27 +459,16 @@ def run_postprocessing(project_dir):
     sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
     forcings_path = os.path.join(project_dir, "backend/data/forcings/*.nc")
 
-    reservoirs = [os.path.join(res_dir, f) for f in os.listdir(res_dir) if f.endswith(".shp")]
-
-    # hotfix
-    patch = {
-        'Siridhorn.csv': 'Sirindhorn.csv'
-    }
-
-    for respath in reservoirs:
+    for RAT_ID in ids:
+        respath = os.path.join(res_dir, res_shp_names[RAT_ID] + ".shp")
         _, resname = os.path.split(respath)
-        # using hotfix; isn't ideal, fix during reorganizing
-        if not resname.replace(".shp", ".csv") in patch.keys():
-            sarea_path = os.path.join(sarea_dir, resname.replace(".shp", ".csv"))
-            e_path = os.path.join(evap_datadir, resname.replace(".shp", '.csv'))
-        else:
-            sarea_path = os.path.join(sarea_dir, patch[resname.replace(".shp", ".csv")])
-            e_path = os.path.join(evap_datadir, patch[resname.replace(".shp", '.csv')])
-
+        sarea_path = os.path.join(sarea_dir, resname.replace(".shp", ".csv"))
+        e_path = os.path.join(evap_datadir, resname.replace(".shp", '.csv'))
+        
         if os.path.isfile(sarea_path):
             log.debug(f"Calculating Evaporation for {resname}")
             # calc_E(e_path, respath, vic_results_path)
-            calc_E(respath, forcings_path, vic_results_path, sarea_path, e_path)
+            # calc_E(respath, forcings_path, vic_results_path, sarea_path, e_path)
         else:
             log.debug(f"{sarea_path} not found; skipping")
 
@@ -245,99 +476,17 @@ def run_postprocessing(project_dir):
     log.debug("Calculating Outflow")
     outflow_savedir = os.path.join(project_dir, "backend/data/outflow")
     inflow_dir = os.path.join(project_dir, "backend/data/inflow")
-    evap_dir = os.path.join(project_dir, "backend/data/E")
 
-    names_to_ids = {
-        "5136": "Nam_N",
-        "5149": "Ubol_",
-        "5150": "Lam_P",
-        "5796": "Sirid",
-        "6999": "Nam_T",
-        "7003": "Xe_Ka",
-        "7203": "Sesan",
-        "7303": "Lower",
-        "5117": "5117 ",
-        "5138": "5138 ",
-        "5143": "5143 ",
-        "5147": "5147 ",
-        "5148": "5148 ",
-        "5151": "5151 ",
-        "5152": "5152 ",
-        "5155": "5155 ",
-        "5156": "5156 ",
-        "5160": "5160 ",
-        "5162": "5162 ",
-        "5795": "5795 ",
-        "5797": "5797 ",
-        "7000": "7000 ",
-        "7001": "7001 ",
-        "7002": "7002 ",
-        "7004": "7004 ",
-        "7037": "7037 ",
-        "7087": "7087 ",
-        "7158": "7158 ",
-        "7159": "7159 ",
-        "7164": "7164 ",
-        "7181": "7181 ",
-        "7201": "7201 ",
-        "7232": "7232 ",
-        "7284": "7284 ",
-        "7303": "7303 "
-    }
+    for RAT_ID in ids:
+        respath = os.path.join(res_dir, res_shp_names[RAT_ID] + ".csv")
+        deltaS = os.path.join(dels_savedir, dels_names[RAT_ID] + ".csv")
+        _, resname = os.path.split(deltaS)
+        inflowpath = os.path.join(inflow_dir, inflow_names[RAT_ID] + ".csv")
+        epath = os.path.join(evap_datadir, resname)
+        a = areas[RAT_ID]
 
-    areas = {                   # Areas in km2, from GRAND if available, or calcualted
-        "5136": 436.9299,
-        "5149": 313.38,
-        "5150": 202.51,
-        "5796": 235.58,
-        "6999": 414.34,
-        "7003": 101.43,
-        "7203": 53.08,
-        "7303": 332.96,
-        "5117": 36.91,
-        "5138": 9.23,
-        "5143": 38.43999,
-        "5147": 73.22,
-        "5148": 15.79,
-        "5151": 6.96,
-        "5152": 1.84,
-        "5155": 4.78,
-        "5156": 26.89,
-        "5160": 9.69,
-        "5162": 11.57,
-        "5795": 86.9,
-        "5797": 31,
-        "7000": 10.4,
-        "7001": 93.77,
-        "7002": 4.42,
-        "7004": 4.12,
-        "7037": 20.46,
-        "7087": 9.64,
-        "7158": 31.76,
-        "7159": 6.82,
-        "7164": 12.85,
-        "7181": 24.91,
-        "7201": 43.95,
-        "7232": 246.16,
-        "7284": 154.34,
-        "7303": 332.96
-    }
-
-    deltaSs = [os.path.join(dels_savedir, f) for f in os.listdir(dels_savedir) if f.endswith('.csv')]
-    for deltaS in deltaSs:
-        deltaSname = os.path.split(deltaS)[-1]
-        deltaSname_withoutext = os.path.splitext(deltaSname)[0]
-        if not deltaSname_withoutext.isdigit():
-            grandid = aec_mapping[deltaSname_withoutext]   # If it is not grand id, copy grand id from the aecmapping dict
-        else:
-            grandid = deltaSname_withoutext
-        
-        inflowpath = os.path.join(inflow_dir, f"{names_to_ids[grandid]}.csv")
-        epath = os.path.join(evap_dir, deltaSname)
-        a = areas[grandid]
-
-        savepath = os.path.join(outflow_savedir, deltaSname)
-        log.debug(f"Calculating Outflow for {deltaSname_withoutext} saving at: {savepath}")
+        savepath = os.path.join(outflow_savedir, outflow_names[RAT_ID])
+        log.debug(f"Calculating Outflow for {resname} saving at: {savepath}")
         calc_outflow(inflowpath, deltaS, epath, a, savepath)
 
 def main():
