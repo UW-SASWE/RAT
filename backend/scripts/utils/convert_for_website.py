@@ -8,67 +8,19 @@ def convert_sarea(project_dir):
     sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
     website_v_dir = os.path.join(project_dir, "backend/data/sarea_tmsos/website_version")
 
-    names_to_ids = {
-        # 'Battambang_1': '99999',
-        'Lam_Pao': '5150',
-        'Lower_Sesan_2': '7303',
-        'Nam_Ngum_1': '5136', 
-        # 'Phumi_Svay_Chrum': '99999',
-        'Sesan_4': '7203',
-        'Sirindhorn': '5796',
-        # 'Sre_Pok_4': '99999',
-        'Ubol_Ratana': '5149',
-        'Nam_Theun_2': '6999',
-        'Xe_Kaman_1': '7003',
-        '5117':'5117',
-        '5138':'5138',
-        '5143':'5143',
-        '5147':'5147',
-        '5148':'5148',
-        '5151':'5151',
-        '5152':'5152',
-        '5155':'5155',
-        '5156':'5156',
-        '5160':'5160',
-        '5162':'5162',
-        '5795':'5795',
-        '5797':'5797',
-        '7000':'7000',
-        '7001':'7001',
-        '7002':'7002',
-        '7004':'7004',
-        '7037':'7037',
-        '7087':'7087',
-        '7158':'7158',
-        '7159':'7159',
-        '7164':'7164',
-        '7181':'7181',
-        '7201':'7201',
-        '7232':'7232',
-        '7284':'7284',
-        '7303':'7303'
-    }
-
     sarea_paths = [os.path.join(sarea_dir, f) for f in os.listdir(sarea_dir) if f.endswith(".csv")]
 
     for sarea_path in sarea_paths:
         res_name = os.path.splitext(os.path.split(sarea_path)[-1])[0]
 
-        if res_name in names_to_ids.keys():
-            savename = names_to_ids[res_name]
-            savepath = os.path.join(website_v_dir, f"{savename}.txt")
+        savepath = os.path.join(website_v_dir, f"{res_name}.txt")
 
-            df = pd.read_csv(sarea_path)
-            df = df[['date', 'area']].rename({
-                'date': 'Date',
-                'area': 'NDWI'  # need to change NDWI to area in front-end, then this renaming won't have to happen
-            }, axis=1)
-            df['NDWI'] = np.round(df['NDWI'], 2)
+        df = pd.read_csv(sarea_path)
+        df = df[['date', 'area']]
+        df['area'] = np.round(df['area'], 3)
 
-            print(f"Converting [Surface Area]: {res_name}")
-            df.to_csv(savepath, index=False)
-        else:
-            print(f"Sarea calcualtion: {res_name} not modeled yet")
+        print(f"Converting [Surface Area]: {res_name}")
+        df.to_csv(savepath, index=False)
 
 
 def convert_inflow(project_dir):
@@ -76,14 +28,19 @@ def convert_inflow(project_dir):
     website_v_dir = os.path.join(inflow_dir, "website_version")
 
     names_to_ids = {
-        "Nam_N":"5136",
-        "Ubol_":"5149",
-        "Lam_P":"5150",
-        "Sirid":"5796",
-        "Nam_T":"6999",
-        "Xe_Ka":"7003",
-        "Sesan":"7203",
-        "Lower":"7303",
+        "Nam_N":"Nam_Ngum_1",
+        "Ubol_":"Ubol_Ratana",
+        "Lam_P":"Lam_Pao",
+        "Sirid":"Sirindhorn",
+        "Nam_T":"Nam_Theun_2",
+        "Xe_Ka":"Xe_Kaman_1",
+        "Sesan":"Sesan_4",
+        "Lower":"Lower_Sesan_2",
+        "Batta":"Battambang_1",
+        "Phumi":"Phumi_Svay_Chrum",
+        "Sesan":"Sesan_4",
+        "Sre_P":"Sre_Pok_4",
+        "Yali ":"Yali",
         "5117 ":"5117",
         "5138 ":"5138",
         "5143 ":"5143",
@@ -150,12 +107,10 @@ def convert_dels_outflow(project_dir):
     for dels_path in dels_paths:
         res_name = os.path.splitext(os.path.split(dels_path)[-1])[0]
 
-        if not res_name.isnumeric():
-            grandid = mapping[res_name]
-        else:
-            grandid = res_name
+        if res_name in mapping:
+            savename = mapping[res_name]
 
-        savepath = os.path.join(dels_dir, f"website_version/{grandid}.txt")
+        savepath = os.path.join(dels_dir, f"website_version/{savename}.txt")
 
         df = pd.read_csv(dels_path)
         df = df[['date', 'dS']]
@@ -171,12 +126,10 @@ def convert_dels_outflow(project_dir):
     for outflow_path in outflow_paths:
         res_name = os.path.splitext(os.path.split(outflow_path)[-1])[0]
 
-        if not res_name.isnumeric():
-            grandid = mapping[res_name]
-        else:
-            grandid = res_name
+        if res_name in mapping:
+            savename = mapping[res_name]
 
-        savepath = os.path.join(outflow_dir, f"website_version/{grandid}.txt")
+        savepath = os.path.join(outflow_dir, f"website_version/{savename}.txt")
 
         df = pd.read_csv(outflow_path)
         df = df[['date', 'outflow_rate']].rename({
