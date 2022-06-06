@@ -8,67 +8,19 @@ def convert_sarea(project_dir):
     sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
     website_v_dir = os.path.join(project_dir, "backend/data/sarea_tmsos/website_version")
 
-    names_to_ids = {
-        # 'Battambang_1': '99999',
-        'Lam_Pao': '5150',
-        'Lower_Sesan_2': '7303',
-        'Nam_Ngum_1': '5136', 
-        # 'Phumi_Svay_Chrum': '99999',
-        'Sesan_4': '7203',
-        'Sirindhorn': '5796',
-        # 'Sre_Pok_4': '99999',
-        'Ubol_Ratana': '5149',
-        'Nam_Theun_2': '6999',
-        'Xe_Kaman_1': '7003',
-        '5117':'5117',
-        '5138':'5138',
-        '5143':'5143',
-        '5147':'5147',
-        '5148':'5148',
-        '5151':'5151',
-        '5152':'5152',
-        '5155':'5155',
-        '5156':'5156',
-        '5160':'5160',
-        '5162':'5162',
-        '5795':'5795',
-        '5797':'5797',
-        '7000':'7000',
-        '7001':'7001',
-        '7002':'7002',
-        '7004':'7004',
-        '7037':'7037',
-        '7087':'7087',
-        '7158':'7158',
-        '7159':'7159',
-        '7164':'7164',
-        '7181':'7181',
-        '7201':'7201',
-        '7232':'7232',
-        '7284':'7284',
-        '7303':'7303'
-    }
-
     sarea_paths = [os.path.join(sarea_dir, f) for f in os.listdir(sarea_dir) if f.endswith(".csv")]
 
     for sarea_path in sarea_paths:
         res_name = os.path.splitext(os.path.split(sarea_path)[-1])[0]
 
-        if res_name in names_to_ids.keys():
-            savename = names_to_ids[res_name]
-            savepath = os.path.join(website_v_dir, f"{savename}.txt")
+        savepath = os.path.join(website_v_dir, f"{res_name}.txt")
 
-            df = pd.read_csv(sarea_path)
-            df = df[['date', 'area']].rename({
-                'date': 'Date',
-                'area': 'NDWI'  # need to change NDWI to area in front-end, then this renaming won't have to happen
-            }, axis=1)
-            df['NDWI'] = np.round(df['NDWI'], 2)
+        df = pd.read_csv(sarea_path)
+        df = df[['date', 'area']]
+        df['area'] = np.round(df['area'], 3)
 
-            print(f"Converting [Surface Area]: {res_name}")
-            df.to_csv(savepath, index=False)
-        else:
-            print(f"Sarea calcualtion: {res_name} not modeled yet")
+        print(f"Converting [Surface Area]: {res_name}")
+        df.to_csv(savepath, index=False)
 
 
 def convert_inflow(project_dir):
