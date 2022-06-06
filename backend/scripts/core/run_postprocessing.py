@@ -485,7 +485,7 @@ def run_postprocessing(project_dir):
         epath = os.path.join(evap_datadir, resname)
         a = areas[RAT_ID]
 
-        savepath = os.path.join(outflow_savedir, outflow_names[RAT_ID])
+        savepath = os.path.join(outflow_savedir, outflow_names[RAT_ID] + ".csv")
         log.debug(f"Calculating Outflow for {resname} saving at: {savepath}")
         calc_outflow(inflowpath, deltaS, epath, a, savepath)
 
