@@ -224,7 +224,8 @@ def generate_plots(reservoir_db_fn, project_dir):
         32: "Sesan_4",
         33: "7232",
         34: "7284",
-        35: "Lower_Sesan_2"
+        35: "Lower_Sesan_2",
+        36: "Yali"
     }
 
     inflow_fns = {
@@ -262,13 +263,14 @@ def generate_plots(reservoir_db_fn, project_dir):
         32: "Sesan",
         33: "7232 ",
         34: "7284 ",
-        35: "Lower"
+        35: "Lower",
+        36: "Yali "
     }
 
     dels_outflow_fns = {
-        1: "",
-        2: "",
-        3: "",
+        1: "Sre_Pok_4",
+        2: "Phumi_Svay_Chrum",
+        3: "Battambang_1",
         4: "5117",
         5: "Nam_Ngum_1",
         6: "5138",
@@ -300,7 +302,8 @@ def generate_plots(reservoir_db_fn, project_dir):
         32: "Sesan_4",
         33: "7232",
         34: "7284",
-        35: "Lower_Sesan_2"
+        35: "Lower_Sesan_2",
+        36: "Yali"
     }
 
     # using `project_dir` determine the directories of fluxes
