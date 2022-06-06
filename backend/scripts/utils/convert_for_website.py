@@ -28,14 +28,19 @@ def convert_inflow(project_dir):
     website_v_dir = os.path.join(inflow_dir, "website_version")
 
     names_to_ids = {
-        "Nam_N":"5136",
-        "Ubol_":"5149",
-        "Lam_P":"5150",
-        "Sirid":"5796",
-        "Nam_T":"6999",
-        "Xe_Ka":"7003",
-        "Sesan":"7203",
-        "Lower":"7303",
+        "Nam_N":"Nam_Ngum_1",
+        "Ubol_":"Ubol_Ratana",
+        "Lam_P":"Lam_Pao",
+        "Sirid":"Sirindhorn",
+        "Nam_T":"Nam_Theun_2",
+        "Xe_Ka":"Xe_Kaman_1",
+        "Sesan":"Sesan_4",
+        "Lower":"Lower_Sesan_2",
+        "Batta":"Battambang_1",
+        "Phumi":"Phumi_Svay_Chrum",
+        "Sesan":"Sesan_4",
+        "Sre_P":"Sre_Pok_4",
+        "Yali ":"Yali",
         "5117 ":"5117",
         "5138 ":"5138",
         "5143 ":"5143",
@@ -102,12 +107,10 @@ def convert_dels_outflow(project_dir):
     for dels_path in dels_paths:
         res_name = os.path.splitext(os.path.split(dels_path)[-1])[0]
 
-        if not res_name.isnumeric():
-            grandid = mapping[res_name]
-        else:
-            grandid = res_name
+        if res_name in mapping:
+            savename = mapping[res_name]
 
-        savepath = os.path.join(dels_dir, f"website_version/{grandid}.txt")
+        savepath = os.path.join(dels_dir, f"website_version/{savename}.txt")
 
         df = pd.read_csv(dels_path)
         df = df[['date', 'dS']]
@@ -123,12 +126,10 @@ def convert_dels_outflow(project_dir):
     for outflow_path in outflow_paths:
         res_name = os.path.splitext(os.path.split(outflow_path)[-1])[0]
 
-        if not res_name.isnumeric():
-            grandid = mapping[res_name]
-        else:
-            grandid = res_name
+        if res_name in mapping:
+            savename = mapping[res_name]
 
-        savepath = os.path.join(outflow_dir, f"website_version/{grandid}.txt")
+        savepath = os.path.join(outflow_dir, f"website_version/{savename}.txt")
 
         df = pd.read_csv(outflow_path)
         df = df[['date', 'outflow_rate']].rename({
