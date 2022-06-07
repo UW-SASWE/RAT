@@ -109,6 +109,8 @@ def convert_dels_outflow(project_dir):
 
         if res_name in mapping:
             savename = mapping[res_name]
+        else:
+            savename = res_name
 
         savepath = os.path.join(dels_dir, f"website_version/{savename}.txt")
 
@@ -116,7 +118,7 @@ def convert_dels_outflow(project_dir):
         df = df[['date', 'dS']]
         df['dS'] = np.round(df['dS'], 2)
 
-        print(f"Converting [∆S]: {res_name}")
+        print(f"Converting [∆S]: {res_name}, {savepath}")
         df.to_csv(savepath, index=False, header=False)
     
     # Outflow
@@ -128,6 +130,8 @@ def convert_dels_outflow(project_dir):
 
         if res_name in mapping:
             savename = mapping[res_name]
+        else:
+            savename = res_name
 
         savepath = os.path.join(outflow_dir, f"website_version/{savename}.txt")
 
@@ -139,7 +143,7 @@ def convert_dels_outflow(project_dir):
         df['Streamflow'] = np.round(df['Streamflow'], 2)
         df.loc[df['Streamflow']<0, 'Streamflow'] = 0
 
-        print(f"Converting [Outflow]: {res_name}")
+        print(f"Converting [Outflow]: {res_name}, {savepath}")
         df.to_csv(savepath, index=False)
 
 def convert_altimeter(project_dir):
