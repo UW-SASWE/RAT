@@ -204,7 +204,8 @@ def run_postprocessing(project_dir):
         33: "7232",
         34: "7284",
         35: "7303",
-        36: "Yali"
+        36: "Yali",
+        37: "Nam_Ton"
     }
     sarea_names = {
         1: "Sre_Pok_4",
@@ -242,7 +243,8 @@ def run_postprocessing(project_dir):
         33: "7232",
         34: "7284",
         35: "Lower_Sesan_2",
-        36: "Yali"
+        36: "Yali",
+        37: "Nam_Ton"
     }
     dels_names = {
         1: "Sre_Pok_4",
@@ -280,7 +282,8 @@ def run_postprocessing(project_dir):
         33: "7232",
         34: "7284",
         35: "Lower_Sesan_2",
-        36: "Yali"
+        36: "Yali",
+        37: "Nam_Ton"
     }
     res_shp_names = {
         1: "Sre_Pok_4",
@@ -318,7 +321,8 @@ def run_postprocessing(project_dir):
         33: "7232",
         34: "7284",
         35: "Lower_Sesan_2",
-        36: "Yali"
+        36: "Yali",
+        37: "Nam_Ton"
     }
     outflow_names = {
         1: "Sre_Pok_4",
@@ -356,7 +360,8 @@ def run_postprocessing(project_dir):
         33: "7232",
         34: "7284",
         35: "Lower_Sesan_2",
-        36: "Yali"
+        36: "Yali",
+        37: "Nam_Ton"
     }
     areas = {                   # Areas in km2, from GRAND if available, or calcualted
         1: 3.4,
@@ -395,6 +400,7 @@ def run_postprocessing(project_dir):
         34: 154.34,
         35: 332.96,
         36: 45,
+        37: 7.5
     }
     inflow_names = {
         1: "Sre_P",
@@ -432,7 +438,8 @@ def run_postprocessing(project_dir):
         33: "7232 ",
         34: "7284 ",
         35: "Lower",
-        36: "Yali "
+        36: "Yali ",
+        37: "Nam_T"
     }
 
     # SArea
@@ -468,7 +475,7 @@ def run_postprocessing(project_dir):
         if os.path.isfile(sarea_path):
             log.debug(f"Calculating Evaporation for {resname}")
             # calc_E(e_path, respath, vic_results_path)
-            # calc_E(respath, forcings_path, vic_results_path, sarea_path, e_path)
+            calc_E(respath, forcings_path, vic_results_path, sarea_path, e_path)
         else:
             log.debug(f"{sarea_path} not found; skipping")
 

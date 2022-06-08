@@ -53,7 +53,8 @@ grand_areas = {                   # Areas in km2, from GRAND if available, or ca
     "Phumi_Svay_Chrum": 0.8,
     "Battambang_1": 15,
     "Kaptai": 600,
-    "Yali": 50
+    "Yali": 50,
+    "Nam_Ton": 7.5
 }
 
 def run_sarea(start_date, end_date, datadir):
@@ -62,7 +63,7 @@ def run_sarea(start_date, end_date, datadir):
         "Phumi_Svay_Chrum", "Sesan_4", "Sirindhorn", "Sre_Pok_4", "Ubol_Ratana", "Xe_Kaman_1", 
         "Yali", "5117", "5138", "5143", "5147", "5148", "5151", "5152", "5155", "5156", "5160",
         "5162", "5795", "5797", "7000", "7001", "7002", "7004", "7037", "7087", "7158", "7159",
-        "7164", "7181", "7201", "7232", "7284", "7303", "Nam_Theun_2", "Phumi_Svay_Chrum"#, "Nam_Ton"
+        "7164", "7181", "7201", "7232", "7284", "7303", "Nam_Theun_2", "Phumi_Svay_Chrum", "Nam_Ton"
     ]
     
     for reservoir in reservoirs:
