@@ -9,7 +9,7 @@ conda activate /houston2/pritam/rat_mekong_v3/.condaenv
 echo "Activated Environment: "$CONDA_DEFAULT_ENV
 
 # First checkout the version of code to use
-git checkout v0.3.5
+git checkout v0.3.6
 git status
 
 python /houston2/pritam/rat_mekong_v3/backend/scripts/utils/update_meta.py
