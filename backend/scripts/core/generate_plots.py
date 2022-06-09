@@ -266,7 +266,7 @@ def generate_plots(reservoir_db_fn, project_dir):
         34: "7284 ",
         35: "Lower",
         36: "Yali ",
-        37: "Nam_T",
+        37: "NamTo",
     }
 
     dels_outflow_fns = {

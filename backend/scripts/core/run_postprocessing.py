@@ -439,7 +439,7 @@ def run_postprocessing(project_dir):
         34: "7284 ",
         35: "Lower",
         36: "Yali ",
-        37: "Nam_T"
+        37: "NamTo"
     }
 
     # SArea
