@@ -40,6 +40,7 @@ def convert_inflow(project_dir):
         "Phumi":"Phumi_Svay_Chrum",
         "Sesan":"Sesan_4",
         "Sre_P":"Sre_Pok_4",
+        "NamTo": "Nam_Ton",
         "Yali ":"Yali",
         "5117 ":"5117",
         "5138 ":"5138",
