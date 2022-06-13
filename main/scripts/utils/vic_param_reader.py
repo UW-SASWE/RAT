@@ -444,14 +444,15 @@ class VICParameterFile:
             f.write(param)
 
     def __enter__(self):
-        # Save config file used to run the program too
-        config_record_path = os.path.join(self.workspace, 'config_record.yml')
-        yaml.dump(self.config, open(config_record_path, 'w'))
-        # Save copy of global vic parameter file used to initialize parameters
-        if self.init_param_file:
-            with open(os.path.join(self.workspace, 'init_global_params.txt'), 'w') as dst:
-                with open(self.init_param_file, 'r') as src:
-                    dst.writelines(src.readlines())
+        if (self.intermediate_files):
+            # Save config file used to run the program too
+            config_record_path = os.path.join(self.workspace, 'config_record.yml')
+            yaml.dump(self.config, open(config_record_path, 'w'))
+            # Save copy of global vic parameter file used to initialize parameters
+            if self.init_param_file:
+                with open(os.path.join(self.workspace, 'init_global_params.txt'), 'w') as dst:
+                    with open(self.init_param_file, 'r') as src:
+                        dst.writelines(src.readlines())
 
         # Determine output file
         # Assuming only one file is generated

@@ -10,14 +10,15 @@ import math
 
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import create_directory, run_command
+from utils.utils import create_directory
+from utils.run_command import run_command
 from utils.vic_param_reader import VICParameterFile
 
 log = getLogger(LOG_NAME)
 
 
 class VICRunner():
-    def __init__(self, vic_env, param_file, vic_result_file, rout_input_dir, conda_hook) -> None:
+    def __init__(self, vic_env, param_file, vic_result_file, rout_input_dir, conda_hook = None) -> None:
         self.vic_env = vic_env
         self.param_file = param_file
         self.vic_result = vic_result_file
@@ -28,7 +29,7 @@ class VICRunner():
     def run_vic(self, np=16, cd=None):
         log.log(NOTIFICATION, "Running VIC Model using %s cores", np)
 
-        if not self._conda_hook:
+        if not self.conda_hook:
             arg = f'source activate {self.vic_env} && mpiexec -n {np} {self.model_path} -g {self.param_file} && source deactivate'
         else:
             arg = f"source {self.conda_hook} && conda activate {self.vic_env} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
