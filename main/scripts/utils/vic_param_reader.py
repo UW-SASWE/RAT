@@ -213,11 +213,14 @@ class VICParameterFile:
             self.params['results']['LOG_DIR'] = create_directory(os.path.join(self.workspace, 'logs',''),True)
             
         else:
+            # Replacing the init_param_file if given
             if self.init_param_file:
                 self.vic_param_path = self.init_param_file   # Paramter file will be replaced
+            # Or storing it in vic basin params dir and replace it from next cycle
             else:
                 self.vic_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],
                                                             'basins',self.basin_name,'vic_basin_params'),True)
+                self.vic_param_path = os.path.join(self.vic_param_path,'vic_param.txt')
             self.params['results']['LOG_DIR'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
                                                              'vic_logs',self.basin_name,''),True) 
         log.debug("VIC Logs Directory: %s ", self.params['results']['LOG_DIR'])
