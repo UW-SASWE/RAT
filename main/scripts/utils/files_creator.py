@@ -4,6 +4,7 @@ import xarray as xr
 import rioxarray as rxr
 import rasterio
 from shapely.geometry import mapping
+import geopandas as gpd
 
 from utils.utils import round_pixels,round_up
 from utils.run_command import run_command
@@ -90,3 +91,15 @@ def create_basin_grid_flow_asc(global_flow_grid_dir_tif, basingridfile_path, sav
         savepath+'.asc'
     ]
     cmd_out_code = run_command(cmd)
+
+def create_basin_station_latlon_csv(global_station_file, basin_gpd_df, column_dict, savepath):
+    basins_station=gpd.read_file(global_station_file)
+    basin_data_crs_changed = basin_gpd_df.to_crs(basins_station.crs)
+    basins_station_lat_lon = gpd.sjoin(basins_station, basin_data_crs_changed, "inner")[[column_dict['id_column'],
+                                                                column_dict['name_column'],column_dict['lat_column'],column_dict['lon_column']]]
+    basins_station_lat_lon['name'] = basins_station_lat_lon[column_dict['id_column']].astype(str
+                                                                )+'_'+basins_station_lat_lon[column_dict['name_column']].str.replace(' ','_')
+    basins_station_lat_lon['run'] = 1
+    basins_station_lat_lon['lon'] = basins_station_lat_lon[column_dict['lon_column']]
+    basins_station_lat_lon['lat'] = basins_station_lat_lon[column_dict['lat_column']]
+    basins_station_lat_lon[['run','name','lon','lat']].to_csv(savepath,index=False)
