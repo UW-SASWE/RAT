@@ -10,7 +10,8 @@ from utils.logging import LOG_NAME, NOTIFICATION
 log = getLogger(LOG_NAME)
 
 class RouteParameterFile:
-    def __init__(self, config, start, end, clean=False, runname=None, config_section='ROUTING'):
+    def __init__(self, config, basin_name, start, end, basin_flow_direction_file=None, clean=False, runname=None, rout_input_path_prefix=None,
+                                config_section='ROUTING', intermediate_files=False):
         self.params = {
             'flow_direction_file': None,
             'velocity': None,
@@ -29,6 +30,11 @@ class RouteParameterFile:
         self.workspace = None
         self.clean = clean
 
+        self.basin_name = basin_name
+        self.intermediate_files = intermediate_files
+        self.rout_input_path_prefix = rout_input_path_prefix
+        self.basin_flow_direction_file = basin_flow_direction_file
+
         self.startdate = start
         self.enddate = end
         self.config_section = config_section
@@ -46,9 +52,9 @@ class RouteParameterFile:
         config = self.config
 
         # Calculate first
-        if self.params['start_date'] is not None:
+        if self.params['start_date'] is None:
             self.params['start_date'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime("%Y %m %d")
-        if self.params['end_date'] is not None:
+        if self.params['end_date'] is None:
             self.params['end_date'] = config['GLOBAL']['end'].strftime("%Y %m %d")
 
         # If passed as parameters, replace them
@@ -59,21 +65,44 @@ class RouteParameterFile:
             self.params['end_date'] = self.enddate.strftime('%Y %m %d')
 
         # setup workspace
-        self.workspace = create_directory(os.path.join(config[self.config_section]['route_workspace'], f'run_{self.runname}'))
+        if (config[self.config_section].get('route_workspace')):
+            self.workspace = create_directory(os.path.join(config[self.config_section]['route_workspace'],
+                                                                 f'run_{self.runname}'))
+        else:
+            self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',
+                                                                self.basin_name,'rout_workspace',f'run_{self.runname}'))
         
         ## Route parameter file, this is where the parameter file will be saved
-        self.route_param_path = os.path.relpath(os.path.join(self.workspace, 'route_param.txt'))
+        if (self.intermediate_files):
+            self.route_param_path = os.path.relpath(os.path.join(self.workspace, 'route_param.txt'))
+        else:
+            # Replacing the init_route_param_file
+            if(config[self.config_section].get('route_param_file')):
+                self.route_param_path = config[self.config_section].get('route_param_file')
+            # Or storing it in route basin params dir and replace it from next cycle
+            else:
+                self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+                                                            'basins',self.basin_name,'rout_basin_params'),True)
+                self.route_param_path = os.path.join(self.route_param_path,'route_param.txt')
         
+        ## flow direction file
+        self.params['flow_direction_file'] = self.basin_flow_direction_file
+
         ## output dir
-        self.params['output_dir'] = create_directory(os.path.join(self.workspace, 'route_results'))  # TODO delete results when finished
+        self.params['output_dir'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+                                                            'basins',self.basin_name,'rout_outputs'),True)
         
         ## stations
-        self.params['station'] = os.path.join(self.workspace, 'stations_xy.txt')
+        if (self.intermediate_files):
+            self.params['station'] = os.path.join(self.workspace, 'stations_xy.txt')
+        else:
+            self.params['station'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+                                                        'basins',self.basin_name,'rout_basin_params'),True)
+            self.params['station'] = os.path.join(self.params['station'],'stations_xy.txt')
 
-        # self.route_input_dir = config[self.config_section]['route_input_dir']
-
-        self.params['input_files_prefix'] = os.path.join(config[self.config_section]['route_input_dir'], 'fluxes_')
-
+        # Routing Input file prefix path   
+        self.params['input_files_prefix'] = self.rout_input_path_prefix
+        
         # load from config
         for key in config[f'{self.config_section} PARAMETERS']:
             val = config[f'{self.config_section} PARAMETERS'][key]
@@ -148,8 +177,9 @@ class RouteParameterFile:
 
     def __enter__(self):
         # Save a copy of config file for record
-        config_record_path = os.path.join(self.workspace, 'config_record.yml')
-        yaml.dump(self.config, open(config_record_path, 'w'))
+        if(self.intermediate_files):
+            config_record_path = os.path.join(self.workspace, 'config_record.yml')
+            yaml.dump(self.config, open(config_record_path, 'w'))
 
         # TODO when defined `_load_from_param`, save the file used to initialize for record
 

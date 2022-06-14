@@ -7,7 +7,7 @@ import subprocess
 
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import run_command
+from utils.run_command import run_command
 
 log = getLogger(LOG_NAME)
 
@@ -76,7 +76,7 @@ class RoutingRunner():
         #   and their generated output files
         log.log(NOTIFICATION, "Running Routing model")
 
-        args = [self.model_path, self.param_path]
+        args = f'cd {self.project_dir} && {self.model_path} {self.param_path}'
         log.debug("Running: %s", " ".join(args))
         ret_code = run_command(args)
 
@@ -112,7 +112,7 @@ class RoutingRunner():
             parse_dates=[['year', 'month', 'day']]
         ).rename({"year_month_day": "date"}, axis=1)
         
-        df['streamflow'] = df['streamflow'] * 0.028316847
+        df['streamflow'] = df['streamflow'] * 0.028316847 # Imperial unit to SI units
 
         log.log(NOTIFICATION, "Converting streamflow: %s - %s", df_path, df.tail())
 
