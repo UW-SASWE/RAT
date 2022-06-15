@@ -51,8 +51,10 @@ class VICRunner():
         create_directory(self.rout_input)
 
         # VIC Routing doesn't round, it truncates the lat long values. Important for file names.
-        lats_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lat.values)))
-        lons_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lon.values)))
+        lats_vicfmt = (np.floor(np.abs(fluxes_subset.lat.values)*100)/100)*np.sign(fluxes_subset.lat.values)
+        lons_vicfmt = (np.floor(np.abs(fluxes_subset.lon.values)*100)/100)*np.sign(fluxes_subset.lon.values)
+        # lats_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lat.values)))
+        # lons_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lon.values)))
 
         # with tqdm(total=total) as pbar:  # tqdm doesn't work elegantly with logging
         s = time.time()
