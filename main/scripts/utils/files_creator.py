@@ -80,6 +80,7 @@ def create_basin_grid_flow_asc(global_flow_grid_dir_tif, basingridfile_path, sav
             basin_flow_grid_dir = basin_flow_grid_dir.where(basin_flow_grid_dir!=i, flow_direction_replace_dict[i])
 
     basin_flow_grid_dir = basin_flow_grid_dir.rio.write_nodata(0)
+    basin_flow_grid_dir = basin_flow_grid_dir.where(basin_grid.data==1,0)
     basin_flow_grid_dir.rio.to_raster(savepath+'.tif', dtype='int16')
 
     # Change format, and save as asc file
