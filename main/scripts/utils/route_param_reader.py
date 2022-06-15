@@ -34,6 +34,7 @@ class RouteParameterFile:
         self.intermediate_files = intermediate_files
         self.rout_input_path_prefix = rout_input_path_prefix
         self.basin_flow_direction_file = basin_flow_direction_file
+        self.project_dir = config['GLOBAL']['project_dir']
 
         self.startdate = start
         self.enddate = end
@@ -69,21 +70,22 @@ class RouteParameterFile:
             self.workspace = create_directory(os.path.join(config[self.config_section]['route_workspace'],
                                                                  f'run_{self.runname}'))
         else:
-            self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',
+            if(self.intermediate_files):
+                self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',
                                                                 self.basin_name,'rout_workspace',f'run_{self.runname}'))
         
         ## Route parameter file, this is where the parameter file will be saved
         if (self.intermediate_files):
-            self.route_param_path = os.path.relpath(os.path.join(self.workspace, 'route_param.txt'))
+            self.route_param_path = os.path.relpath(os.path.join(self.workspace, 'route_param.txt'),self.project_dir)
         else:
             # Replacing the init_route_param_file
             if(config[self.config_section].get('route_param_file')):
-                self.route_param_path = config[self.config_section].get('route_param_file')
+                self.route_param_path = os.path.relpath(config[self.config_section].get('route_param_file'),self.project_dir)
             # Or storing it in route basin params dir and replace it from next cycle
             else:
                 self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],
                                                             'basins',self.basin_name,'rout_basin_params'),True)
-                self.route_param_path = os.path.join(self.route_param_path,'route_param.txt')
+                self.route_param_path = os.path.relpath(os.path.join(self.route_param_path,'route_param.txt'),self.project_dir)
         
         ## flow direction file
         self.params['flow_direction_file'] = self.basin_flow_direction_file
@@ -116,7 +118,7 @@ class RouteParameterFile:
         res.append(f"# ROUTE PARAMETER FILE created by RouteParameterFile() on {datetime.datetime.now().strftime('%Y-%m-%d %X')} - run_{self.runname}")
         
         res.append(f"# FLOW DIRECTION FILE")
-        res.append(f"{os.path.relpath(self.params['flow_direction_file'])}")
+        res.append(f"{os.path.relpath(self.params['flow_direction_file'],self.project_dir)}")
         
         res.append(f"# VELOCITY FILE")
         if not isinstance(self.params['velocity'], str): # if not a velocity file path
@@ -124,7 +126,7 @@ class RouteParameterFile:
             res.append(f"{self.params['velocity']}")
         else:
             res.append(f".true.")
-            res.append(f"{os.path.relpath(self.params['velocity'])}")
+            res.append(f"{os.path.relpath(self.params['velocity'],self.project_dir)}")
 
         res.append(f"# DIFFUSION FILE")
         if not isinstance(self.params['diff'], str): # if not a velocity file path
@@ -132,7 +134,7 @@ class RouteParameterFile:
             res.append(f"{self.params['diff']}")
         else:
             res.append(f".true.")
-            res.append(f"{os.path.relpath(self.params['diff'])}")
+            res.append(f"{os.path.relpath(self.params['diff'],self.project_dir)}")
 
         res.append(f"# XMASK FILE")
         if not isinstance(self.params['xmask'], str): # if not a velocity file path
@@ -140,7 +142,7 @@ class RouteParameterFile:
             res.append(f"{self.params['xmask']}")
         else:
             res.append(f".true.")
-            res.append(f"{os.path.relpath(self.params['xmask'])}")
+            res.append(f"{os.path.relpath(self.params['xmask'],self.project_dir)}")
 
         res.append(f"# FRACTION FILE")
         if not isinstance(self.params['fraction'], str): # if not a velocity file path
@@ -148,29 +150,29 @@ class RouteParameterFile:
             res.append(f"{self.params['fraction']}")
         else:
             res.append(f".true.")
-            res.append(f"{os.path.relpath(self.params['fraction'])}")
+            res.append(f"{os.path.relpath(self.params['fraction'],self.project_dir)}")
 
         res.append(f"# STATION FILE")
-        res.append(f"{os.path.relpath(self.params['station'])}")
+        res.append(f"{os.path.relpath(self.params['station'],self.project_dir)}")
 
         res.append(f"# INPUTS and PRECISION")
-        res.append(f"{os.path.relpath(self.params['input_files_prefix'])}")
+        res.append(f"{os.path.relpath(self.params['input_files_prefix'],self.project_dir)}")
         res.append(f"{self.params['input_file_precision']}")
 
         res.append(f"# OUTPUT FILES")
-        res.append(f"{os.path.relpath(self.params['output_dir'])}/")
+        res.append(f"{os.path.relpath(self.params['output_dir'],self.project_dir)}/")
 
         res.append(f"# START and END")
         res.append(f"{self.params['start_date']}")
         res.append(f"{self.params['end_date']}")
 
         res.append(f"# UH")
-        res.append(f"{os.path.relpath(self.params['uh'])}")
+        res.append(f"{os.path.relpath(self.params['uh'],self.project_dir)}")
 
         return '\n'.join(res)
 
     def _write(self):
-        with open(self.route_param_path, 'w') as f:
+        with open(os.path.join(self.project_dir,self.route_param_path), 'w') as f:
             param = self._out_format_params()
             log.debug(param)
             f.write(param)
