@@ -54,10 +54,10 @@ end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 16
 RESULTS_PER_ITER = 5
 
-aoi = reservoir.geometry().simplify(100).buffer(500)
+AOI = reservoir.geometry().simplify(100).buffer(500)
 
 
-# s2_subset = s2.filterBounds(aoi).filterDate(start_date, end_date)
+# s2_subset = s2.filterBounds(AOI).filterDate(start_date, end_date)
 
 ##############################################
 ##       Defining necessary functions       ##
@@ -103,7 +103,7 @@ def identify_water_cluster(im):
 
     max_cluster_value = ee.Number(im.select('cluster').reduceRegion(
         reducer = ee.Reducer.max(),
-        geometry = aoi,
+        geometry = AOI,
         scale = LARGE_SCALE,
         maxPixels =  1e10
     ).get('cluster'))
@@ -115,7 +115,7 @@ def identify_water_cluster(im):
         avg_mbwi = mbwi.updateMask(im.select('cluster').eq(ee.Image(cluster_val))).reduceRegion(
             reducer = ee.Reducer.mean(),
             scale = MEDIUM_SCALE,
-            geometry = aoi,
+            geometry = AOI,
             maxPixels = 1e10
         ).get('MBWI')
         return avg_mbwi
@@ -132,7 +132,7 @@ def identify_water_cluster(im):
 def cordeiro(im):
     band_subset = ee.List(['NDWI', 'MNDWI', 'SR_B7'])   # using NDWI, MNDWI and B7 (SWIR)
     sampled_pts = im.select(band_subset).sample(
-        region = aoi,
+        region = AOI,
         scale = SMALL_SCALE,
         numPixels = 5e3-1  ## limit of 5k points
     )
@@ -172,13 +172,13 @@ def process_image(im):
     })
     im = im.addBands(mbwi)
 
-    cloud_area = aoi.area().subtract(im.select('cloud').Not().multiply(ee.Image.pixelArea()).reduceRegion(
+    cloud_area = AOI.area().subtract(im.select('cloud').Not().multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(),
-        geometry = aoi,
+        geometry = AOI,
         scale = SMALL_SCALE,
         maxPixels = 1e10
     ).get('cloud'))
-    cloud_percent = cloud_area.multiply(100).divide(aoi.area())
+    cloud_percent = cloud_area.multiply(100).divide(AOI.area())
     
     cordeiro_will_run_when = cloud_percent.lt(CLOUD_COVER_LIMIT)
 
@@ -188,7 +188,7 @@ def process_image(im):
     water_area_cordeiro = ee.Number(ee.Algorithms.If(cordeiro_will_run_when,
         ee.Number(im.select('water_map_cordeiro').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
             reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
+            geometry = AOI, 
             scale = SMALL_SCALE, 
             maxPixels = 1e10
         ).get('water_map_cordeiro')),
@@ -197,7 +197,7 @@ def process_image(im):
     non_water_area_cordeiro = ee.Number(ee.Algorithms.If(cordeiro_will_run_when,
         ee.Number(im.select('water_map_cordeiro').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
             reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
+            geometry = AOI, 
             scale = SMALL_SCALE, 
             maxPixels = 1e10
         ).get('water_map_cordeiro')),
@@ -208,13 +208,13 @@ def process_image(im):
     im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
     water_area_NDWI = ee.Number(im.select('water_map_NDWI').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(), 
-        geometry = aoi, 
+        geometry = AOI, 
         scale = SMALL_SCALE, 
         maxPixels = 1e10
     ).get('water_map_NDWI'))
     non_water_area_NDWI = ee.Number(im.select('water_map_NDWI').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(), 
-        geometry = aoi, 
+        geometry = AOI, 
         scale = SMALL_SCALE, 
         maxPixels = 1e10
     ).get('water_map_NDWI'))
@@ -239,7 +239,7 @@ def postprocess_wrapper(im, bandName, raw_area):
         
         hist = ee.List(gswd_masked.reduceRegion(
             reducer = ee.Reducer.autoHistogram(minBucketWidth = 1),
-            geometry = aoi,
+            geometry = AOI,
             scale = SMALL_SCALE,
             maxPixels = 1e10
         ).get('occurrence'))
@@ -253,13 +253,13 @@ def postprocess_wrapper(im, bandName, raw_area):
         occurrence_thresh = ee.Number(ee.List(counts.get(0)).get(count_thresh_index))
 
         water_map = im.select([bandName], ['water_map'])
-        gswd_improvement = gswd.clip(aoi).gte(occurrence_thresh).updateMask(water_map.mask().Not()).select(["occurrence"], ["water_map"])
+        gswd_improvement = gswd.clip(AOI).gte(occurrence_thresh).updateMask(water_map.mask().Not()).select(["occurrence"], ["water_map"])
         
         improved = ee.ImageCollection([water_map, gswd_improvement]).mosaic().select(['water_map'], ['water_map_zhao_gao'])
         
         corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
             reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
+            geometry = AOI, 
             scale = SMALL_SCALE, 
             maxPixels = 1e10
         ).get('water_map_zhao_gao'))
@@ -290,7 +290,7 @@ def process_date(date):
     date = ee.Date(date)
     from_date = date
     to_date = date.advance(TEMPORAL_RESOLUTION - 1, 'day')
-    l8_subset = l8.filterDate(from_date, to_date).filterBounds(aoi).map(preprocess)
+    l8_subset = l8.filterDate(from_date, to_date).filterBounds(AOI).map(preprocess)
 
     # im = ee.Image(ee.Algorithms.If(s2_subset.size().neq(0), s2_subset.map(process_image).qualityMosaic('NDWI'), ee.Image.constant(0)))
     im = ee.Image(ee.Algorithms.If(l8_subset.size().neq(0), l8_subset.map(calc_ndwi).qualityMosaic('NDWI'), ee.Image.constant(0)))
@@ -315,7 +315,7 @@ def generate_timeseries(dates):
     return imcoll
 
 def get_first_obs(start_date, end_date):
-    first_im = l8.filterBounds(aoi).filterDate(start_date, end_date).first()
+    first_im = l8.filterBounds(AOI).filterDate(start_date, end_date).first()
     str_fmt = 'YYYY-MM-dd'
     return ee.Date.parse(str_fmt, ee.Date(first_im.get('system:time_start')).format(str_fmt))
 
@@ -328,8 +328,8 @@ def run_process_long(res_name, start, end, datadir):
     fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
     first_obs = datetime.strptime(fo, '%Y-%m-%d')
 
-    global aoi
-    aoi = reservoir.geometry().buffer(BUFFER_DIST)
+    global AOI
+    AOI = reservoir.geometry().buffer(BUFFER_DIST)
 
     scratchdir = os.path.join(datadir, "_scratch")
 
