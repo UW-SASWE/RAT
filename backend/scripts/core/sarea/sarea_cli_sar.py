@@ -186,7 +186,7 @@ def main():
     ROI = reservoir_ee.geometry().buffer(BUFFER_DIST)
 
     results = retrieve_sar(start, end, res='6MS')
-    savepath = f"data/sar/{reservoir}_12d_sar.csv"
+    savepath = f"backend/data/sar/{reservoir}_12d_sar.csv"
     results.to_csv(savepath, index=False)
 
 
