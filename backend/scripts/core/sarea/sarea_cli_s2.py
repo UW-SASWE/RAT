@@ -9,6 +9,7 @@ from random import randint
 import argparse
 from itertools import zip_longest
 import pprint
+import numpy as np
 
 from utils.logging import LOG_NAME, NOTIFICATION
 from logging import getLogger
@@ -106,7 +107,7 @@ def identify_water_cluster(im):
         avg_mbwi = mbwi.updateMask(im.select('cluster').eq(ee.Image(cluster_val))).reduceRegion(
             reducer = ee.Reducer.mean(),
             scale = MEDIUM_SCALE,
-            geometry = aoi,
+            geometry = AOI,
             maxPixels = 1e10
         ).get('MBWI')
         return avg_mbwi
