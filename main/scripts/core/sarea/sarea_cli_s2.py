@@ -10,11 +10,19 @@ from random import randint
 import argparse
 from itertools import zip_longest
 import pprint
+from ee_utils.ee_utils import poly2feature
 
 from utils.logging import LOG_NAME, NOTIFICATION
 from logging import getLogger
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
+
+#### initialize the connection to the server ####
+from ee_utils.ee_config import service_account,key_file
+
+ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
+ee.Initialize(ee_credentials)
+#### Connection established ####
 
 
 def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
@@ -32,17 +40,9 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
     else:
         raise ValueError('Expected fill, strict, or ignore')
 
-ee.Initialize()
-
-# L8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
-# gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater").select("occurrence")
-# Threshold = 0.0
-
 # NEW STUFF
 s2 = ee.ImageCollection("COPERNICUS/S2_SR")
 gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater")
-reservoir_geom_prefix = "users/saswegee/pritam/RAT-Mekong/"
-reservoir = ee.FeatureCollection("users/pdas47/RAT/Sirindhorn")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
 NDWI_THRESHOLD = 0.3;
@@ -317,13 +317,13 @@ def get_first_obs(start_date, end_date):
     str_fmt = 'YYYY-MM-dd'
     return ee.Date.parse(str_fmt, ee.Date(first_im.get('system:time_start')).format(str_fmt))
 
-def run_process_long(res_name, start, end, datadir):
+def run_process_long(res_name,res_polygon, start, end, datadir):
     fo = start
     enddate = end
 
-    reservoir = ee.FeatureCollection(reservoir_geom_prefix + res_name)
+    # Extracting reservoir geometry 
     global aoi
-    aoi = reservoir.geometry().buffer(BUFFER_DIST)
+    aoi = poly2feature(res_polygon,BUFFER_DIST).geometry()
     
     fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
     first_obs = datetime.strptime(fo, '%Y-%m-%d')
@@ -461,28 +461,5 @@ def run_process_long(res_name, start, end, datadir):
     return savepath
 
 # User-facing wrapper function
-def sarea_s2(reservoir, start, end, datadir):
-    return run_process_long(reservoir, start, end, datadir)
-
-
-def main():
-    # Setup argument parser
-    parser = argparse.ArgumentParser(description="Generate Reservoir Surface area time series")
-
-    parser.add_argument("reservoir")
-    parser.add_argument("start_date")
-    parser.add_argument("end_date")
-
-    args = parser.parse_args()
-
-    reservoir = args.reservoir
-    start = args.start_date
-    end = args.end_date
-
-    # print(f"{reservoir = }, {start = }, {end = }")
-    run_process_long(reservoir, start, end, "data/s2")
-
-
-
-if __name__ == '__main__':
-    main()
+def sarea_s2(res_name, res_polygon, start, end, datadir):
+    return run_process_long(res_name,res_polygon, start, end, datadir)

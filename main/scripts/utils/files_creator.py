@@ -5,6 +5,7 @@ import rioxarray as rxr
 import rasterio
 from shapely.geometry import mapping
 import geopandas as gpd
+import pandas as pd
 
 from utils.utils import round_pixels,round_up
 from utils.run_command import run_command
@@ -99,8 +100,22 @@ def create_basin_station_latlon_csv(global_station_file, basin_gpd_df, column_di
     basins_station_lat_lon = gpd.sjoin(basins_station, basin_data_crs_changed, "inner")[[column_dict['id_column'],
                                                                 column_dict['name_column'],column_dict['lat_column'],column_dict['lon_column']]]
     basins_station_lat_lon['name'] = basins_station_lat_lon[column_dict['id_column']].astype(str
-                                                                )+'_'+basins_station_lat_lon[column_dict['name_column']].str.replace(' ','_')
+                                                                )+'_'+basins_station_lat_lon[column_dict['name_column']].astype(str).str.replace(' ','_')
     basins_station_lat_lon['run'] = 1
     basins_station_lat_lon['lon'] = basins_station_lat_lon[column_dict['lon_column']]
     basins_station_lat_lon['lat'] = basins_station_lat_lon[column_dict['lat_column']]
     basins_station_lat_lon[['run','name','lon','lat']].to_csv(savepath,index=False)
+
+def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_dict,station_xy_file,routing_station_global_data,savepath):
+    reservoirs = gpd.read_file(reservoir_shpfile)
+    stations_df = pd.read_csv(station_xy_file,sep='\t',header=None,names=['run','name','x','y','area']).dropna().reset_index(drop=True)
+    reservoirs_gdf_column_dict = reservoir_shpfile_column_dict
+
+    if routing_station_global_data:
+        reservoirs['uniq_id'] = reservoirs[reservoirs_gdf_column_dict['id_column']].astype(str)+'_'+ \
+                                                    reservoirs[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
+        reservoirs_gdf = reservoirs.merge(stations_df['name'], how='inner', left_on='uniq_id', right_on='name')
+    else:
+        reservoirs_gdf = reservoirs.merge(stations_df['name'], how='inner', left_on=reservoirs_gdf_column_dict['dam_name_column'], right_on='name')
+    
+    reservoirs_gdf.to_file(savepath)

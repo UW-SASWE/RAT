@@ -6,17 +6,17 @@ import argparse
 import os
 from datetime import datetime, timedelta
 
-ee.Initialize()
+from ee_utils.ee_utils import poly2feature
 
+#### initialize the connection to the server ####
+from ee_utils.ee_config import service_account,key_file
 
-reservoir = "Lam_Pao"
+ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
+ee.Initialize(ee_credentials)
+#### Connection established ####
 
 s1 = ee.ImageCollection("COPERNICUS/S1_GRD")
-reservoir_geom_prefix = "users/saswegee/pritam/RAT-Mekong/"
-# ROI = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
 
-start_date = '2018-07-01'
-end_date = '2022-01-01'
 # definitions
 ANGLE_THRESHOLD_1 = ee.Number(45.4);
 ANGLE_THRESHOLD_2 = ee.Number(31.66)
@@ -129,11 +129,11 @@ def retrieve_sar(start_date, end_date, res='ys'):
 
 # data.to_csv(f"../data/sar/{reservoir}_12d_sar.csv")
 
-def sarea_s1(reservoir, start_date, end_date, datadir):
+def sarea_s1(reservoir, reservoir_polygon ,start_date, end_date, datadir):
+    
+    # Extracting reservoir geometry 
     global ROI 
-    # reservoir_ee = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
-    reservoir_ee = ee.FeatureCollection(reservoir_geom_prefix + reservoir)
-    ROI = reservoir_ee.geometry().buffer(BUFFER_DIST)
+    ROI = poly2feature(reservoir_polygon,BUFFER_DIST).geometry()
     TEMPORAL_RESOLUTION = 12
 
     savepath = os.path.join(datadir, f"{reservoir}_12d_sar.csv")
@@ -163,32 +163,3 @@ def sarea_s1(reservoir, start_date, end_date, datadir):
     data.to_csv(savepath, index=False)
 
     return savepath
-
-
-def main():
-    # Setup argument parser
-    parser = argparse.ArgumentParser(description="Generate Reservoir Surface area time series - Sentinel-1")
-
-    parser.add_argument("reservoir")
-    parser.add_argument("start_date")
-    parser.add_argument("end_date")
-
-    args = parser.parse_args()
-
-    reservoir = args.reservoir
-    start = args.start_date
-    end = args.end_date
-    
-    print(f"{reservoir = }, {start = }, {end = }")
-    
-    global ROI 
-    reservoir_ee = ee.FeatureCollection(f"users/pdas47/RAT/{reservoir}")
-    ROI = reservoir_ee.geometry().buffer(BUFFER_DIST)
-
-    results = retrieve_sar(start, end, res='6MS')
-    savepath = f"data/sar/{reservoir}_12d_sar.csv"
-    results.to_csv(savepath, index=False)
-
-
-if __name__ == '__main__':
-    main()
