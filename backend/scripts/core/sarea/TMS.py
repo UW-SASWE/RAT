@@ -68,6 +68,11 @@ class TMS():
         l8df.loc[l8df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
         l8df.loc[l8df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
 
+        # in some cases l8df may have duplicated rows (with same values) that have to be removed
+        if l8df.index.duplicated().sum() > 0:
+            print("Duplicated labels, deleting")
+            l8df = l8df[~l8df.index.duplicated(keep='last')]
+
         # Fill in the gaps in l8df created due to high cloud cover with np.nan values
         l8df_interpolated = l8df.reindex(pd.date_range(l8df.index[0], l8df.index[-1], freq=f'{L8_TEMPORAL_RESOLUTION}D'))
         l8df_interpolated.loc[np.isnan(l8df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
