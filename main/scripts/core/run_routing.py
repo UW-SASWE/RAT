@@ -31,7 +31,11 @@ class RoutingRunner():
         log.debug("Station file (X-Y): %s", self.station_path_xy)
 
         self.fdr = self._read_fdr(fdr_path)
-        self.stations = self._read_stations(station_path_latlon)
+        if os.path.exists(station_path_latlon):
+            self.stations = self._read_stations(station_path_latlon)
+            self.station_file_creation = True
+        else:
+            self.station_file_creation = False
 
     def _read_fdr(self, fdr_path) -> rio.DatasetReader:
         log.debug("Reading Flow Direction file from: %s", fdr_path)
@@ -55,21 +59,22 @@ class RoutingRunner():
         return stations
 
     def create_station_file(self):
-        log.debug("Creating station file (X-Y) at: %s", self.station_path_xy)
+        if(self.station_file_creation):
+            log.debug("Creating station file (X-Y) at: %s", self.station_path_xy)
 
-        self.stations[['y', 'x']] = self.stations.apply(
-            lambda row: pd.Series(
-                    self._get_xy(row['lat'], row['lon']), 
-                    index=['x', 'y']), 
-                    axis=1
-                )
-        self.stations[['run', 'name', 'x', 'y', 'filler']].to_csv(
-            self.station_path_xy, 
-            sep='\t', 
-            header=False, 
-            index=False, 
-            line_terminator='\nNONE\n'
-        )
+            self.stations[['y', 'x']] = self.stations.apply(
+                lambda row: pd.Series(
+                        self._get_xy(row['lat'], row['lon']), 
+                        index=['x', 'y']), 
+                        axis=1
+                    )
+            self.stations[['run', 'name', 'x', 'y', 'filler']].to_csv(
+                self.station_path_xy, 
+                sep='\t', 
+                header=False, 
+                index=False, 
+                line_terminator='\nNONE\n'
+            )
 
     def run_routing(self):
         # TODO parse the output of routing model to to remove logs, keep a track of files stations
