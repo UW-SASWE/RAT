@@ -6,13 +6,15 @@ import pandas as pd
 from scipy.fft import fft
 from shapely.geometry.linestring import LineString
 import netCDF4 
+from utils.utils import round_up
 
-def get_j3_tracks(respath, trackspath):
+
+def get_j3_tracks(reservoir, reservoir_column_dict, tracks_df, custom_reservoir_range_dict):
     """Returns a list of Jason-3 ground tracks and the min-max latitudes of intersection
 
     Args:
-        respath (str): Path to the reservoir shapefile
-        trackspath (str): Path to the shapefile containing tracks; Should contains 'track' column 
+        reservoir (geopandas dataframe): Geodataframe object of reservoir having only one row
+        tracks_df (geopandas dataframe): Geodataframe object of altimeter tracks; Should contains 'track' column 
             containing the track numbers, and a geometry column containing linestrings of the path
     
     Returns:
@@ -21,31 +23,32 @@ def get_j3_tracks(respath, trackspath):
              'lat_range': (list) of (tuples) of minimum and maximum latitudes for each track}
         (None) if no overlapping tracks are found
     """
-    gdf = gpd.read_file(trackspath, driver='GeoJSON')
-    res = gpd.read_file(respath)
-
-    res_geom = res['geometry'].unary_union
-
+    gdf = tracks_df
+    
+    res = reservoir
+    
+    res_name = str(res[reservoir_column_dict['unique_identifier']])
+    res_geom = res['geometry'] #.unary_union
     tracks = gdf[gdf.intersects(res_geom)]['track'].unique()
 
-
     minmax_lats = []
+    if(custom_reservoir_range_dict):
+        if res_name in custom_reservoir_range_dict.keys():
+            minmax_lats.append(custom_reservoir_range_dict[res_name])
+        else:
+            for track in tracks:
+                track_geom = gdf[gdf['track']==track] #.geometry
+                intersect = gpd.clip(track_geom, res_geom)
+                minx, miny, maxx, maxy = intersect.geometry.unary_union.bounds
 
-    ranges = {
-        '/houston2/pritam/rat_mekong_v3/backend/data/ancillary/reservoirs/Siridhorn.shp': (14.88, 14.895),
-        '/houston2/pritam/rat_mekong_v3/backend/data/ancillary/reservoirs/5796.shp': (14.88, 14.895)
-    }
-
-    if respath in ranges.keys():
-        minmax_lats.append(ranges[respath])
+                minmax_lats.append((round_up(miny,6), round_up(maxy,6)))
     else:
-
         for track in tracks:
-            track_geom = gdf[gdf['track']==track]#.geometry
-            intersect = gpd.clip(track_geom, res)
+            track_geom = gdf[gdf['track']==track] #.geometry
+            intersect = gpd.clip(track_geom, res_geom)
             minx, miny, maxx, maxy = intersect.geometry.unary_union.bounds
 
-            minmax_lats.append((miny, maxy))
+            minmax_lats.append((round_up(miny,6), round_up(maxy,6)))
     
     if len(tracks) == 0:
         return_data = None
@@ -727,59 +730,17 @@ def generate_timeseries(extracteddir, savepath, minlat, maxlat, geoiddata):
     df.to_csv(savepath, index=False)
 
 
-def get_latest_cycle(username, password, metafile, series=3):
-    with open(metafile, 'r') as meta:
-        lastcycle = int(meta.readlines()[0])
-        nextcycle = lastcycle + 1
+def get_latest_cycle(username, password, lastcycle_no, series=3):
+    lastcycle = int(lastcycle_no)
+    nextcycle = lastcycle + 1
 
     ftp = FTP("ftp-access.aviso.altimetry.fr")
     ftp.login(user=str(username), passwd=str(password))
     try:
         ftp.cwd(f"geophysical-data-record/jason-{series}/gdr_f/cycle_{nextcycle}")
 
-        # If no errors, new data exists. Write to file and return true
-        with open(metafile, 'w') as meta:
-            meta.writelines([str(nextcycle)])
-
         latest_cycle = nextcycle
     except:
         latest_cycle = lastcycle
     
     return latest_cycle
-
-
-def main():
-    secrets = configparser.ConfigParser()
-    secrets.read("../secrets/secrets.ini")
-
-    username = secrets["aviso"]["username"]
-    pwd = secrets["aviso"]["pwd"]
-    
-    startcycle = 1
-    endcycle = 300
-    series = 3
-    
-    savedir = "/Users/pdas47/phd/rat_mekong_v3/extras/2022_01_07-altimetry_operaionalization/data/sirindhorn_operational/raw"
-    extracteddir = "/Users/pdas47/phd/rat_mekong_v3/extras/2022_01_07-altimetry_operaionalization/data/sirindhorn_operational/extracted"
-
-    # temporarily try to download data for sirindhorn
-    sirin_minlat = 14.837451
-    sirin_maxlat = 14.934604
-    sirin_passnum = 1
-
-    latest_cycle = get_latest_cycle(username, pwd, "./meta.txt")
-
-    print("Downloading data")
-    download_data(username, pwd, savedir, sirin_passnum, startcycle, latest_cycle, series)
-
-    print("Extracting data")
-    extractedf = extract_data(savedir + '/j3_001', extracteddir, sirin_minlat, sirin_maxlat, sirin_passnum, 3)
-
-    print("Creating Time-series")
-    ts_savepath = "/Users/pdas47/phd/rat_mekong_v3/extras/2022_01_07-altimetry_operaionalization/data/sirindhorn_operational/sirindhorn.txt"
-    geoiddata = "/Users/pdas47/phd/rat_mekong_v3/extras/2022_01_07-altimetry_operaionalization/data/ancillary/geoidegm2008grid.mat"
-    
-    generate_timeseries(extractedf, ts_savepath, sirin_minlat, sirin_maxlat, geoiddata)
-
-if __name__ == '__main__':
-    main()
