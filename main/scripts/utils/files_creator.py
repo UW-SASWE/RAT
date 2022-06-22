@@ -113,9 +113,12 @@ def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_di
 
     if routing_station_global_data:
         reservoirs['uniq_id'] = reservoirs[reservoirs_gdf_column_dict['id_column']].astype(str)+'_'+ \
-                                                    reservoirs[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
-        reservoirs_gdf = reservoirs.merge(stations_df['name'], how='inner', left_on='uniq_id', right_on='name')
+                            reservoirs[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
+        stations_df = stations_df.rename(columns={'name':'uniq_id'})                                            
+        reservoirs_gdf = reservoirs.merge(stations_df['uniq_id'], how='inner', on='uniq_id')
     else:
-        reservoirs_gdf = reservoirs.merge(stations_df['name'], how='inner', left_on=reservoirs_gdf_column_dict['dam_name_column'], right_on='name')
+        stations_df = stations_df.rename(columns={'name':reservoirs_gdf_column_dict['dam_name_column']})
+        reservoirs_gdf = reservoirs.merge(stations_df[reservoirs_gdf_column_dict['dam_name_column']], 
+                                        how='inner', on=reservoirs_gdf_column_dict['dam_name_column'])
     
     reservoirs_gdf.to_file(savepath)
