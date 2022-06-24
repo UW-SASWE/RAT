@@ -61,7 +61,8 @@ def main():
         config['GLOBAL']['end'],
         processed_datadir,
         basingridfile,
-        combined_datapath
+        combined_datapath,
+        config['GLOBAL']['climatological_data']
     )
     #------------ Process Data End ------------#
 
