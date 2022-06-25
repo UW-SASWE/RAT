@@ -122,6 +122,11 @@ class TMS():
         sar.sort_index(inplace=True)
         sar = sar.loc[MIN_DATE:, :]
 
+        # in some cases s2df may have duplicated rows (with same values) that have to be removed
+        if sar.index.duplicated().sum() > 0:
+            print("Duplicated labels, deleting")
+            sar = sar[~sar.index.duplicated(keep='last')]
+
         # extrapolate data by 12 days (S1_TEMPORAL_RESOLUTION)
         extrapolated_date = sar.index[-1] + pd.DateOffset(S1_TEMPORAL_RESOLUTION)
 
