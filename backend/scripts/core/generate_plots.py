@@ -27,10 +27,14 @@ def plot_reservoir(inflow_fn, outflow_fn, dels_fn, sarea_fn, reservoir_name, sav
     """
     log.debug(f"Plotting: {reservoir_name} -> {save_fn}")
     inflow = pd.read_csv(inflow_fn, parse_dates=['date'])
+    inflow['streamflow'] = inflow['streamflow'] * (24*60*60)        # convert from m3/s to m3/d
+    inflow["streamflow"] = inflow['streamflow'] * 1e-6              # convert from m3/d to million m3/d
     dels = pd.read_csv(dels_fn, parse_dates=['date'])[['date', 'dS', 'days_passed']]
-    dels['dS'] = dels['dS'] * 1e3 #converting from BCM to MCM
+    dels['dS'] = dels['dS'] * 1e3                                   # converting from billion m3 to million m3
     outflow = pd.read_csv(outflow_fn, parse_dates=['date'])[['date', 'outflow_rate']]
     outflow.loc[outflow['outflow_rate']<0, 'outflow_rate'] = 0
+    outflow['outflow_rate'] = outflow['outflow_rate'] * (24*60*60)  # convert from m3/s to m3/d
+    outflow['outflow_rate'] = outflow['outflow_rate'] * 1e-6        # converting from m3/d to million m3/d
 
     sarea = pd.read_csv(sarea_fn, parse_dates=['date'])[['date', 'area']]
 
