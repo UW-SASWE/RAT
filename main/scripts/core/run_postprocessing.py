@@ -9,14 +9,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import run_command
+from utils.utils import create_directory
 from utils.science import penman
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
-
 
 
 def calc_dels(aecpath, sareapath, savepath):
@@ -51,25 +49,26 @@ def calc_dels(aecpath, sareapath, savepath):
 
     df.to_csv(savepath, index=False)
 
-def calc_E(res_path, forcings_path, vic_res_path, sarea_path, savepath):
-    ds = xr.open_dataset(vic_res_path)#.load()
+def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_path, savepath):
+    ds = xr.open_dataset(vic_res_path)
     forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
+    ## Slicing the latest run time period
+    ds = ds.sel(time=slice(start_date, end_date))
+    forcings_ds = forcings_ds.sel(time=slice(start_date, end_date))
 
-    res_name = res_path.split(os.sep)[-1]
-
-    res = gpd.read_file(res_path)
     # create buffer to get required bounds
-    res_buf = res.buffer(0.1)
+    res_geom = res_data.geometry
+    res_buf = res_geom.buffer(0.1)
 
-    minx, miny, maxx, maxy = res_buf.iloc[0].bounds
+    minx, miny, maxx, maxy = res_buf.bounds
 
-    log.debug(f"Bounds: {res_buf.iloc[0].bounds}")
+    log.debug(f"Bounds: {res_buf.bounds}")
     log.debug("Clipping forcings")
     forcings_ds_clipped = forcings_ds['air_pressure'].sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
     forcings = forcings_ds_clipped.load()
     
     log.debug("Clipping VIC results")
-    ds_clipped = ds.sel(lon=slice(minx, maxx), lat=slice(maxy, miny))#.isel(time=slice(100, 200))
+    ds_clipped = ds.sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
     reqvars_clipped = ds_clipped[['OUT_EVAP', 'OUT_R_NET', 'OUT_VP', 'OUT_WIND', 'OUT_AIR_TEMP']]
     reqvars = reqvars_clipped.load()
 
@@ -80,11 +79,12 @@ def calc_E(res_path, forcings_path, vic_res_path, sarea_path, savepath):
     upsampled_sarea = sarea.resample('D').mean()
     sarea_interpolated = upsampled_sarea.interpolate(method='linear')
     
+    ## Slicing the latest run time period
+    sarea_interpolated = sarea_interpolated[start_date:end_date]
+    
     log.debug("Checking if grid cells lie inside reservoir")
     last_layer = reqvars.isel(time=-1).to_dataframe().reset_index()
     temp_gdf = gpd.GeoDataFrame(last_layer, geometry=gpd.points_from_xy(last_layer.lon, last_layer.lat))
-
-    res_geom = res.iloc[0].geometry
     points_within = temp_gdf[temp_gdf.within(res_geom)]['geometry']
 
     if len(points_within) == 0:
@@ -102,17 +102,20 @@ def calc_E(res_path, forcings_path, vic_res_path, sarea_path, savepath):
         # print(f"[!] {len(points_within)} Grid cells inside reservoir found, averaging their values")
         data = reqvars.sel(lat=points_within.y, lon=points_within.x, method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
 
-        # res_geom = res.iloc[0].geometry
         P = forcings.sel(lat=points_within.y, lon=points_within.x, method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
 
     data['area'] = sarea_interpolated['area']
     data['P'] = P
+    print(data)
     data = data.dropna()
     data['penman_E'] = data.apply(lambda row: penman(row['OUT_R_NET'], row['OUT_AIR_TEMP'], row['OUT_WIND'], row['OUT_VP'], row['P'], row['area']), axis=1)
     data = data.reset_index()
 
-    # Save 
-    data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
+    # Save (Writing new file if not exist otherwise append)
+    if os.path.isfile(savepath):
+        data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, mode='a', header=False, index=False)
+    else:
+        data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
 
 
 def calc_outflow(inflowpath, dspath, epath, area, savepath):
@@ -150,339 +153,69 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
     df.to_csv(savepath, index=False)
 
 
-def run_postprocessing(project_dir):
+def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date):
     # read file defining mapped resrvoirs
-    reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
-    reservoirs = gpd.read_file(reservoirs_fn)
-    ids = reservoirs['RAT_ID'].tolist()
-
-    # define mappings according to RAT_ID
-    aec_names = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "5136",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "5149",
-        11: "5150",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "5796",
-        20: "5797",
-        21: "6999",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "7003",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "7203",
-        33: "7232",
-        34: "7284",
-        35: "7303",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
-    sarea_names = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "Nam_Ngum_1",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "Ubol_Ratana",
-        11: "Lam_Pao",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "Sirindhorn",
-        20: "5797",
-        21: "Nam_Theun_2",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "Xe_Kaman_1",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "Sesan_4",
-        33: "7232",
-        34: "7284",
-        35: "Lower_Sesan_2",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
-    dels_names = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "Nam_Ngum_1",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "Ubol_Ratana",
-        11: "Lam_Pao",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "Sirindhorn",
-        20: "5797",
-        21: "Nam_Theun_2",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "Xe_Kaman_1",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "Sesan_4",
-        33: "7232",
-        34: "7284",
-        35: "Lower_Sesan_2",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
-    res_shp_names = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "Nam_Ngum_1",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "Ubol_Ratana",
-        11: "Lam_Pao",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "Siridhorn",
-        20: "5797",
-        21: "Nam_Theun_2",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "Xe_Kaman_1",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "Sesan_4",
-        33: "7232",
-        34: "7284",
-        35: "Lower_Sesan_2",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
-    outflow_names = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "Nam_Ngum_1",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "Ubol_Ratana",
-        11: "Lam_Pao",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "Sirindhorn",
-        20: "5797",
-        21: "Nam_Theun_2",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "Xe_Kaman_1",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "Sesan_4",
-        33: "7232",
-        34: "7284",
-        35: "Lower_Sesan_2",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
-    areas = {                   # Areas in km2, from GRAND if available, or calcualted
-        1: 3.4,
-        2: 0.7,
-        3: 15,
-        4: 36.91,
-        5: 436.93,
-        6: 9.23,
-        7: 38.44,
-        8: 73.22,
-        9: 15.79,
-        10: 313.38,
-        11: 202.51,
-        12: 6.96,
-        13: 1.84,
-        14: 4.78,
-        15: 26.89,
-        16: 9.69,
-        17: 11.57,
-        18: 86.9,
-        19: 235.58,
-        20: 31,
-        21: 414.34,
-        22: 10.4,
-        23: 93.77,
-        24: 4.42,
-        25: 101.43,
-        26: 4.12,
-        27: 20.46,
-        28: 6.82,
-        29: 12.85,
-        30: 24.91,
-        31: 43.95,
-        32: 53.08,
-        33: 246.16,
-        34: 154.34,
-        35: 332.96,
-        36: 45,
-        37: 7.5
-    }
-    inflow_names = {
-        1: "Sre_P",
-        2: "Phumi",
-        3: "Batta",
-        4: "5117 ",
-        5: "Nam_N",
-        6: "5138 ",
-        7: "5143 ",
-        8: "5147 ",
-        9: "5148 ",
-        10: "Ubol_",
-        11: "Lam_P",
-        12: "5151 ",
-        13: "5152 ",
-        14: "5155 ",
-        15: "5156 ",
-        16: "5160 ",
-        17: "5162 ",
-        18: "5795 ",
-        19: "Sirid",
-        20: "5797 ",
-        21: "Nam_T",
-        22: "7000 ",
-        23: "7001 ",
-        24: "7002 ",
-        25: "Xe_Ka",
-        26: "7004 ",
-        27: "7037 ",
-        28: "7159 ",
-        29: "7164 ",
-        30: "7181 ",
-        31: "7201 ",
-        32: "Sesan",
-        33: "7232 ",
-        34: "7284 ",
-        35: "Lower",
-        36: "Yali ",
-        37: "NamTo"
-    }
-
+    # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
+    reservoirs = gpd.read_file(reservoir_shpfile)
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    end_date_str = end_date.strftime("%Y-%m-%d")
+    
     # SArea
-    sarea_raw_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
+    sarea_raw_dir = os.path.join(data_dir,'basins',basin_name, "gee_sarea_tmsos")
 
     # DelS
     log.debug("Calculating ∆S")
-    dels_savedir = os.path.join(project_dir, "backend/data/dels")
-    aec_dir = os.path.join(project_dir, "backend/data/aec")
+    dels_savedir = create_directory(os.path.join(data_dir,'basins',basin_name, "dels"), True)
+    aec_dir = aec_dir_path
 
-    for RAT_ID in ids:
-        sarea_path = os.path.join(sarea_raw_dir, sarea_names[RAT_ID] + ".csv")
-        savepath = os.path.join(dels_savedir, dels_names[RAT_ID] + ".csv")
-        aecpath = os.path.join(aec_dir, aec_names[RAT_ID] + ".txt")
+    for reservoir_no,reservoir in reservoirs.iterrows():
+        # Reading reservoir information
+        reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+        sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+        savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
+        aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
 
-        log.debug(f"Calculating ∆S for {sarea_names[RAT_ID]}, saving at: {savepath}")
-        calc_dels(aecpath, sarea_path, savepath)
+        if os.path.isfile(sarea_path):
+            log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
+            calc_dels(aecpath, sarea_path, savepath)
+        else:
+            log.debug(f"{sarea_path} not found; skipping ∆S calculation")
+        
 
     # Evaporation
     log.debug("Retrieving Evaporation")
-    evap_datadir = os.path.join(project_dir, "backend/data/E")
-    res_dir = os.path.join(project_dir, "backend/data/ancillary/reservoirs")
-    vic_results_path = os.path.join(project_dir, "backend/data/vic_results/nc_fluxes.2001-04-01.nc")
-    sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
-    forcings_path = os.path.join(project_dir, "backend/data/forcings/*.nc")
+    evap_datadir = create_directory(os.path.join(data_dir,'basins',basin_name, "Evaporation"), True)
+    vic_results_path = os.path.join(data_dir,'basins',basin_name, "vic_outputs/nc_fluxes."+start_date_str+".nc")
+    forcings_path = os.path.join(data_dir,'basins',basin_name, "vic_inputs/*.nc")
 
-    for RAT_ID in ids:
-        respath = os.path.join(res_dir, res_shp_names[RAT_ID] + ".shp")
-        _, resname = os.path.split(respath)
-        sarea_path = os.path.join(sarea_dir, resname.replace(".shp", ".csv"))
-        e_path = os.path.join(evap_datadir, resname.replace(".shp", '.csv'))
+    for reservoir_no,reservoir in reservoirs.iterrows():
+        # Reading reservoir information
+        reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+        sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+        e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
         
         if os.path.isfile(sarea_path):
-            log.debug(f"Calculating Evaporation for {resname}")
+            log.debug(f"Calculating Evaporation for {reservoir_name}")
             # calc_E(e_path, respath, vic_results_path)
-            calc_E(respath, forcings_path, vic_results_path, sarea_path, e_path)
+            calc_E(reservoir, start_date_str, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
         else:
-            log.debug(f"{sarea_path} not found; skipping")
+            log.debug(f"{sarea_path} not found; skipping evaporation calculation")
 
     # Outflow
     log.debug("Calculating Outflow")
-    outflow_savedir = os.path.join(project_dir, "backend/data/outflow")
-    inflow_dir = os.path.join(project_dir, "backend/data/inflow")
+    outflow_savedir = create_directory(os.path.join(data_dir,'basins',basin_name, "rat_outflow"),True)
+    inflow_dir = os.path.join(data_dir,'basins',basin_name, "rout_inflow")
 
-    for RAT_ID in ids:
-        respath = os.path.join(res_dir, res_shp_names[RAT_ID] + ".csv")
-        deltaS = os.path.join(dels_savedir, dels_names[RAT_ID] + ".csv")
-        _, resname = os.path.split(deltaS)
-        inflowpath = os.path.join(inflow_dir, inflow_names[RAT_ID] + ".csv")
-        epath = os.path.join(evap_datadir, resname)
-        a = areas[RAT_ID]
+    for reservoir_no,reservoir in reservoirs.iterrows():
+        # Reading reservoir information
+        reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+        deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
+        inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
+        epath = os.path.join(evap_datadir, reservoir_name + ".csv")
+        a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
 
-        savepath = os.path.join(outflow_savedir, outflow_names[RAT_ID] + ".csv")
-        log.debug(f"Calculating Outflow for {resname} saving at: {savepath}")
+        savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
+        log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
         calc_outflow(inflowpath, deltaS, epath, a, savepath)
 
 def main():
