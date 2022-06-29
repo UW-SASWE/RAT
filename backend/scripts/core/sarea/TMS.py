@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.stats import sigmaclip
+from scipy.stats import sigmaclip, zscore
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -120,6 +120,10 @@ class TMS():
         sar['date'] = sar['date'].apply(lambda d: np.datetime64(d.strftime('%Y-%m-%d')))
         sar.set_index('date', inplace=True)
         sar.sort_index(inplace=True)
+        std = zscore(sar['sarea'])
+        SAR_ZSCORE_LIM = 3
+        sar.loc[(std > SAR_ZSCORE_LIM) | (std < -SAR_ZSCORE_LIM), 'sarea'] = np.nan
+        sar['sarea'] = sar['sarea'].interpolate()
         sar = sar.loc[MIN_DATE:, :]
 
         # in some cases s2df may have duplicated rows (with same values) that have to be removed
@@ -150,6 +154,7 @@ class TMS():
         result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
 
         return result
+
 
 
 def deviation_from_sar(optical_areas, sar_areas, DEVIATION_THRESHOLD = 20, LOW_STD_LIM=2, HIGH_STD_LIM=2):
