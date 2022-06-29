@@ -81,10 +81,11 @@ class RoutingRunner():
         #   and their generated output files
         log.log(NOTIFICATION, "Running Routing model")
 
-        args = [self.model_path, self.param_path]
+        # args = self.model_path, self.param_path]
+        args = f'cd {self.project_dir} && {self.model_path} {self.param_path}'
         log.debug("Running: %s", " ".join(args))
-        ret_code = run_command(['cd',self.project_dir])
-        ret_code = run_command(args)
+        # ret_code = run_command(['cd',self.project_dir])
+        ret_code = run_command(args,shell=True)
 
         # clean up
         log.debug("Cleaning up routing files")
