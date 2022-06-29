@@ -4,6 +4,7 @@ from asyncio.log import logger
 import ee
 from datetime import datetime, timedelta, timezone
 import pandas as pd
+import numpy as np
 import time
 import os
 from random import randint
@@ -54,7 +55,7 @@ CLOUD_COVER_LIMIT = 90
 start_date = ee.Date('2019-01-01')
 end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 5
-RESULTS_PER_ITER = 2
+RESULTS_PER_ITER = 5
 
 # aoi = reservoir.geometry().simplify(100).buffer(500);
 
@@ -86,13 +87,13 @@ def scl_cloud_mask(im):
 ##########################################################/
 def preprocess(im):
     ## Apply scaling factor
-    ## clipped = im.clip(aoi)
-    clipped = im
-    clipped = scl_cloud_mask(clipped)
-    cloud = clipped.select('cloud')
-    clipped = clipped.addBands(clipped.select(['B.', 'B..']).multiply(0.0001), None, True)
+    ## clipped = im.clip(AOI)
+    im = scl_cloud_mask(im)
+    cloud = im.select('cloud')
+    im = im.addBands(im.select(['B.', 'B..']).multiply(0.0001), None, True)
+    im = im.addBands(cloud)
 
-    return clipped
+    return im
 
 
 def identify_water_cluster(im):
@@ -127,12 +128,12 @@ def identify_water_cluster(im):
     return water_cluster
 
 
-def cordeiro(im):
+def clustering(im):
     band_subset = ee.List(['NDWI', 'B12'])
     sampled_pts = im.select(band_subset).sample(
         region = aoi,
         scale = SMALL_SCALE,
-        numPixels = 4e3  ## limit of 5k points, staying at 4k
+        numPixels = 4999  ## limit of 5k points, staying at 4k
     )
     
     ## Agglomerative Clustering isn't available, using Cascade K-Means Clustering based on
@@ -148,15 +149,15 @@ def cordeiro(im):
     im = im.addBands(classified)
     
     water_cluster = identify_water_cluster(im)
-    water_map = classified.select('cluster').eq(ee.Image.constant(water_cluster)).select(['cluster'], ['water_map_cordeiro'])
+    water_map = classified.select('cluster').eq(ee.Image.constant(water_cluster)).select(['cluster'], ['water_map_clustering'])
     im = im.addBands(water_map)
 
     return im
 
 
 def process_image(im):
-    ## FOR SENTINEL-2
-    # im = im.select(['B3', 'B12', 'B2', 'B4', 'B8', 'B11', 'cloud'])
+    # Process Image
+    
     ndwi = im.normalizedDifference(['B3', 'B8']).rename('NDWI');
     im = im.addBands(ndwi);
     mndwi = im.normalizedDifference(['B3', 'B12']).rename('MNDWI');
@@ -178,103 +179,102 @@ def process_image(im):
     ).get('cloud'))
     cloud_percent = cloud_area.multiply(100).divide(aoi.area())
     
-    cordeiro_will_run_when = cloud_percent.lt(CLOUD_COVER_LIMIT)
+    CLOUD_LIMIT_SATISFIED = cloud_percent.lt(CLOUD_COVER_LIMIT)
 
-    # Clusting based
-    im = im.addBands(ee.Image(ee.Algorithms.If(cordeiro_will_run_when, cordeiro(im), ee.Image.constant(-1e6))))  # run cordeiro only if cloud percent is < 90%
+    # Clustering based
+    im = im.addBands(
+        ee.Image(
+            ee.Algorithms.If(
+                CLOUD_LIMIT_SATISFIED, 
+                clustering(im), 
+                ee.Image.constant(-1e6)
+            )
+        )
+    )  # run clustering only if cloud percent is < 90%
 
-    water_area_cordeiro = ee.Number(ee.Algorithms.If(cordeiro_will_run_when,
-        ee.Number(im.select('water_map_cordeiro').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
-            reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
-            scale = SMALL_SCALE, 
-            maxPixels = 1e10
-        ).get('water_map_cordeiro')),
-        ee.Number(-1e6)
-    ))
-    non_water_area_cordeiro = ee.Number(ee.Algorithms.If(cordeiro_will_run_when,
-        ee.Number(im.select('water_map_cordeiro').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
-            reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
-            scale = SMALL_SCALE, 
-            maxPixels = 1e10
-        ).get('water_map_cordeiro')),
-        ee.Number(-1e6)
-    ))
+    water_area_clustering = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
+                reducer = ee.Reducer.sum(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
+    non_water_area_clustering = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
+                reducer = ee.Reducer.sum(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
 
-    # NDWI based
-    im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
-    water_area_NDWI = ee.Number(im.select('water_map_NDWI').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
-        reducer = ee.Reducer.sum(), 
-        geometry = aoi, 
-        scale = SMALL_SCALE, 
-        maxPixels = 1e10
-    ).get('water_map_NDWI'))
-    non_water_area_NDWI = ee.Number(im.select('water_map_NDWI').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
-        reducer = ee.Reducer.sum(), 
-        geometry = aoi, 
-        scale = SMALL_SCALE, 
-        maxPixels = 1e10
-    ).get('water_map_NDWI'))
-    
     im = im.set('cloud_area', cloud_area.multiply(1e-6))
     im = im.set('cloud_percent', cloud_percent)
-    im = im.set('water_area_cordeiro', water_area_cordeiro.multiply(1e-6))
-    im = im.set('non_water_area_cordeiro', non_water_area_cordeiro.multiply(1e-6))
-    im = im.set('water_area_NDWI', water_area_NDWI.multiply(1e-6))
-    im = im.set('non_water_area_NDWI', non_water_area_NDWI.multiply(1e-6))
+    im = im.set('water_area_clustering', water_area_clustering.multiply(1e-6))
+    im = im.set('non_water_area_clustering', non_water_area_clustering.multiply(1e-6))
+    im = im.set('PROCESSING_SUCCESSFUL', CLOUD_LIMIT_SATISFIED)
     
     return im
 
-
-def postprocess_wrapper(im, bandName, raw_area):
-    im = ee.Image(im)
-    bandName = ee.String(bandName)
-    date = im.get('to_date')
-
-    def postprocess():
-        gswd_masked = gswd.updateMask(im.select(bandName).eq(1))
-        
-        hist = ee.List(gswd_masked.reduceRegion(
-            reducer = ee.Reducer.autoHistogram(minBucketWidth = 1),
-            geometry = aoi,
-            scale = SMALL_SCALE,
-            maxPixels = 1e10
-        ).get('occurrence'))
-        
-        counts = ee.Array(hist).transpose().toList()
-        
-        omega = ee.Number(0.17)
-        count_thresh = ee.Number(counts.map(lambda lis: ee.List(lis).reduce(ee.Reducer.mean())).get(1)).multiply(omega)
-        
-        count_thresh_index = ee.Array(counts.get(1)).gt(count_thresh).toList().indexOf(1)
-        occurrence_thresh = ee.Number(ee.List(counts.get(0)).get(count_thresh_index))
-
-        water_map = im.select([bandName], ['water_map'])
-        gswd_improvement = gswd.clip(aoi).gte(occurrence_thresh).updateMask(water_map.mask().Not()).select(["occurrence"], ["water_map"])
-        
-        improved = ee.ImageCollection([water_map, gswd_improvement]).mosaic().select(['water_map'], ['water_map_zhao_gao'])
-        
-        corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
-            reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
-            scale = SMALL_SCALE, 
-            maxPixels = 1e10
-        ).get('water_map_zhao_gao'))
-        
-        improved = improved.set("corrected_area", corrected_area.multiply(1e-6));
-        return improved
-
-    def dont_post_process():
-        improved = ee.Image.constant(-1)
-        improved = improved.set("corrected_area", -1)
-        return improved
-
-    condition = ee.Number(im.get('cloud_percent')).lt(CLOUD_COVER_LIMIT).And(ee.Number(raw_area).gt(0))
-    improved = ee.Image(ee.Algorithms.If(condition, postprocess(), dont_post_process()))
+def postprocess(im, bandName='water_map_clustering'):
+    gswd_masked = gswd.updateMask(im.select(bandName).eq(1))
     
-    improved = improved.set("to_date", date)
+    hist = ee.List(gswd_masked.reduceRegion(
+        reducer = ee.Reducer.autoHistogram(minBucketWidth = 1),
+        geometry = aoi,
+        scale = SMALL_SCALE,
+        maxPixels = 1e10
+    ).get('occurrence'))
     
+    counts = ee.Array(hist).transpose().toList()
+    
+    omega = ee.Number(0.17)
+    count_thresh = ee.Number(counts.map(lambda lis: ee.List(lis).reduce(ee.Reducer.mean())).get(1)).multiply(omega)
+    
+    count_thresh_index = ee.Array(counts.get(1)).gt(count_thresh).toList().indexOf(1)
+    occurrence_thresh = ee.Number(ee.List(counts.get(0)).get(count_thresh_index))
+
+    water_map = im.select([bandName], ['water_map'])
+    gswd_improvement = gswd.clip(aoi).gte(occurrence_thresh).updateMask(water_map.mask().Not()).select(["occurrence"], ["water_map"])
+    
+    improved = ee.ImageCollection([water_map, gswd_improvement]).mosaic().select(['water_map'], ['water_map_zhao_gao'])
+    
+    corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
+        reducer = ee.Reducer.sum(), 
+        geometry = aoi, 
+        scale = SMALL_SCALE, 
+        maxPixels = 1e10
+    ).get('water_map_zhao_gao'))
+    
+    improved = improved.set("corrected_area", corrected_area.multiply(1e-6));
+    improved = improved.set("POSTPROCESSING_SUCCESSFUL", 1);
+    
+    return improved
+
+def postprocess_wrapper(im, bandName='water_map_clustering'):
+    
+    def do_not_postprocess():
+        im = ee.Image.constant(-1)
+        im = im.set('corrected_area', -1)
+        im = im.set('POSTPROCESSING_SUCCESSFUL', 0)
+
+        return im
+
+    improved = ee.Algorithms.If(
+        im.get('PROCESSING_SUCCESSFUL'),
+        postprocess(im, bandName),
+        do_not_postprocess()
+    )
+
     return improved
 
 
@@ -286,22 +286,39 @@ def calc_ndwi(im):
 
 def process_date(date):
     date = ee.Date(date)
-    from_date = date
-    to_date = date.advance(TEMPORAL_RESOLUTION - 1, 'day')
+    to_date = date.advance(1, 'day')
+    from_date = date.advance(-(TEMPORAL_RESOLUTION-1), 'day')
     s2_subset = s2.filterDate(from_date, to_date).filterBounds(aoi).map(preprocess)
 
-    # im = ee.Image(ee.Algorithms.If(s2_subset.size().neq(0), s2_subset.map(process_image).qualityMosaic('NDWI'), ee.Image.constant(0)))
-    im = ee.Image(ee.Algorithms.If(s2_subset.size().neq(0), s2_subset.map(calc_ndwi).qualityMosaic('NDWI'), ee.Image.constant(0)))
+    ENOUGH_IMAGES = s2_subset.size().neq(0)
+    im = ee.Image(
+        ee.Algorithms.If(
+            ENOUGH_IMAGES, 
+            s2_subset.map(calc_ndwi).qualityMosaic('NDWI'), 
+            ee.Image.constant(-1)
+        )
+    )
     
-    im = ee.Image(ee.Algorithms.If(s2_subset.size().neq(0), process_image(im), ee.Image.constant(0)))
+    def not_enough_images():
+        im = ee.Image.constant(-1)
+        im = im.set('PROCESSING_SUCCESSFUL', 0)
 
-    ## im = ee.Algorithms.If(im.bandNames process_image(im))
+        return im
+
+    im = ee.Image(
+        ee.Algorithms.If(
+            ENOUGH_IMAGES, 
+            process_image(im), 
+            not_enough_images()
+        )
+    )
+
     im = im.set('from_date', from_date.format("YYYY-MM-dd"))
     im = im.set('to_date', to_date.format("YYYY-MM-dd"))
+    im = im.set('system:time_start', date.format("YYYY-MM-dd"))
     im = im.set('s2_images', s2_subset.size())
-    
-    # im = ee.Algorithms.If(im.bandNames().size().eq(1), ee.Number(0), im)
-    
+    im = im.set('WAS_PROCESSED', ENOUGH_IMAGES)
+
     return ee.Image(im)
 
 
@@ -337,7 +354,7 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
     savepath = os.path.join(datadir, f"{res_name}.csv")
     
     if os.path.isfile(savepath):
-        temp_df = pd.read_csv(savepath, parse_dates=['mosaic_enddate']).set_index('mosaic_enddate')
+        temp_df = pd.read_csv(savepath, parse_dates=['date']).set_index('date')
 
         last_date = temp_df.index[-1].to_pydatetime()
         fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
@@ -381,61 +398,67 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
             print(subset_dates)
             dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
             
-            res = generate_timeseries(dates).filterMetadata('s2_images', 'greater_than', 0)
-            # pprint.pprint(res.getInfo())
+            ts_imcoll = generate_timeseries(dates)
+            postprocessed_ts_imcoll = ts_imcoll.map(postprocess_wrapper)
 
-            uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 's2_images']
-            uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
-            uncorrected_final_data = uncorrected_final_data_ee.getInfo()
-            print("Uncorrected", uncorrected_final_data)
+            # Download the data locally
+            ts_imcoll_L = ts_imcoll.getInfo()
+            postprocessed_ts_imcoll_L = postprocessed_ts_imcoll.getInfo()
 
-            res_corrected_cordeiro = res.map(lambda im: postprocess_wrapper(im, 'water_map_cordeiro', im.get('water_area_cordeiro')))
-            corrected_columns_to_extract = ['to_date', 'corrected_area']
-            corrected_final_data_cordeiro_ee = res_corrected_cordeiro \
-                                                .filterMetadata('corrected_area', 'not_equals', None) \
-                                                .reduceColumns(
-                                                    ee.Reducer.toList(
-                                                        len(corrected_columns_to_extract)), 
-                                                        corrected_columns_to_extract
-                                                        ).get('list')
-            corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
-            print("Corrected - Cordeiro", corrected_final_data_cordeiro)
-
-            # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
-            # corrected_final_data_NDWI_ee = res_corrected_NDWI \
-            #                                     .filterMetadata('corrected_area', 'not_equals', None) \
-            #                                     .reduceColumns(
-            #                                         ee.Reducer.toList(
-            #                                             len(corrected_columns_to_extract)), 
-            #                                             corrected_columns_to_extract
-            #                                             ).get('list')
+            # Parse the data to create dataframe
+            PROCESSING_STATUSES = []
+            POSTPROCESSING_STATUSES = []
+            cloud_areas = []
+            cloud_percents = []
+            from_dates = []
+            to_dates = []
+            obs_dates = []
+            non_water_areas = []
+            water_areas = []
+            water_areas_zhaogao = []
+            for f, f_postprocessed in zip(ts_imcoll_L['features'], postprocessed_ts_imcoll_L['features']):
+                PROCESSING_STATUS = f['properties']['PROCESSING_SUCCESSFUL']
+                PROCESSING_STATUSES.append(PROCESSING_STATUS)
+                POSTPROCESSING_STATUS = f_postprocessed['properties']['POSTPROCESSING_SUCCESSFUL']
+                POSTPROCESSING_STATUSES.append(POSTPROCESSING_STATUS)
+                obs_dates.append(pd.to_datetime(f['properties']['system:time_start']))
+                from_dates.append(pd.to_datetime(f['properties']['from_date']))
+                to_dates.append(pd.to_datetime(f['properties']['to_date']))
+                if PROCESSING_STATUS:
+                    water_areas.append(f['properties']['water_area_clustering'])
+                    non_water_areas.append(f['properties']['non_water_area_clustering'])
+                    cloud_areas.append(f['properties']['cloud_area'])
+                    cloud_percents.append(f['properties']['cloud_percent'])
+                else:
+                    water_areas.append(np.nan)
+                    non_water_areas.append(np.nan)
+                    cloud_areas.append(np.nan)
+                    cloud_percents.append(np.nan)
+                if POSTPROCESSING_STATUS:
+                    water_areas_zhaogao.append(f_postprocessed['properties']['corrected_area'])
+                else:
+                    water_areas_zhaogao.append(np.nan)
             
-            # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
-            
-            # print(uncorrected_final_data, corrected_final_data_cordeiro, corrected_final_data_NDWI)
-
-            if len(uncorrected_final_data) == 0:
-                continue
-            
-            uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
-            corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
-            # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
-            # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
-            # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
-            df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
-
-            df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
-            df['to_date'] = pd.to_datetime(df['to_date'], format="%Y-%m-%d")
-            df['mosaic_enddate'] = df['to_date'] - pd.Timedelta(1, unit='day')
-            df = df.set_index('mosaic_enddate')
-            print(df.head(2))
+            df = pd.DataFrame({
+                'date': obs_dates,
+                'PROCESSING_STATUS': PROCESSING_STATUSES,
+                'POSTPROCESSING_STATUS': POSTPROCESSING_STATUSES,
+                'from_date': from_dates,
+                'to_date': to_dates,
+                'cloud_area': cloud_areas,
+                'cloud_percent': cloud_percents,
+                'water_area_uncorrected': water_areas,
+                'non_water_area': non_water_areas,
+                'water_area_corrected': water_areas_zhaogao
+            }).set_index('date')
 
             fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
             df.to_csv(fname)
+            print(df.tail())
 
-            s_time = randint(20, 30)
+            s_time = randint(5, 10)
             print(f"Sleeping for {s_time} seconds")
-            time.sleep(randint(20, 30))
+            time.sleep(s_time)
 
             if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
                 print(f"Quitting: Reached enddate {enddate}")
@@ -453,8 +476,8 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
     # Combine the files into one database
     to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
 
-    files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
-    data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
+    files = [pd.read_csv(f, parse_dates=["date"]).set_index("date") for f in to_combine]
+    data = pd.concat(files).drop_duplicates().sort_values("date")
 
     data.to_csv(savepath)
 
