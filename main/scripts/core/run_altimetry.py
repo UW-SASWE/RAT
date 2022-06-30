@@ -7,7 +7,7 @@ from data_processing import altimetry as alt
 
 
 def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_reservoir_range_dict,
-                                         user, password, lastcycle_no, basin_name, data_dir, geoidpath):
+                                         user, password, lastcycle_no, basin_name, data_dir, geoidpath, save_dirpath):
     resname = str(reservoir_df[reservoir_column_dict['unique_identifier']])
     latest_cycle = lastcycle_no         # for initializing latest cycle number
 
@@ -23,7 +23,7 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
     # Directory to save extracted altimetry data from 
     extracteddir = create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry','extracted',resname), True)
     
-    resultsdir = create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry_timeseries'), True)
+    resultsdir = create_directory(save_dirpath, True)
     savepath = os.path.join(resultsdir, f'{resname}.csv')
 
     tracks = j3_pass['tracks']
@@ -40,7 +40,7 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
     
     return (resname,latest_cycle)
 
-def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_name, data_dir):
+def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_name, data_dir, save_dir):
     reservoirs_gdf = gpd.read_file(res_shpfile) 
     
     ## Declaring variables to see if only certain reservoirs needs to be processed or certain range of a reservoir is available
@@ -89,7 +89,7 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
                 print(f"Processing {reservoir_name}")
                 output_res_name, latest_cycle = altimeter_routine(reservoir, res_shpfile_column_dict, j3_tracks_gdf, reservoir_latlon_ranges_dict, 
                                     username, pwd, lastcycle_no, 
-                                    basin_name, data_dir, geoidpath)
+                                    basin_name, data_dir, geoidpath, save_dirpath)
     else:
         res_names_for_altimetry = []
         for reservoir_no,reservoir in reservoirs_gdf.iterrows():
@@ -98,7 +98,7 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
             print(f"Processing {reservoir_name}")
             output_res_name, latest_cycle = altimeter_routine(reservoir, res_shpfile_column_dict, j3_tracks_gdf, reservoir_latlon_ranges_dict, 
                                 username, pwd, lastcycle_no, 
-                                basin_name, data_dir, geoidpath)
+                                basin_name, data_dir, geoidpath, save_dirpath)
             if output_res_name is not None:
                 res_names_for_altimetry.append(output_res_name)
         altimetry_res_names_df = pd.DataFrame(data={'reservoir_uni_id':res_names_for_altimetry})
