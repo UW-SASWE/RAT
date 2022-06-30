@@ -153,7 +153,8 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
     df.to_csv(savepath, index=False)
 
 
-def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date):
+def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date,
+                            evap_datadir, dels_savedir, outflow_savedir):
     # read file defining mapped resrvoirs
     # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
     reservoirs = gpd.read_file(reservoir_shpfile)
@@ -165,7 +166,6 @@ def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfil
 
     # DelS
     log.debug("Calculating ∆S")
-    dels_savedir = create_directory(os.path.join(data_dir,'basins',basin_name, "dels"), True)
     aec_dir = aec_dir_path
 
     for reservoir_no,reservoir in reservoirs.iterrows():
@@ -184,7 +184,6 @@ def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfil
 
     # Evaporation
     log.debug("Retrieving Evaporation")
-    evap_datadir = create_directory(os.path.join(data_dir,'basins',basin_name, "Evaporation"), True)
     vic_results_path = os.path.join(data_dir,'basins',basin_name, "vic_outputs/nc_fluxes."+start_date_str+".nc")
     forcings_path = os.path.join(data_dir,'basins',basin_name, "vic_inputs/*.nc")
 
@@ -203,7 +202,6 @@ def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfil
 
     # Outflow
     log.debug("Calculating Outflow")
-    outflow_savedir = create_directory(os.path.join(data_dir,'basins',basin_name, "rat_outflow"),True)
     inflow_dir = os.path.join(data_dir,'basins',basin_name, "rout_inflow")
 
     for reservoir_no,reservoir in reservoirs.iterrows():
