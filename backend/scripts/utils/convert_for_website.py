@@ -83,6 +83,7 @@ def convert_inflow(project_dir):
             df = pd.read_csv(inflow_path)
             print(f"Converting [Inflow]: {res_name}")
             df.to_csv(savepath, index=False)
+            print(df.tail())
         else:
             print(f"Currently not displayed in website: {res_name}")
 
@@ -183,6 +184,59 @@ def convert_altimeter(project_dir):
 
         print(f"Converting [Heights]: {res_name}")
         df.to_csv(savepath, index=False, header=False)
+
+def convert_v2_frontend(project_dir, res_name, inflow_src, sarea_src, dels_src, outflow_src):
+    """Converts the files according to the newer version of the frontend (v2).
+
+    Args:
+        project_dir (str): path of project directory
+        res_name (str): name of reservoir
+        inflow_src (str): source .csv file containing inflow in cumecs
+        sarea_src (str): source .csv file containing surface area estiamted by TMS-OS
+        dels_src (str): source .csv file containing delta-S estimates
+        outflow_src (str): source .csv file containing outflow estimates
+    """
+    # inflow
+    inflow = pd.read_csv(inflow_src, parse_dates=['date'])
+    inflow['inflow (m3/d)'] = inflow['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+    inflow_dst_dir = os.path.join(project_dir, "backend/data/inflow/v2_website_version")
+    if not os.path.isdir(inflow_dst_dir):
+        os.makedirs(inflow_dst_dir)
+    inflow_dst = os.path.join(inflow_dst_dir, f"{res_name}.csv")
+    inflow = inflow[['date', 'inflow (m3/d)']]
+    inflow.to_csv(inflow_dst, index=False)
+    
+    # sarea
+    sarea = pd.read_csv(sarea_src, parse_dates=['date'])[['date', 'area']]
+    sarea['area (km2)'] = sarea['area']                                     # indicate units
+    sarea_dst_dir = os.path.join(project_dir, "backend/data/sarea_tmsos/v2_website_version")
+    if not os.path.isdir(sarea_dst_dir):
+        os.makedirs(sarea_dst_dir)
+    sarea_dst = os.path.join(sarea_dst_dir, f"{res_name}.csv")
+    sarea = sarea[['date', 'area (km2)']]
+    sarea.to_csv(sarea_dst, index=False)
+    
+    # dels
+    dels = pd.read_csv(dels_src, parse_dates=['date'])[['date', 'dS', 'days_passed']]
+    dels['dS (m3)'] = dels['dS'] * 1e9                                     # indicate units, convert from BCM to m3
+    dels_dst_dir = os.path.join(project_dir, "backend/data/dels/v2_website_version")
+    if not os.path.isdir(dels_dst_dir):
+        os.makedirs(dels_dst_dir)
+    dels_dst = os.path.join(dels_dst_dir, f"{res_name}.csv")
+    dels = dels[['date', 'dS (m3)']]
+    dels.to_csv(dels_dst, index=False)
+    
+    # outflow
+    outflow =  pd.read_csv(outflow_src, parse_dates=['date'])[['date', 'outflow_rate']]
+    outflow.loc[outflow['outflow_rate']<0, 'outflow_rate'] = 0
+    outflow['outflow (m3/d)'] = outflow['outflow_rate'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+    outflow_dst_dir = os.path.join(project_dir, "backend/data/outflow/v2_website_version")
+    if not os.path.isdir(outflow_dst_dir):
+        os.makedirs(outflow_dst_dir)
+    outflow_dst = os.path.join(outflow_dst_dir, f"{res_name}.csv")
+    outflow = outflow[['date', 'outflow (m3/d)']]
+    outflow.to_csv(outflow_dst, index=False)
+
 
 def main():
     pass

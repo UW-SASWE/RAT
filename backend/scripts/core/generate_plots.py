@@ -5,11 +5,13 @@ import os
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import bs4
 
 import geopandas as gpd
 
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
+from utils.convert_for_website import convert_v2_frontend
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
@@ -328,4 +330,78 @@ def generate_plots(reservoir_db_fn, project_dir):
         save_fn = os.path.join(project_dir, f"backend/data/website_plots/{RAT_ID}.html")
 
         if inflow_fns[RAT_ID] and dels_outflow_fns[RAT_ID] and sarea_fns[RAT_ID]:
+            # Plot
+            log.debug(f"Plotting: {name}")
             plot_reservoir(inflow_fn, outflow_fn, dels_fn, sarea_fn, name, save_fn)
+
+            # Convert for v2-frontend
+            log.debug(f"Converting to v2-website format: {name}")
+            convert_v2_frontend(project_dir, name, inflow_fn, sarea_fn, dels_fn, outflow_fn)
+
+            # Inject html
+            log.debug(f"Injecting download links: {name}")
+            inject_download_links(save_fn, name)
+
+
+def inject_download_links(html_fn, res_name, prefix="../"):
+    """Injects download links at the end of the html file.
+
+    Args:
+        html_fn (str): path of the html file whgere links will be injected
+        res_name (str): name of reservoir (assumed to be the name of the file for downloading)
+        prefix (str; default: "data"): prefix to use for obtaining the relative path that will be delivered as downloadable link 
+    """
+    with open(html_fn) as src:
+        txt = src.read()
+        soup = bs4.BeautifulSoup(txt)
+
+    # Create Paragraph
+    p_tag = soup.new_tag("p")
+
+    # Create unordered list
+    ul_tag = soup.new_tag("ul")
+
+    # Heading text
+    strong_title = soup.new_tag("strong")
+    strong_title.string = "Download Data"
+    ul_tag.append(strong_title)
+
+    # link to Inflow data
+    inflow_link = soup.new_tag("a", href=f"{prefix}/inflow/{res_name}.csv")
+    inflow_link.string = "Inflow"
+    li_inflow_link = soup.new_tag('li')
+    li_inflow_link.append(inflow_link)
+
+    # link to Surface Area data
+    sarea_link = soup.new_tag("a", href=f"{prefix}/sarea_tmsos/{res_name}.csv")
+    sarea_link.string = "Surface Area (TMS-OS)"
+    li_sarea_link = soup.new_tag('li')
+    li_sarea_link.append(sarea_link)
+
+    # link to dels data
+    dels_link = soup.new_tag("a", href=f"{prefix}/dels/{res_name}.csv")
+    dels_link.string = "Storage Change"
+    li_dels_link = soup.new_tag('li')
+    li_dels_link.append(dels_link)
+
+    # link to Outflow data
+    outflow_link = soup.new_tag("a", href=f"{prefix}/outflow/{res_name}.csv")
+    outflow_link.string = "Outflow"
+    li_outflow_link = soup.new_tag('li')
+    li_outflow_link.append(outflow_link)
+
+    # add the links to the unordered list
+    ul_tag.append(li_inflow_link)
+    ul_tag.append(li_outflow_link)
+    ul_tag.append(li_sarea_link)
+    ul_tag.append(li_dels_link)
+
+    # add the list to the paragraph
+    p_tag.append(ul_tag)
+
+    # add the paragraph to the end of the body
+    soup.body.append(p_tag)
+
+    # save the file
+    with open(html_fn, "w") as dst:
+        dst.write(str(soup))
