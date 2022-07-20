@@ -13,7 +13,7 @@ git checkout v0.3.0
 
 python /houston2/pritam/rat_mekong_v3/backend/scripts/utils/update_meta.py
 
-python /houston2/pritam/rat_mekong_v3/backend/scripts/run_rat.py
+python /houston2/pritam/rat_mekong_v3/backend/scripts/run_rat.py "/houston2/pritam/rat_mekong_v3/backend/params/rat_mekong.yml"
 
 # PUBLISH
 echo "Publishing Results"
