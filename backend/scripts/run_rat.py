@@ -1,6 +1,7 @@
 import yaml
 import os
 import datetime
+import argparse
 
 from core.run_vic import VICRunner
 from utils.logging import init_logger, NOTIFICATION
@@ -22,20 +23,26 @@ from data_processing.metsim_input_processing import ForcingsNCfmt
 from utils.convert_for_website import convert_dels_outflow, convert_sarea, convert_inflow, convert_altimeter
 
 def main():
-    #------------ Define Variables ------------#
-    # config = configparser.ConfigParser(inline_comment_prefixes=('#', ';'))  
-    # config.read("/houston2/pritam/rat_mekong_v3/backend/params/rat_mekong.conf")  # TODO Replace later with command line 
-    config = yaml.safe_load(open("/houston2/pritam/rat_mekong_v3/backend/params/rat_mekong.yml", 'r'))
+    #------ Initialize Argument Parser ------#
+    parser = argparse.ArgumentParser(description="Welcome to RAT-2.0")
+    parser.add_argument('param_file', help='Absolute path to a rat-paramter file (format: yml)')
+    args = parser.parse_args()
+    param_path = args.param_file
+    #------ Initialize Argument Parser ------#
 
-    # Change datetimes
+
+    #--------- Define Variables -------------#
+    # read parameter file
+    config = yaml.safe_load(open(param_path, 'r'))
+
+    # strip datetimes to remove the "time" component and only keep date
     config['GLOBAL']['begin'] = datetime.datetime.combine(config['GLOBAL']['begin'], datetime.time.min)
     config['GLOBAL']['end'] = datetime.datetime.combine(config['GLOBAL']['end'], datetime.time.min)
     config['GLOBAL']['previous_end'] = datetime.datetime.combine(config['GLOBAL']['previous_end'], datetime.time.min)
+    #--------- Define Variables -------------#
 
-    # # metsim results
-    # ms_results = config['METSIM']['metsim_results']
-    #------------ Define Variables ------------#
 
+    #--------- Initialize Log file ----------#
     log = init_logger(
         "/houston2/pritam/rat_mekong_v3/backend/logs",
         verbose=True,
@@ -43,6 +50,8 @@ def main():
         notify=False,
         log_level='DEBUG'
     )
+    #--------- Initialize Log file ----------#
+
 
     #--------- Download Data Begin ----------#
     get_newdata(
@@ -51,6 +60,7 @@ def main():
         config['GLOBAL']['end']
     )
     #---------- Download Data End -----------#
+
 
     combined_datapath = os.path.join(config['GLOBAL']['project_dir'], 'backend', 'data', 'nc', 'combined_data.nc')
     #----------- Process Data Begin -----------#
