@@ -24,3 +24,40 @@ This GitHub repository contains the backend code of RAT 2.0, which performs the 
 6. Using the surface area and water level time-series, estimates the ∆S and Outflow.
 7. Calulates the Evaporation over the reservoir using the Penman Combination method.
 8. Using the modeled Inflow, ∆S and Evaporation, calculates the Outflow for the reservoirs.
+
+The repository is structured as follows:
+```
+rat_v2/
+├── backend/
+│   ├── params/
+│   │   ├── metsim/
+│   │   ├── routing/
+│   │   ├── vic/
+│   │   ├── j3_meta.txt
+│   │   └── rat_mekong.yml
+│   └── scripts/
+│       ├── core/
+│       ├── data_processing/
+│       ├── utils/
+│       ├── __init__.py
+│       ├── run_rat.py
+│       └── run_rat.sh
+├── .gitignore
+├── LICENSE
+├── env.yml
+└── README.md
+```
+
+- The `backend/` directory contains the scripts and parameter files required by RAT 2.0.
+- The `backend/params/` directory contains the parameters that are used by RAT 2.0. The paramter file of most importance to users and developers is the `backend/params/rat_mekong.yml` file. This file contains information about the start date, end date, project location, and similar information that are required to be specified for RAT 2.0 to run.
+- The directories in `backend/params/` contain sample parameter files that can be used to specify any model specific parameter. Please note that most of the options that can be specified in the files contained in these directories can also be specified in the `rat_mekong.yml` file (recommended).
+-  `j3_meta.txt` file is used by the Altimetry component of RAT 2.0 internally and shouldn't be changed. To intialize, the first line of the file should be set to 0.
+- The `backend/scripts/core/` contains some of the core functionality, that deal with processing data into model inputs, running the models, running the GEE code and calculation of outflow, etc.
+- The `backend/scripts/data_processing` contain additional code to process data (data downloading, transformation of data, etc.). `backend/scripts/utils` contain utility functions that are used internally by RAT 2.0.
+- The `backend/scripts/run_rat.py` is the starting point for running the RAT 2.0 model for a single day/multiple days at once. When invoked, it uses the `rat_mekong.yml` parameter file to run the hydrological modeling component (MetSim, VIC and routing), the remote sensing backend and performs the post-processing for the specified options.
+- The `backend/scripts/run_rat.sh` is a shell script that should be set up as a cron job to run everyday. This script updates the paramter file so that the RAT 2.0 model runs for the latest day. After making suitable changes to the `rat_mekong.yml` file, it invokes the `run_rat.py` file.
+
+
+## LICENSE
+RAT 2.0 is distributed under the GPL v3 license. You may copy, distribute and modify the software as long as you track changes/dates in sourcefiles. Any modifications to or software including GPL-licensed code must also be made available under the GPL along with build & install instructions.
+For more information, please see [LICENSE](./LICENSE).
