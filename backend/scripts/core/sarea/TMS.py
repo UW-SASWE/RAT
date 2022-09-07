@@ -31,6 +31,7 @@ class TMS():
     def tms_os(self,
             l8_dfpath: str, 
             s2_dfpath: str, 
+            l9_dfpath: str, 
             s1_dfpath: str, 
             CLOUD_THRESHOLD: float = 90.0,
             MIN_DATE: str = '2019-01-01'
@@ -48,6 +49,7 @@ class TMS():
         S2_TEMPORAL_RESOLUTION = 5
         S1_TEMPORAL_RESOLUTION = 12
         L8_TEMPORAL_RESOLUTION = 16
+        L9_TEMPORAL_RESOLUTION = 16
 
         # Read in Landsat-8
         l8df = pd.read_csv(l8_dfpath, parse_dates=['mosaic_enddate']).rename({
@@ -83,6 +85,41 @@ class TMS():
 
         # Interpolate bad data
         l8df_interpolated.loc[:, "water_area_corrected"] = l8df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+        
+        # Read in Landsat-9
+        l9df = pd.read_csv(l9_dfpath, parse_dates=['mosaic_enddate']).rename({
+            'mosaic_enddate': 'date',
+            'water_area_cordeiro': 'water_area_uncorrected',
+            'non_water_area_cordeiro': 'non_water_area', 
+            'corrected_area_cordeiro': 'water_area_corrected'
+            }, axis=1).set_index('date')
+        l9df = l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+        l9df['cloud_percent'] = l9df['cloud_area']*100/(l9df['water_area_uncorrected']+l9df['non_water_area']+l9df['cloud_area'])
+        l9df.replace(-1, np.nan, inplace=True)
+
+        # QUALITY_DESCRIPTION
+        #   0: Good, not interpolated either due to missing data or high clouds
+        #   1: Poor, interpolated either due to high clouds
+        #   2: Poor, interpolated either due to missing data
+        l9df.loc[:, "QUALITY_DESCRIPTION"] = 0
+        l9df.loc[l9df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+        l9df.loc[l9df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+
+        # in some cases l9df may have duplicated rows (with same values) that have to be removed
+        if l9df.index.duplicated().sum() > 0:
+            print("Duplicated labels, deleting")
+            l9df = l9df[~l9df.index.duplicated(keep='last')]
+
+        # Fill in the gaps in l9df created due to high cloud cover with np.nan values
+        l9df_interpolated = l9df.reindex(pd.date_range(l9df.index[0], l9df.index[-1], freq=f'{L9_TEMPORAL_RESOLUTION}D'))
+        l9df_interpolated.loc[np.isnan(l9df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+        l9df_interpolated.loc[np.isnan(l9df_interpolated['cloud_area']), 'cloud_area'] = max(l9df['cloud_area'])
+        l9df_interpolated.loc[np.isnan(l9df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+        l9df_interpolated.loc[np.isnan(l9df_interpolated['non_water_area']), 'non_water_area'] = 0
+        l9df_interpolated.loc[np.isnan(l9df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+        # Interpolate bad data
+        l9df_interpolated.loc[:, "water_area_corrected"] = l8df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
 
 
         # Read in Sentinel-2 data
@@ -145,7 +182,8 @@ class TMS():
         # combine opticals into one dataframes
         l8df_interpolated['sat'] = 'l8'
         s2df_interpolated['sat'] = 's2'
-        optical = pd.concat([l8df_interpolated, s2df_interpolated]).sort_index()
+        l9df_interpolated['sat'] = 'l9'
+        optical = pd.concat([l8df_interpolated, l9df_interpolated, s2df_interpolated]).sort_index()
         optical = optical.loc[~optical.index.duplicated(keep='last')] # when both s2 and l8 are present, keep s2
         optical.rename({'water_area_corrected': 'area'}, axis=1, inplace=True)
         sar = sar.rename({'sarea': 'area'}, axis=1)
