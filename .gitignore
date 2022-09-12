@@ -204,3 +204,13 @@ cython_debug/
 backend/scripts/_send_files.py
 .DS_Store
 backend/scripts/data_processing/_download_data.py
+
+
+#SM
+data/*
+trial_notebooks/*
+main/params/*
+main/models/*
+main/scripts/dask-worker-space/*
+!main/params/rat_mekong.yml
+main/scripts/ee_utils/ee_config.py

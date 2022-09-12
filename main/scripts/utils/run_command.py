@@ -3,7 +3,7 @@ from logging import getLogger
 import os
 from utils.logging import LOG_NAME
 
-def run_command(args, **kwargs):
+def run_command(args, metsim=False, **kwargs):
     """Safely runs a command, logs and returns the returncode silently in case of no error. 
     Otherwise, raises an Exception
     """
@@ -21,7 +21,9 @@ def run_command(args, **kwargs):
     exitcode = p.wait()
 
     if exitcode == 0:
-        log.debug("Finished routing successfully: EXIT CODE %s", exitcode)
+        log.debug("Finished running command successfully: EXIT CODE %s", exitcode)
+    elif (exitcode == 1 and metsim==True):
+        log.debug("Finished running metsim successfully: EXIT CODE %s", exitcode)
     else:
         log.error("ERROR Occurred with exit code: %s", exitcode)
         raise Exception

@@ -12,6 +12,7 @@ import geopandas as gpd
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
 from utils.convert_for_website import convert_v2_frontend
+from utils.utils import create_directory
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
@@ -184,163 +185,53 @@ def plot_reservoir(inflow_fn, outflow_fn, dels_fn, sarea_fn, reservoir_name, sav
     fig.write_html(save_fn, include_plotlyjs='cdn', include_mathjax='cdn')
 
 
-def generate_plots(reservoir_db_fn, project_dir):
+def generate_plots(res_shpfile, res_shpfile_column_dict, basin_data_dir):
     """Calls `plot_reservoir` to generate the html plots for all reservoirs mapped in RAT.
 
     Args:
-        reservoir_db_fn (str): Path to a geojson file containing reservoir locations as points.
-            db must have column named `RAT_ID` referring to the internal ID that'll be used in RAT.
-            db must have column named `NAME` correspondign to the name of the reservoir.
+        res_shpfile (str): Path to a geojson file containing reservoir locations as points.
+        res_shpfile_column_dict (dict): Dictionary of column names in reservoir shapefile. 
+                                        Example (The keys should be asit is ):
+                                        {
+                                            unique_identifier: 'id'
+                                            id_column : 'xyz',
+                                            dam_name_column : 'pqr',
+                                            area_column     : 'aey'
+                                        }
+        basin_data_dir (str): Path to the basin data directory 
+            
     """
-    reservoirs = gpd.read_file(reservoir_db_fn).set_index('RAT_ID', drop=False).sort_index()
-
-    # Temporarily use these dictionaries to map IDs to their corresponding flux file names 
-    sarea_fns = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "Nam_Ngum_1",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "Ubol_Ratana",
-        11: "Lam_Pao",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "Sirindhorn",
-        20: "5797",
-        21: "Nam_Theun_2",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "Xe_Kaman_1",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "Sesan_4",
-        33: "7232",
-        34: "7284",
-        35: "Lower_Sesan_2",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
-
-    inflow_fns = {
-        1: "Sre_P",
-        2: "Phumi",
-        3: "Batta",
-        4: "5117 ",
-        5: "Nam_N",
-        6: "5138 ",
-        7: "5143 ",
-        8: "5147 ",
-        9: "5148 ",
-        10: "Ubol_",
-        11: "Lam_P",
-        12: "5151 ",
-        13: "5152 ",
-        14: "5155 ",
-        15: "5156 ",
-        16: "5160 ",
-        17: "5162 ",
-        18: "5795 ",
-        19: "Sirid",
-        20: "5797 ",
-        21: "Nam_T",
-        22: "7000 ",
-        23: "7001 ",
-        24: "7002 ",
-        25: "Xe_Ka",
-        26: "7004 ",
-        27: "7037 ",
-        28: "7159 ",
-        29: "7164 ",
-        30: "7181 ",
-        31: "7201 ",
-        32: "Sesan",
-        33: "7232 ",
-        34: "7284 ",
-        35: "Lower",
-        36: "Yali ",
-        37: "NamTo",
-    }
-
-    dels_outflow_fns = {
-        1: "Sre_Pok_4",
-        2: "Phumi_Svay_Chrum",
-        3: "Battambang_1",
-        4: "5117",
-        5: "Nam_Ngum_1",
-        6: "5138",
-        7: "5143",
-        8: "5147",
-        9: "5148",
-        10: "Ubol_Ratana",
-        11: "Lam_Pao",
-        12: "5151",
-        13: "5152",
-        14: "5155",
-        15: "5156",
-        16: "5160",
-        17: "5162",
-        18: "5795",
-        19: "Sirindhorn",
-        20: "5797",
-        21: "Nam_Theun_2",
-        22: "7000",
-        23: "7001",
-        24: "7002",
-        25: "Xe_Kaman_1",
-        26: "7004",
-        27: "7037",
-        28: "7159",
-        29: "7164",
-        30: "7181",
-        31: "7201",
-        32: "Sesan_4",
-        33: "7232",
-        34: "7284",
-        35: "Lower_Sesan_2",
-        36: "Yali",
-        37: "Nam_Ton"
-    }
+    reservoirs_polygon = gpd.read_file(res_shpfile)
 
     # using `project_dir` determine the directories of fluxes
-    inflow_dir = os.path.join(project_dir, "backend/data/inflow")
-    outflow_dir = os.path.join(project_dir, "backend/data/outflow")
-    dels_dir = os.path.join(project_dir, "backend/data/dels")
-    sarea_dir = os.path.join(project_dir, "backend/data/sarea_tmsos")
+    inflow_dir = os.path.join(basin_data_dir, "rout_inflow")
+    outflow_dir = os.path.join(basin_data_dir, "rat_outflow")
+    dels_dir = os.path.join(basin_data_dir, "dels")
+    sarea_dir = os.path.join(basin_data_dir, "gee_sarea_tmsos")
+    website_plot_dir = create_directory(os.path.join(basin_data_dir,"website_plots"),True)
 
-    for RAT_ID in reservoirs['RAT_ID']:
-        inflow_fn = os.path.join(inflow_dir, inflow_fns[RAT_ID] + ".csv")
-        dels_fn = os.path.join(dels_dir, dels_outflow_fns[RAT_ID] + ".csv")
-        outflow_fn = os.path.join(outflow_dir, dels_outflow_fns[RAT_ID] + ".csv")
-        sarea_fn = os.path.join(sarea_dir, sarea_fns[RAT_ID] + ".csv")
-        name = reservoirs.loc[RAT_ID, 'NAME']
-        save_fn = os.path.join(project_dir, f"backend/data/website_plots/{RAT_ID}.html")
+    for reservoir_no,reservoir in reservoirs_polygon.iterrows():
+        # Reading reservoir information
+        reservoir_file_name = str(reservoir[res_shpfile_column_dict['unique_identifier']])
+        name = str(reservoir[res_shpfile_column_dict['dam_name_column']])
+        inflow_fn = os.path.join(inflow_dir, reservoir_file_name[:5] + ".csv")
+        dels_fn = os.path.join(dels_dir, reservoir_file_name + ".csv")
+        outflow_fn = os.path.join(outflow_dir, reservoir_file_name + ".csv")
+        sarea_fn = os.path.join(sarea_dir, reservoir_file_name + ".csv")
+        save_fn = os.path.join(website_plot_dir, f"{reservoir_file_name}.html")
 
-        if inflow_fns[RAT_ID] and dels_outflow_fns[RAT_ID] and sarea_fns[RAT_ID]:
+        if os.path.exists(inflow_fn) and os.path.exists(dels_fn) and os.path.exists(outflow_fn) and os.path.exists(sarea_fn):
             # Plot
             log.debug(f"Plotting: {name}")
             plot_reservoir(inflow_fn, outflow_fn, dels_fn, sarea_fn, name, save_fn)
 
             # Convert for v2-frontend
             log.debug(f"Converting to v2-website format: {name}")
-            convert_v2_frontend(project_dir, name, inflow_fn, sarea_fn, dels_fn, outflow_fn)
+            convert_v2_frontend(basin_data_dir, reservoir_file_name, inflow_fn, sarea_fn, dels_fn, outflow_fn)
 
             # Inject html
             log.debug(f"Injecting download links: {name}")
-            inject_download_links(save_fn, name)
+            inject_download_links(save_fn, reservoir_file_name)
 
 
 def inject_download_links(html_fn, res_name, prefix="../"):

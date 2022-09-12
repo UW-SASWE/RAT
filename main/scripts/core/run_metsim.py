@@ -18,11 +18,11 @@ class MetSimRunner():
 
     def run_metsim(self):
         if not self._conda_hook:
-            args = f'source activate {self._metsim_env} && ms -n {self._mp} {self._param_path} && source deactivate'
+            args = f'source activate {self._metsim_env} && ms -n {self._mp} {self._param_path}'
         else:
             args = f'source {self._conda_hook} && conda activate {self._metsim_env} && ms -n {self._mp} {self._param_path}'
         # print("will run: ", args)
-        ret_code = run_command(args, shell=True)
+        ret_code = run_command(args, metsim=True, shell=True)
     
     def convert_to_vic_forcings(self, forcings_dir):
         # The results have to be converted to VIC readable yearly netcdf files.

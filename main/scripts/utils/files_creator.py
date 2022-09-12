@@ -44,8 +44,8 @@ def create_basin_domain_nc_file(elevation_tif_filepath,basingridfile_path,output
     #Creating a dataset from two xarrays
     basin_domain = basin_grid.to_dataset(name = 'mask')
     basin_domain['elev'] = basin_ele
-    basin_domain['lat']=np.array([round_up(x,5) for x in basin_grid.lat.data ])
-    basin_domain['lon']=np.array([round_up(x,5) for x in basin_grid.lon.data ])
+    basin_domain['lat']=np.array(basin_grid.lat.data).round(5)
+    basin_domain['lon']=np.array(basin_grid.lon.data).round(5)
     #Saving dataset as netcdf
     basin_domain.to_netcdf(output_path)
 
@@ -94,11 +94,26 @@ def create_basin_grid_flow_asc(global_flow_grid_dir_tif, basingridfile_path, sav
     ]
     cmd_out_code = run_command(cmd)
 
-def create_basin_station_latlon_csv(global_station_file, basin_gpd_df, column_dict, savepath):
+def create_basin_station_latlon_csv(basin_name, global_station_file, basin_gpd_df, column_dict, savepath, geojson_file=True):
     basins_station=gpd.read_file(global_station_file)
     basin_data_crs_changed = basin_gpd_df.to_crs(basins_station.crs)
-    basins_station_lat_lon = gpd.sjoin(basins_station, basin_data_crs_changed, "inner")[[column_dict['id_column'],
-                                                                column_dict['name_column'],column_dict['lat_column'],column_dict['lon_column']]]
+    basins_station_spatialjoin = gpd.sjoin(basins_station, basin_data_crs_changed, "inner")[[
+                        column_dict['id_column'],
+                        column_dict['name_column'],
+                        column_dict['lon_column'],
+                        column_dict['lat_column'],
+                        'geometry']]
+    if(geojson_file):
+        basins_station_spatialjoin['basinname'] = str(basin_name)
+        basins_station_spatialjoin['filename'] = basins_station_spatialjoin[column_dict['id_column']].astype(str)+'_'+ \
+                                        basins_station_spatialjoin[column_dict['name_column']].str.replace(' ','_')
+        basins_station_spatialjoin.to_file(savepath[:-4]+'.geojson', driver= "GeoJSON")
+
+    basins_station_lat_lon = basins_station_spatialjoin[[
+                            column_dict['id_column'],
+                            column_dict['name_column'],
+                            column_dict['lon_column'],
+                            column_dict['lat_column']]]
     basins_station_lat_lon['name'] = basins_station_lat_lon[column_dict['id_column']].astype(str
                                                                 )+'_'+basins_station_lat_lon[column_dict['name_column']].astype(str).str.replace(' ','_')
     basins_station_lat_lon['run'] = 1
@@ -122,3 +137,4 @@ def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_di
                                         how='inner', on=reservoirs_gdf_column_dict['dam_name_column'])
     
     reservoirs_gdf.to_file(savepath)
+

@@ -1,10 +1,12 @@
 import subprocess
 import yaml
+import requests
 from datetime import datetime, timedelta
 from tqdm import tqdm
 import os
 import shutil
 import tempfile
+import rioxarray as rxr
 import xarray as xr
 from logging import getLogger
 import pandas as pd
@@ -26,7 +28,7 @@ def run_command(cmd,shell_bool=False):
         raise Exception
     return res.returncode
 
-def determine_precip_version(date):
+def _determine_precip_version(date):
     """Determines which version of IMERG to download. Most preferred is IMERG Late, followed by
     IMERG Early. IMERG-Final has some issues. Currently only running using IMERG Early and Late
     """
@@ -43,22 +45,24 @@ def determine_precip_version(date):
         version = "IMERG-EARLY"
     return version
 
-def download_precip(date, version, outputpath, secrets):
-    """
-    Parameters:
-        date: datetime object that defines the date for which data is required
-        version: which version of data to download - IMERG-LATE or IMERG-EARLY
-        outputpath: path where the data should be downloaded
-    =======
-    TODO: Add ability to select either CHIRPS or IMERG data
-    """
+def _determine_precip_link_and_version(date):
+    version = _determine_precip_version(date)
     if version == "IMERG-FINAL":
         link = f"ftp://arthurhou.pps.eosdis.nasa.gov/gpmdata/{date.strftime('%Y')}/{date.strftime('%m')}/{date.strftime('%d')}/gis/3B-DAY-GIS.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S000000-E235959.0000.V06A.tif"
     elif version == "IMERG-LATE":
-        link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-L.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
+        if date >= datetime(2022, 5, 8):  # Version was changed from V06B to V06C
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-L.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06C.1day.tif"
+        else:
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-L.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
     else:
-        link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/early/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-E.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
+        if date >= datetime(2022, 5, 8):  # Version was changed from V06B to V06C
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/early/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-E.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-da.V06C.1day.tif"
+        else:
+            link = f"https://jsimpsonhttps.pps.eosdis.nasa.gov/imerg/gis/early/{date.strftime('%Y')}/{date.strftime('%m')}/3B-HHR-E.MS.MRG.3IMERG.{date.strftime('%Y%m%d')}-S233000-E235959.1410.V06B.1day.tif"
+    
+    return (link,version)
 
+def _get_cmd_precip_download(outputpath,link,version,secrets):
     # Define the command (different for FINAL, same for EARLY and LATE)
     if version == "IMERG-FINAL":
         cmd = [
@@ -82,8 +86,76 @@ def download_precip(date, version, outputpath, secrets):
             link,
             '--no-proxy'
         ]
-    log.debug("Downloading precipitation file: %s (%s)", date.strftime('%Y-%m-%d'), version)
-    return run_command(cmd)
+    return cmd
+
+
+def download_precip(date, version, outputpath, secrets, interpolate=True):
+    """
+    Parameters:
+        date: datetime object that defines the date for which data is required
+        version: which version of data to download - IMERG-LATE or IMERG-EARLY
+        outputpath: path where the data should be downloaded
+    =======
+    TODO: Add ability to select either CHIRPS or IMERG data
+    """
+    if not(os.path.exists(outputpath)):
+        link,version_ = _determine_precip_link_and_version(date)
+        response = requests.head(link,auth=(secrets["imerg"]["username"], secrets["imerg"]["pwd"]))
+        
+        if response.status_code == 200 :  
+        # Define the command (different for FINAL, same for EARLY and LATE)
+            cmd = _get_cmd_precip_download(outputpath,link,version,secrets)
+            log.debug("Downloading precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
+            return run_command(cmd)
+        else:
+            if(interpolate):
+                print('Link for 1day file does not exist. Trying to interpolate data using previous and next date.')
+                pre_date = date - timedelta(days=1)
+                pre_link, pre_version = _determine_precip_link_and_version(pre_date)
+                pre_response = requests.head(pre_link,auth=(secrets["imerg"]["username"], secrets["imerg"]["pwd"]))
+
+                post_date = date + timedelta(days=1)
+                post_link, post_version = _determine_precip_link_and_version(post_date)
+                post_response = requests.head(post_link,auth=(secrets["imerg"]["username"], secrets["imerg"]["pwd"]))
+                if(pre_response.status_code==200 and post_response.status_code==200):
+                    pre_outputpath = ('').join(outputpath.split('.')[:-1])+'_pretemp.tif'
+                    pre_cmd = _get_cmd_precip_download(pre_outputpath,pre_link,pre_version,secrets)
+                    log.debug("Downloading pre-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
+                    run_command(pre_cmd)
+
+                    post_outputpath = ('').join(outputpath.split('.')[:-1])+'_posttemp.tif'
+                    post_cmd = _get_cmd_precip_download(post_outputpath,post_link,post_version,secrets)
+                    log.debug("Downloading post-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
+                    run_command(post_cmd)
+
+                    ## taking mean of pre and post date
+                    pre_precip = rxr.open_rasterio(pre_outputpath)
+                    post_precip = rxr.open_rasterio(post_outputpath)
+                    precip = (pre_precip+post_precip)/2 
+                    precip.rio.to_raster(outputpath)
+
+                    ## Removing pre and post date files after
+                    if os.path.isfile(pre_outputpath):
+                        os.remove(pre_outputpath)
+                    if os.path.isfile(post_outputpath):
+                        os.remove(post_outputpath)
+                    print(f"Precipitation file interpolated using previous and next date : {date.strftime('%Y-%m-%d')}")
+
+                elif (pre_response.status_code==200):
+                    pre_cmd = _get_cmd_precip_download(outputpath,pre_link,pre_version,secrets)
+                    log.debug("Being Replaced by pre-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
+                    run_command(pre_cmd)
+                
+                elif (post_response.status_code==200):
+                    post_cmd = _get_cmd_precip_download(outputpath,post_link,post_version,secrets)
+                    log.debug("Being Replaced by post-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
+                    run_command(post_cmd)
+                else:
+                    print(f"Precipitation file cannnot be interpolated from pre/post date. Skipping downloading: {date.strftime('%Y-%m-%d')}")
+            else:
+                print(f"Precipitation download link not found. Skipping downloading: {date.strftime('%Y-%m-%d')}")
+    else:
+        print(f"Precipitation file already exits: {date.strftime('%Y-%m-%d')}")
 
 def download_tmax(year, outputpath):
     """
@@ -91,14 +163,17 @@ def download_tmax(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    cmd = [
-        'wget', 
-        '-O', 
-        f'{outputpath}', 
-        f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmax.{year}.nc'
-    ]
-    log.debug("Downloading tmax: %s", year)
-    return run_command(cmd)
+    if not(os.path.exists(outputpath)):
+        cmd = [
+            'wget', 
+            '-O', 
+            f'{outputpath}', 
+            f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmax.{year}.nc'
+        ]
+        log.debug("Downloading tmax: %s", year)
+        return run_command(cmd)
+    else:
+        log.info("File already exists tmax: %s", year)
 
 def download_tmin(year, outputpath):
     """
@@ -106,14 +181,17 @@ def download_tmin(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    cmd = [
-        'wget', 
-        '-O', 
-        f'{outputpath}', 
-        f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmin.{year}.nc'
-    ]
-    log.debug("Downloading tmin: %s", year)
-    return run_command(cmd)
+    if not(os.path.exists(outputpath)):
+        cmd = [
+            'wget', 
+            '-O', 
+            f'{outputpath}', 
+            f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmin.{year}.nc'
+        ]
+        log.debug("Downloading tmin: %s", year)
+        return run_command(cmd)
+    else:
+        log.info("File already exists tmin: %s", year)
 
 def download_uwnd(year, outputpath):
     """
@@ -121,14 +199,17 @@ def download_uwnd(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    cmd = [
-        'wget', 
-        '-O', 
-        f'{outputpath}', 
-        f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/uwnd.10m.gauss.{year}.nc'
-    ]
-    log.debug("Downloading uwnd: %s", year)
-    return run_command(cmd)
+    if not(os.path.exists(outputpath)):
+        cmd = [
+            'wget', 
+            '-O', 
+            f'{outputpath}', 
+            f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/uwnd.10m.gauss.{year}.nc'
+        ]
+        log.debug("Downloading uwnd: %s", year)
+        return run_command(cmd)
+    else:
+        log.info("File already exists uwnd: %s", year)
 
 def download_vwnd(year, outputpath):
     """
@@ -136,13 +217,16 @@ def download_vwnd(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    cmd = [
-        'wget', 
-        '-O', 
-        f'{outputpath}', 
-        f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/vwnd.10m.gauss.{year}.nc']
-    log.debug("Downloading vwnd: %s", year)
-    return run_command(cmd)
+    if not(os.path.exists(outputpath)):
+        cmd = [
+            'wget', 
+            '-O', 
+            f'{outputpath}', 
+            f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/vwnd.10m.gauss.{year}.nc']
+        log.debug("Downloading vwnd: %s", year)
+        return run_command(cmd)
+    else:
+        log.info("File already exists vwnd: %s", year)
 
 def download_data(begin, end, datadir, secrets):
     """Downloads the data between dates defined by begin and end
@@ -157,13 +241,12 @@ def download_data(begin, end, datadir, secrets):
     # required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
     required_dates = pd.date_range(begin, end)
     required_years = list(set([d.strftime("%Y") for d in required_dates]))
-
     # Download Precipitation
     log.debug("Downloading Precipitation")
     # with tqdm(required_dates) as pbar:
     for date in required_dates:
         # determine what kind of data is required
-        data_version = determine_precip_version(date)
+        data_version = _determine_precip_version(date)
         outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
         # pbar.set_description(f"{date.strftime('%Y-%m-%d')} ({data_version})")
         download_precip(date, data_version, outputpath, secrets)
@@ -197,56 +280,60 @@ def process_precip(basin_bounds,srcpath, dstpath, temp_datadir=None):
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
         raise Exception(f"ERROR: {temp_datadir} directory doesn't exist")
     
-    log.debug("Processing Precipitation file: %s", srcpath)
+    if not(os.path.exists(dstpath)):
+        log.debug("Processing Precipitation file: %s", srcpath)
 
-    with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
-        clipped_temp_file = os.path.join(tempdir, 'clipped.tif')
-        cmd = [
-            "gdalwarp",
-            "-dstnodata", 
-            "-9999.0",
-            "-tr",
-            "0.0625",
-            "0.0625",
-            "-te",
-            str(basin_bounds[0]),
-            str(basin_bounds[1]),
-            str(basin_bounds[2]),
-            str(basin_bounds[3]),
-            '-of',
-            'GTiff',
-            '-overwrite', 
-            f'{srcpath}',
-            clipped_temp_file
-        ]
-        run_command(cmd)
+        with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
+            clipped_temp_file = os.path.join(tempdir, 'clipped.tif')
+            cmd = [
+                "gdalwarp",
+                "-dstnodata", 
+                "-9999.0",
+                "-tr",
+                "0.0625",
+                "0.0625",
+                "-te",
+                str(basin_bounds[0]),
+                str(basin_bounds[1]),
+                str(basin_bounds[2]),
+                str(basin_bounds[3]),
+                '-of',
+                'GTiff',
+                '-overwrite', 
+                f'{srcpath}',
+                clipped_temp_file
+            ]
+            run_command(cmd)
 
-        # Scale down (EARLY)
-        scaled_temp_file = os.path.join(tempdir, 'scaled.tif')
-        cmd = [
-            "gdal_calc.py", 
-            "-A", 
-            clipped_temp_file, 
-            f"--calc=A*0.1", 
-            f"--outfile={scaled_temp_file}", 
-            "--NoDataValue=-9999", 
-            "--format=GTiff"
-        ]
-        run_command(cmd)
+            # Scale down (EARLY)
+            scaled_temp_file = os.path.join(tempdir, 'scaled.tif')
+            cmd = [
+                "gdal_calc.py", 
+                "-A", 
+                clipped_temp_file, 
+                f"--calc=A*0.1", 
+                f"--outfile={scaled_temp_file}", 
+                "--NoDataValue=-9999", 
+                "--format=GTiff"
+            ]
+            run_command(cmd)
 
-        # Change format, and save as processed file
-        aai_temp_file = os.path.join(tempdir, 'processed.tif')
-        cmd = [
-            'gdal_translate',
-            '-of', 
-            'aaigrid', 
-            scaled_temp_file, 
-            aai_temp_file
-        ]
-        run_command(cmd)
+            # Change format, and save as processed file
+            aai_temp_file = os.path.join(tempdir, 'processed.tif')
+            cmd = [
+                'gdal_translate',
+                '-of', 
+                'aaigrid', 
+                scaled_temp_file, 
+                aai_temp_file
+            ]
+            run_command(cmd)
 
-        # Move to destination
-        shutil.move(aai_temp_file, dstpath)
+            # Move to destination
+            shutil.move(aai_temp_file, dstpath)
+    else:
+        print(f"Processing Precipitation file exist: {srcpath}")
+
 
 def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
     """For TMax, TMin, UWnd and VWnd, the processing steps are same, and can be performed using
@@ -260,70 +347,72 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
     """
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
         raise Exception(f"ERROR: {temp_datadir} directory doesn't exist")
-    
-    log.debug("Processing NC file: %s for date %s", srcpath, date.strftime('%Y-%m-%d'))
+    if not(os.path.exists(dstpath)):
+        log.debug("Processing NC file: %s for date %s", srcpath, date.strftime('%Y-%m-%d'))
 
-    with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
-        # Convert from NC to Tif
-        band = date.strftime("%-j")   # required band number is defined by `day of year`
-        converted_tif_temp_file = os.path.join(tempdir, "converted.tif")
+        with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
+            # Convert from NC to Tif
+            band = date.strftime("%-j")   # required band number is defined by `day of year`
+            converted_tif_temp_file = os.path.join(tempdir, "converted.tif")
 
-        # NC to tiff format
-        cmd = ["gdal_translate", "-of", "Gtiff", "-b", band, srcpath, converted_tif_temp_file]
-        run_command(cmd)
+            # NC to tiff format
+            cmd = ["gdal_translate", "-of", "Gtiff", "-b", band, srcpath, converted_tif_temp_file]
+            run_command(cmd)
 
-        #warping it so that lon represents -180 to 180 rather than 0 to 360
-        warped_temp_file = os.path.join(tempdir, "warped.tif")
-        cmd = ["gdalwarp", 
-        "-s_srs",
-        "'+proj=latlong +datum=WGS84 +pm=180dW'",
-        "-dstnodata",
-        "-9999.0",
-        "-te",
-        "-180",
-        "-90",
-        "180",
-        "90",
-        "-of",
-        "GTiff",
-        "-overwrite", 
-        converted_tif_temp_file, 
-        warped_temp_file]
-        # runs and return non-zero code, so don't use run_command
-        cmd = " ".join(cmd)
-        subprocess.run(cmd,shell=True,stdout=subprocess.DEVNULL)
-        
-        
-        # Change resolution
-        scaled_temp_file = os.path.join(tempdir, "scaled.tif")
-        cmd = [
-            "gdalwarp",
-            "-dstnodata", 
+            #warping it so that lon represents -180 to 180 rather than 0 to 360
+            warped_temp_file = os.path.join(tempdir, "warped.tif")
+            cmd = ["gdalwarp", 
+            "-s_srs",
+            "'+proj=latlong +datum=WGS84 +pm=180dW'",
+            "-dstnodata",
             "-9999.0",
-            "-tr",
-            "0.0625",
-            "0.0625",
             "-te",
-            str(basin_bounds[0]),
-            str(basin_bounds[1]),
-            str(basin_bounds[2]),
-            str(basin_bounds[3]),
-            '-of',
-            'GTiff',
-            '-overwrite',  
-            warped_temp_file, 
-            scaled_temp_file]
-
+            "-180",
+            "-90",
+            "180",
+            "90",
+            "-of",
+            "GTiff",
+            "-overwrite", 
+            converted_tif_temp_file, 
+            warped_temp_file]
+            # runs and return non-zero code, so don't use run_command
+            cmd = " ".join(cmd)
+            subprocess.run(cmd,shell=True,stdout=subprocess.DEVNULL)
             
-        run_command(cmd)
+            
+            # Change resolution
+            scaled_temp_file = os.path.join(tempdir, "scaled.tif")
+            cmd = [
+                "gdalwarp",
+                "-dstnodata", 
+                "-9999.0",
+                "-tr",
+                "0.0625",
+                "0.0625",
+                "-te",
+                str(basin_bounds[0]),
+                str(basin_bounds[1]),
+                str(basin_bounds[2]),
+                str(basin_bounds[3]),
+                '-of',
+                'GTiff',
+                '-overwrite',  
+                warped_temp_file, 
+                scaled_temp_file]
 
-        # Convert GeoTiff to AAI
-        aai_temp_file = os.path.join(tempdir, "final_aai.tif")
-        cmd = ["gdal_translate", "-of", "aaigrid", scaled_temp_file, aai_temp_file]
-        run_command(cmd)
+                
+            run_command(cmd)
 
-        # Move file to destination
-        shutil.move(aai_temp_file, dstpath)
+            # Convert GeoTiff to AAI
+            aai_temp_file = os.path.join(tempdir, "final_aai.tif")
+            cmd = ["gdal_translate", "-of", "aaigrid", scaled_temp_file, aai_temp_file]
+            run_command(cmd)
+
+            # Move file to destination
+            shutil.move(aai_temp_file, dstpath)
+    else:
+        print(f"Processing NC file exists: {srcpath} for date {date.strftime('%Y-%m-%d')}")
 
 
 def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_datadir):

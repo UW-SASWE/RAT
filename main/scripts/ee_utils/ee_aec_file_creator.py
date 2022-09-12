@@ -78,7 +78,7 @@ def aec_file_creator(reservoir_shpfile, shpfile_column_dict, aec_dir_path):
         areas_list = []
         for subset_elevs_tuples in grouped_elevs_list:
           ## Removing None objects from grouped tuples and converting them to list and then ee.List and then calculating  area for that 
-          subset_elevs_list = list(filter(None,subset_elevs_tuples))
+          subset_elevs_list = list(filter(lambda x: x != None, subset_elevs_tuples))
           subset_elevs = ee.List(subset_elevs_list)
           subset_areas = subset_elevs.map(lambda elevation_i: _aec(elevation_i, DEM, aoi))
           subset_areas_list = subset_areas.getInfo()

@@ -18,11 +18,12 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
         return (None, latest_cycle)
 
     # Directory to save raw downloaded altimetry data
-    savedir = create_directory(os.path.join(data_dir,'altimetry','raw'), True)
+    savedir = create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry','raw',resname), True)
 
     # Directory to save extracted altimetry data from 
     extracteddir = create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry','extracted',resname), True)
     
+    # Directory to save altimetry time-series for different reservoirs 
     resultsdir = create_directory(save_dirpath, True)
     savepath = os.path.join(resultsdir, f'{resname}.csv')
 
@@ -33,10 +34,24 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
         latest_cycle = alt.get_latest_cycle(user, password, lastcycle_no)
         print(f"Latest cycle: {latest_cycle}")
 
-        alt.download_data(user, password, savedir, track, 1, latest_cycle, 3)
-        extractedf = alt.extract_data(savedir + f'/j3_{track:03}', extracteddir, lat_range[0], lat_range[1], track, 3)
+        ## Getting the starting cycle for downloading data
+        starting_cycle = 1
+        cycles_downloaded = []
+        ## Replace 'gdr_f' with 'gdr_d' if downloading other than jason 3 data
+        if os.path.exists(os.path.join(savedir, f'j3_{track:03}','gdr_f')):
+            for f in os.listdir(os.path.join(savedir, f'j3_{track:03}','gdr_f')):
+                if(f.startswith('cycle_')):
+                    cycles_downloaded.append(int(f[-3:]))
+            if(cycles_downloaded):
+                starting_cycle = max(cycles_downloaded)
 
-        alt.generate_timeseries(extractedf, savepath, lat_range[0], lat_range[1], geoidpath)
+        print(f"Downloading data from cycle {starting_cycle} to {latest_cycle}")
+        alt.download_data(user, password, savedir, track, starting_cycle, latest_cycle, 3)
+        extractedf = alt.extract_data(savedir + f'/j3_{track:03}', extracteddir, lat_range[0], lat_range[1], track, 3, starting_cycle, latest_cycle, '_app_mod')
+
+    ## One-reservoir has one time-series from all tracks
+    print("Gathering extracted data to create time-series")
+    alt.generate_timeseries(extracteddir, savepath, lat_range[0], lat_range[1], geoidpath)
     
     return (resname,latest_cycle)
 
@@ -89,7 +104,7 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
                 print(f"Processing {reservoir_name}")
                 output_res_name, latest_cycle = altimeter_routine(reservoir, res_shpfile_column_dict, j3_tracks_gdf, reservoir_latlon_ranges_dict, 
                                     username, pwd, lastcycle_no, 
-                                    basin_name, data_dir, geoidpath, save_dirpath)
+                                    basin_name, data_dir, geoidpath, save_dir)
     else:
         res_names_for_altimetry = []
         for reservoir_no,reservoir in reservoirs_gdf.iterrows():
@@ -98,7 +113,7 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
             print(f"Processing {reservoir_name}")
             output_res_name, latest_cycle = altimeter_routine(reservoir, res_shpfile_column_dict, j3_tracks_gdf, reservoir_latlon_ranges_dict, 
                                 username, pwd, lastcycle_no, 
-                                basin_name, data_dir, geoidpath, save_dirpath)
+                                basin_name, data_dir, geoidpath, save_dir)
             if output_res_name is not None:
                 res_names_for_altimetry.append(output_res_name)
         altimetry_res_names_df = pd.DataFrame(data={'reservoir_uni_id':res_names_for_altimetry})
