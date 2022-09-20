@@ -342,17 +342,20 @@ def run_process_long(res_name, start, end, datadir):
     if os.path.isfile(savepath):
         temp_df = pd.read_csv(savepath, parse_dates=['mosaic_enddate']).set_index('mosaic_enddate')
 
-        last_date = temp_df.index[-1].to_pydatetime()
-        fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
-        to_combine = [savepath]
-        print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
+        if not len(temp_df) == 0:
+            last_date = temp_df.index[-1].to_pydatetime()
+            fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
+            to_combine = [savepath]
+            print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
 
-        # If 16 days have not passed since last observation, skip the processing
-        days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
-        print(f"No. of days passed since: {days_passed}")
-        if days_passed < TEMPORAL_RESOLUTION:
-            print(f"No new observation expected. Quitting early")
-            return None
+            # If 16 days have not passed since last observation, skip the processing
+            days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
+            print(f"No. of days passed since: {days_passed}")
+            if days_passed < TEMPORAL_RESOLUTION:
+                print(f"No new observation expected. Quitting early")
+                return None
+        else:
+            to_combine = []
     else:
         to_combine = []
     
@@ -454,11 +457,16 @@ def run_process_long(res_name, start, end, datadir):
     to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
 
     files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
-    data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
+    try:
+        data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
+        data.to_csv(savepath)
+        return savepath
+    except ValueError as e:
+        return -1
+    except Exception as e:
+        raise e
 
-    data.to_csv(savepath)
 
-    return savepath
 
 # User-facing wrapper function
 def sarea_l9(reservoir, start, end, datadir):
