@@ -46,7 +46,7 @@ class NotificationHandler(logging.Handler):
 # -------------------------------------------------------------------- #
 
 
-def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
+def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False, logger_name=LOG_NAME, for_basin=True):
     ''' Setup the logger '''
     #Creating log directory if does not exist
     create_directory(log_dir)
@@ -54,14 +54,18 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
     #Extracting basin name from the log_dir_path
     basin_name=os.path.basename(os.path.normpath(log_dir))
 
-    logger = logging.getLogger(LOG_NAME)
+    logger = logging.getLogger(logger_name)
     logger.setLevel(log_level)
     logger.propagate = True
 
     # ---------------------------------------------------------------- #
     # create log file handler
     if log_dir:
-        log_file = os.path.join(log_dir, 'RAT-'+ basin_name + strftime('%Y%m%d-%H%M%S',
+        if(for_basin):
+            log_file = os.path.join(log_dir, 'RAT-'+ basin_name + strftime('%Y%m%d-%H%M%S',
+                                gmtime()) + '.log')
+        else:
+            log_file = os.path.join(log_dir, 'RAT_run-'+ strftime('%Y%m%d-%H%M%S',
                                 gmtime()) + '.log')
         fh = logging.FileHandler(log_file)
         fh.setLevel(log_level)
@@ -109,9 +113,9 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False):
 # -------------------------------------------------------------------- #
 
 
-def close_logger():
+def close_logger(logger_name=LOG_NAME):
     '''Close the handlers of the logger'''
-    log = logging.getLogger(LOG_NAME)
+    log = logging.getLogger(logger_name)
     x = list(log.handlers)
     for i in x:
         log.removeHandler(i)
