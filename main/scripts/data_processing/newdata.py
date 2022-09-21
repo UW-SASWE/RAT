@@ -509,17 +509,16 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         # pbar.update(1)
 
 
-def get_newdata(basin_name,basin_bounds,data_dir, startdate, enddate, secrets_file, download=True, process=True):
-    datadir = os.path.join(data_dir,'basins',basin_name,'')
+def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, download=True, process=True):
     raw_datadir = os.path.join(data_dir, "raw",'')
-    processed_datadir = os.path.join(datadir, "processed",'')
-    temp_datadir = os.path.join(datadir, "temp",'')
+    processed_datadir = os.path.join(basin_data_dir, "processed",'')
+    temp_datadir = os.path.join(basin_data_dir, "temp",'')
     
     ####Creating the required directories####
 
     dir_paths=[raw_datadir,processed_datadir]
     #Creating data directory if does not exist
-    create_directory(datadir)
+    create_directory(basin_data_dir)
 
     #Creating temp directory if does not exist
     create_directory(temp_datadir)
