@@ -54,9 +54,9 @@ class RouteParameterFile:
 
         # Calculate first
         if self.params['start_date'] is None:
-            self.params['start_date'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime("%Y %m %d")
+            self.params['start_date'] = (config['BASIN']['begin'] + datetime.timedelta(days=90)).strftime("%Y %m %d")
         if self.params['end_date'] is None:
-            self.params['end_date'] = config['GLOBAL']['end'].strftime("%Y %m %d")
+            self.params['end_date'] = config['BASIN']['end'].strftime("%Y %m %d")
 
         # If passed as parameters, replace them
         if self.startdate:
@@ -71,8 +71,8 @@ class RouteParameterFile:
                                                                  f'run_{self.runname}'))
         else:
             if(self.intermediate_files):
-                self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',
-                                                                self.basin_name,'rout_workspace',f'run_{self.runname}'))
+                self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',
+                                                                self.basin_name,'routing','rout_workspace',f'run_{self.runname}'))
         
         ## Route parameter file, this is where the parameter file will be saved
         if (self.intermediate_files):
@@ -83,7 +83,7 @@ class RouteParameterFile:
                 self.route_param_path = os.path.relpath(config[self.config_section].get('route_param_file'),self.project_dir)
             # Or storing it in route basin params dir and replace it from next cycle
             else:
-                self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+                self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
                                                             'basins',self.basin_name,'rout_basin_params'),True)
                 self.route_param_path = os.path.relpath(os.path.join(self.route_param_path,'route_param.txt'),self.project_dir)
         
@@ -91,15 +91,15 @@ class RouteParameterFile:
         self.params['flow_direction_file'] = self.basin_flow_direction_file
 
         ## output dir
-        self.params['output_dir'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
-                                                            'basins',self.basin_name,'rout_outputs'),True)
+        self.params['output_dir'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+                                                            'basins',self.basin_name,'routing','rout_outputs'),True)
         
         ## stations
         if (self.intermediate_files):
             self.params['station'] = os.path.join(self.workspace, 'stations_xy.txt')
         else:
-            self.params['station'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
-                                                        'basins',self.basin_name,'rout_basin_params'),True)
+            self.params['station'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+                                                        'basins',self.basin_name,'routing','rout_basin_params'),True)
             self.params['station'] = os.path.join(self.params['station'],'stations_xy.txt')
 
         # Routing Input file prefix path   

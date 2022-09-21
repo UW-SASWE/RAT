@@ -115,7 +115,7 @@ class VICParameterFile:
         if self.workspace:
             self.workspace = create_directory(os.path.join(self.workspace, f'run_{self.runname}'),True)
         else :
-            self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',basin_name,'vic_workspace',f'run_{self.runname}'),True)
+            self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',basin_name,'vic','vic_workspace',f'run_{self.runname}'),True)
 
         if self.init_param_file:
             self._load_from_vic_param()
@@ -189,13 +189,13 @@ class VICParameterFile:
 
         # Start and End date
         # Initialize by calculating first. Will get overriden later if specified in configuration
-        if (config['GLOBAL'].get('begin',None)):
-            self.params['dates']['STARTYEAR'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%Y')
-            self.params['dates']['STARTMONTH'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%m')
-            self.params['dates']['STARTDAY'] = (config['GLOBAL']['begin'] + datetime.timedelta(days=90)).strftime('%d')
-        self.params['dates']['ENDYEAR'] = config['GLOBAL']['end'].strftime('%Y')
-        self.params['dates']['ENDMONTH'] = config['GLOBAL']['end'].strftime('%m')
-        self.params['dates']['ENDDAY'] = config['GLOBAL']['end'].strftime('%d')
+        if (config['BASIN'].get('begin',None)):
+            self.params['dates']['STARTYEAR'] = (config['BASIN']['begin'] + datetime.timedelta(days=90)).strftime('%Y')
+            self.params['dates']['STARTMONTH'] = (config['BASIN']['begin'] + datetime.timedelta(days=90)).strftime('%m')
+            self.params['dates']['STARTDAY'] = (config['BASIN']['begin'] + datetime.timedelta(days=90)).strftime('%d')
+        self.params['dates']['ENDYEAR'] = config['BASIN']['end'].strftime('%Y')
+        self.params['dates']['ENDMONTH'] = config['BASIN']['end'].strftime('%m')
+        self.params['dates']['ENDDAY'] = config['BASIN']['end'].strftime('%d')
 
         # Rename forcing file
         if self.straight_from_metsim:
@@ -218,10 +218,10 @@ class VICParameterFile:
                 self.vic_param_path = self.init_param_file   # Paramter file will be replaced
             # Or storing it in vic basin params dir and replace it from next cycle
             else:
-                self.vic_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],
-                                                            'basins',self.basin_name,'vic_basin_params'),True)
+                self.vic_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+                                                            'basins',self.basin_name,'vic','vic_basin_params'),True)
                 self.vic_param_path = os.path.join(self.vic_param_path,'vic_param.txt')
-            self.params['results']['LOG_DIR'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],
+            self.params['results']['LOG_DIR'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
                                                              'vic_logs',self.basin_name,''),True) 
         log.debug("VIC Logs Directory: %s ", self.params['results']['LOG_DIR'])
         # if not self.params['results']['LOG_DIR'].endswith(os.sep):
@@ -299,8 +299,8 @@ class VICParameterFile:
         
         # Saving initital state file for vic's next run  if save_init_state is True else deleting STATENAME from state_file_params
         if (self.save_init_state):
-            create_directory(os.path.join(config['GLOBAL']['data_dir'],'basins',self.basin_name,'vic_init_states'),False)
-            self.params['state_file_params']['STATENAME'] = os.path.join(config['GLOBAL']['data_dir'],'basins',self.basin_name,'vic_init_states','state_')
+            create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',self.basin_name,'vic','vic_init_states'),False)
+            self.params['state_file_params']['STATENAME'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',self.basin_name,'vic','vic_init_states','state_')
             self.params['state_file_params']['STATEYEAR'] = self.params['dates']['ENDYEAR']
             self.params['state_file_params']['STATEMONTH'] = self.params['dates']['ENDMONTH']
             self.params['state_file_params']['STATEDAY'] = self.params['dates']['ENDDAY']
@@ -311,8 +311,8 @@ class VICParameterFile:
         if (self.init_state_date):
             init_state_date_str = str(self.init_state_date.strftime('%Y'))+str(self.init_state_date.strftime('%m'))+\
                                   str(self.init_state_date.strftime('%d'))
-            self.params['state_file_params']['INIT_STATE'] = os.path.join(config['GLOBAL']['data_dir'],
-                                                            'basins',self.basin_name,'vic_init_states',
+            self.params['state_file_params']['INIT_STATE'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+                                                            'basins',self.basin_name,'vic','vic_init_states',
                                                             'state_'+init_state_date_str)
         else:
             del self.params['state_file_params']['INIT_STATE']
