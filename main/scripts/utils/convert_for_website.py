@@ -6,7 +6,7 @@ import numpy as np
 from utils.utils import create_directory
 
 def convert_sarea(sarea_dir, website_v_dir):
-
+    # Surface Area
     sarea_paths = [os.path.join(sarea_dir, f) for f in os.listdir(sarea_dir) if f.endswith(".csv")]
     sarea_web_dir = create_directory(os.path.join(website_v_dir,'sarea' ),True)
     for sarea_path in sarea_paths:
@@ -15,16 +15,16 @@ def convert_sarea(sarea_dir, website_v_dir):
         
         savepath = os.path.join(sarea_web_dir, f"{res_name}.txt")
 
-        df = pd.read_csv(sarea_path)
+        df = pd.read_csv(sarea_path, parse_dates=['date'])
         df = df[['date', 'area']]
         df['area'] = np.round(df['area'], 3)
-
+        df.rename({'area':'area (km2)'}, axis=1, inplace=True)
         print(f"Converting [Surface Area]: {res_name}")
         df.to_csv(savepath, index=False)
 
 
 def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  website_v_dir):
-
+    # Inflow
     reservoirs = gpd.read_file(reservoir_shpfile)
     reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str).str[:5]
 
@@ -38,15 +38,17 @@ def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,
             savename = reservoirs[reservoirs['Inflow_filename'] == res_name][reservoir_shpfile_column_dict['unique_identifier']]
             savepath = os.path.join(inflow_web_dir ,f"{savename}.txt")
 
-            df = pd.read_csv(inflow_path)
+            df = pd.read_csv(inflow_path, parse_dates=['date'])
+            df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+            df = df[['date', 'inflow (m3/d)']]
+
             print(f"Converting [Inflow]: {res_name}")
             df.to_csv(savepath, index=False)
             print(df.tail())
         else:
             print(f"Currently not displayed in website: {res_name}")
 
-def convert_dels_outflow(dels_dir, outflow_dir, website_v_dir):
-
+def convert_dels(dels_dir, website_v_dir):
     # Delta S
     dels_paths = [os.path.join(dels_dir, f) for f in os.listdir(dels_dir) if f.endswith(".csv")]
     dels_web_dir = create_directory(os.path.join(website_v_dir,'dels' ),True)
@@ -57,13 +59,32 @@ def convert_dels_outflow(dels_dir, outflow_dir, website_v_dir):
 
         savepath = os.path.join(dels_web_dir , f"{savename}.txt")
 
-        df = pd.read_csv(dels_path)
-        df = df[['date', 'dS']]
-        df['dS'] = np.round(df['dS'], 8)
+        df = pd.read_csv(dels_path, parse_dates=['date'])[['date', 'dS', 'days_passed']]
+        df['dS (m3)'] = df['dS'] * 1e9                                     # indicate units, convert from BCM to m3
+        df = df[['date', 'dS (m3)']]
 
         print(f"Converting [∆S]: {res_name}, {savepath}")
-        df.to_csv(savepath, index=False, header=False)
+        df.to_csv(savepath, index=False)
+
+def convert_evaporation(evap_dir, website_v_dir):
+    # Evaporation
+    evap_paths = [os.path.join(evap_dir, f) for f in os.listdir(evap_dir) if f.endswith(".csv")]
+    evap_web_dir = create_directory(os.path.join(website_v_dir,'evaporation' ),True)
+
+    for evap_path in evap_paths:
+        res_name = os.path.splitext(os.path.split(evap_path)[-1])[0]
+        savename = res_name
+
+        savepath = os.path.join(evap_web_dir , f"{savename}.txt")
+
+        df = pd.read_csv(evap_path)
+        df = df[['time', 'OUT_EVAP']]
+        df.rename({'time':'date', 'OUT_EVAP':'evaporation (mm)'}, axis=1, inplace=True)
+
+        print(f"Converting [Evaporation]: {res_name}, {savepath}")
+        df.to_csv(savepath, index=False)
     
+def convert_outflow(outflow_dir, website_v_dir):
     # Outflow
     outflow_paths = [os.path.join(outflow_dir, f) for f in os.listdir(outflow_dir) if f.endswith(".csv")]
     outflow_web_dir = create_directory(os.path.join(website_v_dir,'outflow' ),True)
@@ -75,20 +96,16 @@ def convert_dels_outflow(dels_dir, outflow_dir, website_v_dir):
 
         savepath = os.path.join(outflow_web_dir, f"{savename}.txt")
 
-        df = pd.read_csv(outflow_path)
-        df = df[['date', 'outflow_rate']].rename({
-            'date': 'Date',
-            'outflow_rate': 'Streamflow'
-        }, axis=1)
-        df['Streamflow'] = np.round(df['Streamflow'], 2)
-        df.loc[df['Streamflow']<0, 'Streamflow'] = 0
+        df = pd.read_csv(outflow_path, parse_dates=['date'])[['date', 'outflow_rate']]
+        df.loc[df['outflow_rate']<0, 'outflow_rate'] = 0
+        df['outflow (m3/d)'] = df['outflow_rate'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+        df = df[['date', 'outflow (m3/d)']]
 
         print(f"Converting [Outflow]: {res_name}, {savepath}")
         df.to_csv(savepath, index=False)
 
 def convert_altimeter(altimeter_ts_dir, website_v_dir):
-
-    # Delta S
+    # Altimeter
     if os.path.exists(altimeter_ts_dir):
         altimeter_tses = [os.path.join(altimeter_ts_dir, f) for f in os.listdir(altimeter_ts_dir) if f.endswith(".csv")]
         altimeter_web_dir = create_directory(os.path.join(website_v_dir,'altimeter' ),True)
@@ -102,9 +119,10 @@ def convert_altimeter(altimeter_ts_dir, website_v_dir):
             df = df[['date', 'H [m w.r.t. EGM2008 Geoid]']]
             df['date'] = df['date'].dt.strftime("%Y-%m-%d")
             df['H [m w.r.t. EGM2008 Geoid]'] = np.round(df['H [m w.r.t. EGM2008 Geoid]'], 2)
+            df.rename({'H [m w.r.t. EGM2008 Geoid]':'height (m)'}, axis=1, inplace=True)
 
             print(f"Converting [Heights]: {res_name}")
-            df.to_csv(savepath, index=False, header=False)
+            df.to_csv(savepath, index=False)
 
 def convert_v2_frontend(basin_data_dir, res_name, inflow_src, sarea_src, dels_src, outflow_src):
     """Converts the files according to the newer version of the frontend (v2).
