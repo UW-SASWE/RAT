@@ -7,7 +7,7 @@ from data_processing import altimetry as alt
 
 
 def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_reservoir_range_dict,
-                                         user, password, lastcycle_no, basin_name, data_dir, geoidpath, save_dirpath):
+                                         user, password, lastcycle_no, basin_name, basin_data_dir, geoidpath, save_dirpath):
     resname = str(reservoir_df[reservoir_column_dict['unique_identifier']])
     latest_cycle = lastcycle_no         # for initializing latest cycle number
 
@@ -18,10 +18,10 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
         return (None, latest_cycle)
 
     # Directory to save raw downloaded altimetry data
-    savedir = create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry','raw',resname), True)
+    savedir = create_directory(os.path.join(basin_data_dir,'altimetry','raw',resname), True)
 
     # Directory to save extracted altimetry data from 
-    extracteddir = create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry','extracted',resname), True)
+    extracteddir = create_directory(os.path.join(basin_data_dir,'basins',basin_name,'altimetry','extracted',resname), True)
     
     # Directory to save altimetry time-series for different reservoirs 
     resultsdir = create_directory(save_dirpath, True)
@@ -55,14 +55,14 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
     
     return (resname,latest_cycle)
 
-def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_name, data_dir, save_dir):
+def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_name, basin_data_dir, save_dir):
     reservoirs_gdf = gpd.read_file(res_shpfile) 
     
     ## Declaring variables to see if only certain reservoirs needs to be processed or certain range of a reservoir is available
     to_process = None
     reservoir_latlon_ranges_dict = None
 
-    reservoirs_csv_file_path_default = os.path.join(data_dir,'basins',basin_name,'altimetry_basin_params',
+    reservoirs_csv_file_path_default = os.path.join(basin_data_dir,'altimetry','altimetry_basin_params',
                                                                             'reservoir_altimetry_basins.csv')
     if(config[section].get('reservoirs_csv_file')):
         reservoirs_csv_file_path = config[section].get('reservoirs_csv_file')
@@ -104,7 +104,7 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
                 print(f"Processing {reservoir_name}")
                 output_res_name, latest_cycle = altimeter_routine(reservoir, res_shpfile_column_dict, j3_tracks_gdf, reservoir_latlon_ranges_dict, 
                                     username, pwd, lastcycle_no, 
-                                    basin_name, data_dir, geoidpath, save_dir)
+                                    basin_name, basin_data_dir, geoidpath, save_dir)
     else:
         res_names_for_altimetry = []
         for reservoir_no,reservoir in reservoirs_gdf.iterrows():
@@ -113,13 +113,13 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
             print(f"Processing {reservoir_name}")
             output_res_name, latest_cycle = altimeter_routine(reservoir, res_shpfile_column_dict, j3_tracks_gdf, reservoir_latlon_ranges_dict, 
                                 username, pwd, lastcycle_no, 
-                                basin_name, data_dir, geoidpath, save_dir)
+                                basin_name, basin_data_dir, geoidpath, save_dir)
             if output_res_name is not None:
                 res_names_for_altimetry.append(output_res_name)
         altimetry_res_names_df = pd.DataFrame(data={'reservoir_uni_id':res_names_for_altimetry})
         altimetry_res_names_df['min_lat'] = ''
         altimetry_res_names_df['max_lat'] = ''
-        create_directory(os.path.join(data_dir,'basins',basin_name,'altimetry_basin_params',''))
+        create_directory(os.path.join(basin_data_dir,'altimetry','altimetry_basin_params',''))
         altimetry_res_names_df.to_csv(reservoirs_csv_file_path_default,index=False)
     
     return latest_cycle
