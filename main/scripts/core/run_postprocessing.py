@@ -153,69 +153,90 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
     df.to_csv(savepath, index=False)
 
 
-def run_postprocessing(basin_name, data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date,
-                            evap_datadir, dels_savedir, outflow_savedir):
+def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date,
+                            evap_datadir, dels_savedir, outflow_savedir, vic_status, routing_status, gee_status):
     # read file defining mapped resrvoirs
     # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
     reservoirs = gpd.read_file(reservoir_shpfile)
     start_date_str = start_date.strftime("%Y-%m-%d")
     end_date_str = end_date.strftime("%Y-%m-%d")
-    
+    # Defining flags
+    EVAP_STATUS = 0
+    DELS_STATUS = 0
+    OUTFLOW_STATUS = 0
+
     # SArea
-    sarea_raw_dir = os.path.join(data_dir,'basins',basin_name, "gee_sarea_tmsos")
+    sarea_raw_dir = os.path.join(basin_data_dir,'gee', "gee_sarea_tmsos")
 
     # DelS
-    log.debug("Calculating ∆S")
-    aec_dir = aec_dir_path
+    if(gee_status):
+        log.debug("Calculating ∆S")
+        aec_dir = aec_dir_path
 
-    for reservoir_no,reservoir in reservoirs.iterrows():
-        # Reading reservoir information
-        reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-        sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
-        savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
-        aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
+        for reservoir_no,reservoir in reservoirs.iterrows():
+            # Reading reservoir information
+            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+            sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+            savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
+            aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
 
-        if os.path.isfile(sarea_path):
-            log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
-            calc_dels(aecpath, sarea_path, savepath)
-        else:
-            log.debug(f"{sarea_path} not found; skipping ∆S calculation")
+            if os.path.isfile(sarea_path):
+                log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
+                calc_dels(aecpath, sarea_path, savepath)
+            else:
+                log.debug(f"{sarea_path} not found; skipping ∆S calculation")
+        DELS_STATUS=1
+    else:
+        log.debug("Cannot Calculate ∆S because GEE Run Failed.")
         
 
     # Evaporation
-    log.debug("Retrieving Evaporation")
-    vic_results_path = os.path.join(data_dir,'basins',basin_name, "vic_outputs/nc_fluxes."+start_date_str+".nc")
-    forcings_path = os.path.join(data_dir,'basins',basin_name, "vic_inputs/*.nc")
+    if(vic_status and gee_status):
+        log.debug("Retrieving Evaporation")
+        vic_results_path = os.path.join(basin_data_dir,'vic', "vic_outputs/nc_fluxes."+start_date_str+".nc")
+        forcings_path = os.path.join(basin_data_dir,'vic', "vic_inputs/*.nc")
 
-    for reservoir_no,reservoir in reservoirs.iterrows():
-        # Reading reservoir information
-        reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-        sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
-        e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
-        
-        if os.path.isfile(sarea_path):
-            log.debug(f"Calculating Evaporation for {reservoir_name}")
-            # calc_E(e_path, respath, vic_results_path)
-            calc_E(reservoir, start_date_str, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
-        else:
-            log.debug(f"{sarea_path} not found; skipping evaporation calculation")
+        for reservoir_no,reservoir in reservoirs.iterrows():
+            # Reading reservoir information
+            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+            sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+            e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
+            
+            if os.path.isfile(sarea_path):
+                log.debug(f"Calculating Evaporation for {reservoir_name}")
+                # calc_E(e_path, respath, vic_results_path)
+                calc_E(reservoir, start_date_str, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
+            else:
+                log.debug(f"{sarea_path} not found; skipping evaporation calculation")
+        EVAP_STATUS = 1
+    elif((not vic_status) and (not gee_status)):
+        log.debug("Cannot Retrieve Evaporation because both VIC and GEE Run Failed.")
+    elif(vic_status):
+        log.debug("Cannot Retrieve Evaporation because VIC Run Failed.")
+    else:
+        log.debug("Cannot Retrieve Evaporation because GEE Run Failed.")
 
     # Outflow
-    log.debug("Calculating Outflow")
-    inflow_dir = os.path.join(data_dir,'basins',basin_name, "rout_inflow")
+    if((routing_status) and (EVAP_STATUS) and (DELS_STATUS)):
+        log.debug("Calculating Outflow")
+        inflow_dir = os.path.join(basin_data_dir,'routing', "rout_inflow")
 
-    for reservoir_no,reservoir in reservoirs.iterrows():
-        # Reading reservoir information
-        reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-        deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
-        inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
-        epath = os.path.join(evap_datadir, reservoir_name + ".csv")
-        a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
+        for reservoir_no,reservoir in reservoirs.iterrows():
+            # Reading reservoir information
+            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+            deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
+            inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
+            epath = os.path.join(evap_datadir, reservoir_name + ".csv")
+            a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
 
-        savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
-        log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
-        calc_outflow(inflowpath, deltaS, epath, a, savepath)
-
+            savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
+            log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
+            calc_outflow(inflowpath, deltaS, epath, a, savepath)
+        OUTFLOW_STATUS = 1
+    else:
+        log.debug("Cannot Calculate Outflow because either evaporation, ∆S or Inflow is missing.")
+    
+    return (DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS)
 def main():
     pass
 
