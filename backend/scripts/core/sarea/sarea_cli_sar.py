@@ -5,6 +5,7 @@ import pandas as pd
 import argparse
 import os
 from datetime import datetime, timedelta
+from scipy.stats import zscore
 
 ee.Initialize()
 
@@ -157,6 +158,15 @@ def sarea_s1(reservoir, start_date, end_date, datadir):
     results = retrieve_sar(start_date, end_date, res='6MS')
     to_combine.append(results)
     data = pd.concat(to_combine).drop_duplicates().sort_values("time")
+
+    # z-score based filtering to filter out highly improbably sarea values
+    ZSCORE_THRESHOLD = 2
+
+    zscore_values = zscore(data['sarea'])
+    condition = (zscore_values < -ZSCORE_THRESHOLD)|(zscore_values > ZSCORE_THRESHOLD)
+    data.loc[condition.values, 'sarea'] = np.nan
+
+    data.loc[:, 'sarea'] = data.set_index('time')['sarea'].interpolate(method='from_derivatives').values
     
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
