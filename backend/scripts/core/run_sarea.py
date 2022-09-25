@@ -7,6 +7,7 @@ from utils.logging import LOG_NAME, NOTIFICATION
 
 from core.sarea.sarea_cli_s2 import sarea_s2
 from core.sarea.sarea_cli_l8 import sarea_l8
+from core.sarea.sarea_cli_l9 import sarea_l9
 from core.sarea.sarea_cli_sar import sarea_s1
 from core.sarea.TMS import TMS
 
@@ -68,6 +69,7 @@ def run_sarea(start_date, end_date, datadir):
     
     for reservoir in reservoirs:
         if reservoir in grand_areas.keys():
+            print("TMS-OS running for reservoir: ", reservoir)
             run_sarea_for_res(reservoir, start_date, end_date, datadir)
 
 
@@ -82,13 +84,18 @@ def run_sarea_for_res(reservoir, start_date, end_date, datadir):
     log.debug(f"Reservoir: {reservoir}; Downloading Landsat-8 data from {start_date} to {end_date}")
     sarea_l8(reservoir, start_date, end_date, os.path.join(datadir, 'l8'))
     l8_dfpath = os.path.join(datadir, 'l8', reservoir+'.csv')
+    
+    # Landsat-9
+    log.debug(f"Reservoir: {reservoir}; Downloading Landsat-9 data from {start_date} to {end_date}")
+    sarea_l9(reservoir, start_date, end_date, os.path.join(datadir, 'l9'))
+    l9_dfpath = os.path.join(datadir, 'l9', reservoir+'.csv')
 
     # Sentinel-1
     log.debug(f"Reservoir: {reservoir}; Downloading Sentinel-1 data from {start_date} to {end_date}")
     s1_dfpath = sarea_s1(reservoir, start_date, end_date, os.path.join(datadir, 'sar'))
 
     tmsos = TMS(reservoir, grand_areas[reservoir])
-    result = tmsos.tms_os(l8_dfpath, s2_dfpath, s1_dfpath)
+    result = tmsos.tms_os(l8_dfpath, s2_dfpath, l9_dfpath, s1_dfpath)
 
     tmsos_savepath = os.path.join(datadir, reservoir+'.csv')
     log.debug(f"Saving surface area of {reservoir} at {tmsos_savepath}")
