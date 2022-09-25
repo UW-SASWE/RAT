@@ -102,7 +102,7 @@ def run_sarea_for_res(reservoir, start_date, end_date, datadir):
     result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
 
 def main():
-    run_sarea("2019-01-01", "2022-08-31", datadir='backend/data/sarea_tmsos')
+    run_sarea("2019-01-01", "2022-09-01", datadir='backend/data/sarea_tmsos')
 
 
 if __name__ == '__main__':
