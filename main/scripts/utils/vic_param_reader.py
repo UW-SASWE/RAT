@@ -313,7 +313,7 @@ class VICParameterFile:
                                   str(self.init_state_date.strftime('%d'))
             self.params['state_file_params']['INIT_STATE'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
                                                             'basins',self.basin_name,'vic','vic_init_states',
-                                                            'state_'+init_state_date_str)
+                                                            'state_.'+init_state_date_str+'_00000.nc')
         else:
             del self.params['state_file_params']['INIT_STATE']
 
