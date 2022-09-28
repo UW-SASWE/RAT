@@ -148,14 +148,10 @@ class CombinedNC:
             #   assuming that the previous file was also created by MetSimRunner
             existing = xr.open_dataset(self._outputpath).load()
             existing.close()
-            # xr.merge([existing, ds]).to_netcdf(self._outputpath)
-            # xr.merge([existing, ds], compat='override', join='outer').to_netcdf(self._outputpath)
-            # xr.concat([existing, ds], dim='time').to_netcdf(self._outputpath)
-            # existing.combine_first(ds).to_netcdf(self._outputpath)
             last_existing_time = existing.time[-1]
             log.debug("Existing data: %s", last_existing_time)
-            ds = ds.sel(time=slice(last_existing_time, ds.time[-1]))
-            ds = ds.isel(time=slice(1, None))
+            ds = ds.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , ds.time[-1]))
+            # ds = ds.isel(time=slice(1, None))
             xr.merge([existing, ds]).to_netcdf(self._outputpath)
         else:
             log.debug(f"Creating new file at {self._outputpath}")
