@@ -58,7 +58,7 @@ from core.generate_plots import generate_plots
 # Step-12: Generating Area Elevation Curves for reservoirs
 # Step-13: Calculation of Outflow, Evaporation and Storage change
 
-def rat(config, rat_logger, steps=[2,3,5,7,9,12,13]):
+def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
 
     rat_logger = getLogger('run_rat')
     ##--------------------- Reading and initialising global parameters ----------------------##
@@ -124,6 +124,8 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13]):
 
     ##--------------------- Read and initialised global parameters ----------------------##
 
+    rat_logger.info(f"Running RAT from {config['BASIN']['start']} to {config['BASIN']['end']}")
+    
     ######### Step-1
     if(1 in steps):
         try:
@@ -461,7 +463,7 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13]):
             rat_logger.info("Finished Step-11: Elevation extraction from Altimeter")                                                                        
             ##----------- Altimeter height ectraction ends -----------##
 
-    ######### Step-11
+    ######### Step-12
     if(12 in steps):
         try:
             rat_logger.info("Starting Step-12: Generating Area Elevation Curves for reservoirs")
@@ -485,7 +487,7 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13]):
             rat_logger.info("Finished Step-12: Generating Area Elevation Curves for reservoirs")
             ##--------------------------------Area Elevation Curves Extraction ends ------------------- ##
 
-    ######### Step-12
+    ######### Step-13
     if(13 in steps):
         try:
             rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation and Storage change")
