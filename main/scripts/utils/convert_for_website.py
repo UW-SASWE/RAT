@@ -35,7 +35,7 @@ def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,
         res_name = os.path.splitext(os.path.split(inflow_path)[-1])[0]
 
         if res_name in reservoirs['Inflow_filename'].tolist():
-            savename = reservoirs[reservoirs['Inflow_filename'] == res_name][reservoir_shpfile_column_dict['unique_identifier']]
+            savename = reservoirs[reservoirs['Inflow_filename'] == res_name][reservoir_shpfile_column_dict['unique_identifier']].values[0]
             savepath = os.path.join(inflow_web_dir ,f"{savename}.txt")
 
             df = pd.read_csv(inflow_path, parse_dates=['date'])
