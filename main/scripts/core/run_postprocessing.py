@@ -113,7 +113,13 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
 
     # Save (Writing new file if not exist otherwise append)
     if os.path.isfile(savepath):
-        data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, mode='a', header=False, index=False)
+        existing_data = pd.read_csv(savepath, parse_dates=['time'])
+        new_data = data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1)
+        # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
+        complement = pd.concat([existing_data, new_data], ignore_index=True)
+        # Remove all duplicates:
+        complement.drop_duplicates(subset=['time'],inplace=True, keep=False)
+        complement.to_csv(savepath, index=False)
     else:
         data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
 
