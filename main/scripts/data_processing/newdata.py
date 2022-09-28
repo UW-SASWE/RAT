@@ -163,7 +163,12 @@ def download_tmax(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    if not(os.path.exists(outputpath)):
+    ## New data will keep on coming in the year going on i.e. recent year
+    tod = datetime.now()
+    days_ago_20 = tod - timedelta(days=20)
+    today_year = str(tod.year)
+    recent_year_20day_ago = str(days_ago_20.year) 
+    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
         cmd = [
             'wget', 
             '-O', 
@@ -181,7 +186,12 @@ def download_tmin(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    if not(os.path.exists(outputpath)):
+    ## New data will keep on coming in the year going on i.e. recent year
+    tod = datetime.now()
+    days_ago_20 = tod - timedelta(days=20)
+    today_year = str(tod.year)
+    recent_year_20day_ago = str(days_ago_20.year)  
+    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
         cmd = [
             'wget', 
             '-O', 
@@ -199,7 +209,12 @@ def download_uwnd(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    if not(os.path.exists(outputpath)):
+    ## New data will keep on coming in the year going on i.e. recent year
+    tod = datetime.now()
+    days_ago_20 = tod - timedelta(days=20)
+    today_year = str(tod.year)
+    recent_year_20day_ago = str(days_ago_20.year) 
+    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
         cmd = [
             'wget', 
             '-O', 
@@ -217,7 +232,12 @@ def download_vwnd(year, outputpath):
         year: year for which data is to be downloaded, as a string
         outputpath: path where the data has to be saved
     """
-    if not(os.path.exists(outputpath)):
+    ## New data will keep on coming in the year going on i.e. recent year
+    tod = datetime.now()
+    days_ago_20 = tod - timedelta(days=20)
+    today_year = str(tod.year)
+    recent_year_20day_ago = str(days_ago_20.year) 
+    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
         cmd = [
             'wget', 
             '-O', 
