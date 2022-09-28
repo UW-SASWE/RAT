@@ -107,7 +107,17 @@ class RoutingRunner():
         for f in files:
             outpath= os.path.join(self.inflow_dir, f.split(os.sep)[-1]).replace('.day', '.csv')
             log.debug("Converting %s, writing to %s", f, outpath)
-            self._convert_streamflow(f).to_csv(outpath, index=False)
+            ## Appending data if files exists otherwise creating new
+            if os.path.isfile(outpath):
+                existing_data = pd.read_csv(outpath, parse_dates=['date'])
+                new_data = self._convert_streamflow(f)
+                # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
+                complement = pd.concat([existing_data, new_data], ignore_index=True)
+                # Remove all duplicates:
+                complement.drop_duplicates(subset=['date'],inplace=True, keep=False)
+                complement.to_csv(outpath, index=False)
+            else:
+                self._convert_streamflow(f).to_csv(outpath, index=False)
 
 
     def _convert_streamflow(self, df_path) -> pd.DataFrame:
