@@ -1,0 +1,92 @@
+## Derived from global_params_v2.txt
+##
+MODEL_STEPS_PER_DAY   4
+SNOW_STEPS_PER_DAY    4
+RUNOFF_STEPS_PER_DAY  4
+
+STARTYEAR	2001
+STARTMONTH	04
+STARTDAY	01
+ENDYEAR 	2021
+ENDMONTH	06
+ENDDAY		10
+CALENDAR    PROLEPTIC_GREGORIAN
+
+FULL_ENERGY FALSE
+QUICK_FLUX  TRUE
+FROZEN_SOIL	FALSE
+
+# AERO_RESIST_CANSNOW AR_406
+# CONTINUEONERROR FALSE
+
+DOMAIN         /houston2/pritam/rat_mekong_v3/backend/params/vic/domain.nc
+DOMAIN_TYPE    LAT     lat
+DOMAIN_TYPE    LON     lon
+DOMAIN_TYPE    MASK    mask
+DOMAIN_TYPE    AREA    area
+DOMAIN_TYPE    FRAC    frac
+DOMAIN_TYPE    YDIM    lat
+DOMAIN_TYPE    XDIM    lon
+
+##INIT_STATE ${VIC_STATE_DIR}/image/WalnutGulch/states.WalnutGulch.L2015_YYYYMMDD_SSSSS.nc # Initial state path/file, where YYYY = year, MM = month, DD = day, SSSSS = seconds, for example 20080111_00000
+#STATENAME ${VIC_STATE_DIR}/image/WalnutGulch/states.WalnutGulch.L2015  # Output state file path/prefix. The time (STATEYEAR,STATEMONTH,STATEDAY,STATESEC) will be appended to the prefix automatically in the format yyyymmdd.
+#STATEYEAR   2008    # year to save model state
+#STATEMONTH  1  # month to save model state
+#STATEDAY    11  # day to save model state
+#STATESEC    0  # second to save model state
+#STATE_FORMAT NETCDF4_CLASSIC  # State file format, valid options:
+#NETCDF3_CLASSIC, NETCDF3_64BIT_OFFSET, NETCDF4_CLASSIC, NETCDF4
+
+FORCING1      /houston2/pritam/rat_mekong_v3/backend/data/forcings/forcing_
+FORCE_TYPE    AIR_TEMP 	   temp
+FORCE_TYPE    PREC         prec
+FORCE_TYPE    PRESSURE 	   air_pressure
+FORCE_TYPE    SWDOWN       shortwave
+FORCE_TYPE    LWDOWN 	   longwave
+FORCE_TYPE    VP           vapor_pressure
+FORCE_TYPE    WIND         wind
+WIND_H        10.0
+
+PARAMETERS      /houston2/pritam/rat_mekong_v3/backend/params/vic/params_all_mekong.nc
+LAI_SRC         FROM_VEGPARAM
+FCAN_SRC        FROM_DEFAULT
+ALB_SRC         FROM_VEGPARAM
+NODES           2
+SNOW_BAND       FALSE
+
+RESULT_DIR  /houston2/pritam/rat_mekong_v3/backend/data/vic_results_conf/
+LOG_DIR     /houston2/pritam/rat_mekong_v3/backend/data/vic_logs_conf/
+OUTFILE     nc_fluxes
+COMPRESS    FALSE
+OUT_FORMAT  NETCDF4
+AGGFREQ     NDAYS 1
+
+# Only those required for routing
+OUTVAR OUT_PREC
+OUTVAR OUT_EVAP
+OUTVAR OUT_RUNOFF
+OUTVAR OUT_BASEFLOW
+OUTVAR OUT_WDEW
+OUTVAR OUT_SOIL_LIQ
+OUTVAR OUT_SOIL_MOIST
+OUTVAR OUT_EVAP_CANOP
+OUTVAR OUT_TRANSP_VEG
+OUTVAR OUT_EVAP_BARE
+OUTVAR OUT_SNOW_CANOPY
+OUTVAR OUT_SWE
+OUTVAR OUT_SOIL_TEMP
+OUTVAR OUT_SURF_TEMP
+OUTVAR OUT_AIR_TEMP
+OUTVAR OUT_LAI
+OUTVAR OUT_FCANOPY
+OUTVAR OUT_ALBEDO
+
+# For Evaporation calcuation
+# Net Radiation at surface [W/m2] = R_N
+OUTVAR OUT_R_NET
+# Vapor Pressure [kPa] = e_a
+OUTVAR OUT_VP
+# Wind speed [m/s] = v_a
+OUTVAR OUT_WIND
+# Air Pressure [kPa] = P
+OUTVAR OUT_PRESSURE

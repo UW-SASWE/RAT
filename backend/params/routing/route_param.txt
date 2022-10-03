@@ -1,0 +1,27 @@
+# INPUT FILE FOR THE OHIO BASIN.   
+# NAME OF FLOW DIRECTION FILE   
+/houston2/pritam/rat_mekong_v3/backend/params/routing/DRT_FDR_VIC.asc
+# NAME OF VELOCITY FILE   
+.false.
+1.5   
+# NAME OF DIFF FILE   
+.false.   
+800   
+# NAME OF XMASK FILE   
+.false.   
+5000
+# NAME OF FRACTION FILE   
+.false.   
+1
+# NAME OF STATION FILE   
+/houston2/pritam/rat_mekong_v3/backend/params/routing/stations_xy.txt 
+# PATH OF INPUT FILES AND PRECISION
+/houston2/pritam/rat_mekong_v3/backend/data/rout_input/fluxes_
+2
+# PATH OF OUTPUT FILES   
+/houston2/pritam/rat_mekong_v3/backend/data/rout_results/
+# START AND END YEAR, MONTH AND DAY OF VIC OUTPUT
+2001 04 01
+2021 06 10
+# NAME OF UNIT HYDROGRAPH FILE   
+/houston2/pritam/rat_mekong_v3/backend/params/routing/uh.txt
