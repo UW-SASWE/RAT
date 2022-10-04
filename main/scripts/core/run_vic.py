@@ -36,9 +36,23 @@ class VICRunner():
 
         ret_code = run_command(arg, shell=True)
 
-    def disagg_results(self):
+    def generate_routing_input_state(self, ndays, rout_input_state_file):
+        new_vic_output = xr.open_dataset(self.vic_result).load()
+        new_vic_output.close()
+        if os.path.isfile(rout_input_state_file):
+            prev_vic_output = xr.open_dataset(rout_input_state_file).load()
+            prev_vic_output.close()
+            last_existing_time = prev_vic_output.time[-1]
+            sliced_new_vic_output = new_vic_output.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , new_vic_output.time[-1]))
+            merged_vic_output = xr.merge([prev_vic_output, sliced_new_vic_output])
+            merged_vic_output[dict(time=slice(-ndays,None))].to_netcdf(rout_input_state_file)
+        else:
+            new_vic_output[dict(time=slice(-ndays,None))].to_netcdf(rout_input_state_file)
+
+
+    def disagg_results(self, rout_input_state_file):
         log.log(NOTIFICATION, "Started disaggregating VIC results")
-        fluxes = xr.open_dataset(self.vic_result).load()
+        fluxes = xr.open_dataset(rout_input_state_file).load()
 
         fluxes_subset = fluxes[['OUT_PREC', 'OUT_EVAP', 'OUT_RUNOFF', 'OUT_BASEFLOW', 'OUT_WDEW', 'OUT_SOIL_LIQ', 'OUT_SOIL_MOIST']]
 
@@ -53,8 +67,6 @@ class VICRunner():
         # VIC Routing doesn't round, it truncates the lat long values. Important for file names.
         lats_vicfmt = (np.floor(np.abs(fluxes_subset.lat.values)*100)/100)*np.sign(fluxes_subset.lat.values)
         lons_vicfmt = (np.floor(np.abs(fluxes_subset.lon.values)*100)/100)*np.sign(fluxes_subset.lon.values)
-        # lats_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lat.values)))
-        # lons_vicfmt = np.array(list(map(lambda x: math.floor(x * 10 ** 2) / 10 ** 2, fluxes_subset.lon.values)))
 
         # with tqdm(total=total) as pbar:  # tqdm doesn't work elegantly with logging
         s = time.time()
