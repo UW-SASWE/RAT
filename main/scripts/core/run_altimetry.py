@@ -21,7 +21,7 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
     savedir = create_directory(os.path.join(basin_data_dir,'altimetry','raw',resname), True)
 
     # Directory to save extracted altimetry data from 
-    extracteddir = create_directory(os.path.join(basin_data_dir,'basins',basin_name,'altimetry','extracted',resname), True)
+    extracteddir = create_directory(os.path.join(basin_data_dir,'altimetry','extracted',resname), True)
     
     # Directory to save altimetry time-series for different reservoirs 
     resultsdir = create_directory(save_dirpath, True)
