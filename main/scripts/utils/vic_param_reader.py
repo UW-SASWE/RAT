@@ -107,6 +107,8 @@ class VICParameterFile:
         self.intermediate_files = intermediate_files
         self.straight_from_metsim = False
         self.save_init_state = save_init_state
+        #VIC State Save Date
+        self.vic_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
 
         if runname is None:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -301,9 +303,9 @@ class VICParameterFile:
         if (self.save_init_state):
             create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',self.basin_name,'vic','vic_init_states'),False)
             self.params['state_file_params']['STATENAME'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',self.basin_name,'vic','vic_init_states','state_')
-            self.params['state_file_params']['STATEYEAR'] = self.params['dates']['ENDYEAR']
-            self.params['state_file_params']['STATEMONTH'] = self.params['dates']['ENDMONTH']
-            self.params['state_file_params']['STATEDAY'] = self.params['dates']['ENDDAY']
+            self.params['state_file_params']['STATEYEAR'] = self.vic_init_state_save_date.strftime('%Y')
+            self.params['state_file_params']['STATEMONTH'] = self.vic_init_state_save_date.strftime('%m')
+            self.params['state_file_params']['STATEDAY'] = self.vic_init_state_save_date.strftime('%d')
         else:
             del self.params['state_file_params']['STATENAME']
 
