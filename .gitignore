@@ -208,6 +208,7 @@ backend/scripts/data_processing/_download_data.py
 
 #SM
 data/*
+global_data/*
 trial_notebooks/*
 params/*
 models/*
