@@ -58,7 +58,7 @@ from core.generate_plots import generate_plots
 # Step-12: Generating Area Elevation Curves for reservoirs
 # Step-13: Calculation of Outflow, Evaporation and Storage change
 
-def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
+def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,4,6,8,10,11]):
 
     rat_logger = getLogger('run_rat')
     ##--------------------- Reading and initialising global parameters ----------------------##
@@ -89,6 +89,7 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
     #config['BASIN']['begin'] = datetime.datetime.combine(config['BASIN']['begin'], datetime.time.min)
     config['BASIN']['start'] = datetime.datetime.combine(config['BASIN']['start'], datetime.time.min)
     config['BASIN']['end'] = datetime.datetime.combine(config['BASIN']['end'], datetime.time.min)
+
     if(not config['BASIN']['first_run']):
         config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
     
@@ -286,6 +287,8 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
             vic_input_forcing_path = os.path.join(vic_input_path,'forcing_')
             vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
             rout_input_path = create_directory(os.path.join(basin_data_dir,'routing','rout_inputs',''), True)
+            rout_input_state_file = create_directory(os.path.join(basin_data_dir,'routing','rout_state_file',''), True)
+            rout_input_state_file = os.path.join(rout_input_state_file,'combined_input_state_file.nc')
         except:
             rat_logger.exception("Error Executing Step-5: Preparation of VIC Parameter Files")
         else:
@@ -314,7 +317,11 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
                         rout_input_dir= rout_input_path
                     )
                     vic.run_vic(np=config['GLOBAL']['multiprocessing'])
-                    vic.disagg_results()
+                    vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file)
+                    if(config['BASIN']['first_run']):
+                        vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run, use vic result file
+                    else:
+                        vic.disagg_results(rout_input_state_file=rout_input_state_file)    # If not first run, use rout input state file
                     vic_startdate = p.vic_startdate
                     vic_enddate = p.vic_enddate
                 VIC_STATUS=1         #Vic run successfully
