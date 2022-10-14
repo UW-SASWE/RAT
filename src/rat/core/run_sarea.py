@@ -41,6 +41,7 @@ def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_d
     # Sentinel-1
     log.debug(f"Reservoir: {reservoir_name}; Downloading Sentinel-1 data from {start_date} to {end_date}")
     s1_dfpath = sarea_s1(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'sar'))
+    s1_dfpath = os.path.join(datadir, 'sar', reservoir_name+'.csv')
 
     tmsos = TMS(reservoir_name, reservoir_area)
     result = tmsos.tms_os(l8_dfpath, s2_dfpath, s1_dfpath)
