@@ -58,7 +58,13 @@ from core.generate_plots import generate_plots
 # Step-12: Generating Area Elevation Curves for reservoirs
 # Step-13: Calculation of Outflow, Evaporation and Storage change
 
-def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,4,6,8,10,11]):
+#module-1 step-1,2 data_preparation_vic
+#module-2 step-3to8 inflow_vic
+#module-3 step- NA evaporation
+#module-4 step-10to12 storage_change
+#module-5 step-13 outflow
+
+def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
 
     rat_logger = getLogger('run_rat')
     ##--------------------- Reading and initialising global parameters ----------------------##
@@ -160,11 +166,11 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,4,6,8,10,11]):
             ##----------------------- Pre-processing step for METSIM ------------------------##
             #----------- Paths Necessary for creating METSIM Input Data  -----------#
             # Path of directory which will contain the combined data in nc format.
-            combined_datapath = create_directory(os.path.join(basin_data_dir, 'nc', ''), True)
+            combined_datapath = create_directory(os.path.join(basin_data_dir,'pre_processing','nc', ''), True)
             combined_datapath = os.path.join(combined_datapath, 'combined_data.nc')
 
             # Path where the processed downloaded data is present
-            processed_datadir = os.path.join(basin_data_dir, 'processed')
+            processed_datadir = os.path.join(basin_data_dir,'pre_processing','processed')
 
             # basingrid_file path to clip the global downloaded data
             basingridfile_path= create_directory(os.path.join(basin_data_dir, 'basin_grid_data',''), True)
@@ -317,9 +323,10 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,4,6,8,10,11]):
                         rout_input_dir= rout_input_path
                     )
                     vic.run_vic(np=config['GLOBAL']['multiprocessing'])
-                    vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file)
+                    rout_input_state_start_date = vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file) # Start date of routing state file will be returned
                     if(config['BASIN']['first_run']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run, use vic result file
+                        rout_input_state_start_date = config['BASIN']['start']            # Start date will become same as vic result file 
                     else:
                         vic.disagg_results(rout_input_state_file=rout_input_state_file)    # If not first run, use rout input state file
                     vic_startdate = p.vic_startdate
@@ -381,7 +388,7 @@ def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,4,6,8,10,11]):
                 with RouteParameterFile(
                     config = config,
                     basin_name = basin_name,
-                    start = config['BASIN']['start'],
+                    start = rout_input_state_start_date,
                     end = config['BASIN']['end'],
                     basin_flow_direction_file = basin_flow_dir_file,
                     clean=False,
