@@ -11,6 +11,7 @@ import pprint
 from ee_utils.ee_utils import poly2feature
 
 from utils.logging import LOG_NAME, NOTIFICATION
+from utils.utils import days_between
 from logging import getLogger
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
@@ -328,138 +329,148 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
     # Extracting reservoir geometry 
     global aoi
     aoi = poly2feature(res_polygon,BUFFER_DIST).geometry()
-    
-    fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
-    first_obs = datetime.strptime(fo, '%Y-%m-%d')
-
-    scratchdir = os.path.join(datadir, "_scratch")
-
-    # flag = True
-    num_runs = 0
-
-    # If data already exists, only get new data starting from the last one
-    savepath = os.path.join(datadir, f"{res_name}.csv")
-    
-    if os.path.isfile(savepath):
-        temp_df = pd.read_csv(savepath, parse_dates=['mosaic_enddate']).set_index('mosaic_enddate')
-
-        last_date = temp_df.index[-1].to_pydatetime()
-        fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
-        to_combine = [savepath]
-        print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
-
-        # If 16 days have not passed since last observation, skip the processing
-        days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
-        print(f"No. of days passed since: {days_passed}")
-        if days_passed < TEMPORAL_RESOLUTION:
-            print(f"No new observation expected. Quitting early")
-            return None
+    ## Checking if time interval is small then the image collection should not be empty in GEE
+    if (days_between(start,end) < 30):     # less than a month difference
+        number_of_images = l8.filterBounds(aoi).filterDate(start, end).size().getInfo()
     else:
-        to_combine = []
+        number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
     
-    savedir = os.path.join(scratchdir, f"{res_name}_l8_cordeiro_zhao_gao_{fo}_{enddate}")
-    if not os.path.isdir(savedir):
-        os.makedirs(savedir)
-    
-    print(f"Extracting SA for the period {fo} -> {enddate}")
+    if(number_of_images):
+        fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
+        first_obs = datetime.strptime(fo, '%Y-%m-%d')
 
-    dates = pd.date_range(fo, enddate, freq=f'{TEMPORAL_RESOLUTION}D')
-    grouped_dates = grouper(dates, RESULTS_PER_ITER)
+        scratchdir = os.path.join(datadir, "_scratch")
 
-    # # redo the calculations part and see where it is complaining about too many aggregations
-    # subset_dates = next(grouped_dates)
-    # dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
+        # flag = True
+        num_runs = 0
 
-    # print(subset_dates)
-    # res = generate_timeseries(dates).filterMetadata('s2_images', 'greater_than', 0)
-    # pprint.pprint(res.aggregate_array('s2_images').getInfo())
+        # If data already exists, only get new data starting from the last one
+        savepath = os.path.join(datadir, f"{res_name}.csv")
+        
+        if os.path.isfile(savepath):
+            temp_df = pd.read_csv(savepath, parse_dates=['mosaic_enddate']).set_index('mosaic_enddate')
 
-    # uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 's2_images']
-    # uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
-    # uncorrected_final_data = uncorrected_final_data_ee.getInfo()
-    
+            last_date = temp_df.index[-1].to_pydatetime()
+            fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
+            to_combine = [savepath]
+            print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
 
-    for subset_dates in grouped_dates:
-        try:
-            print(subset_dates)
-            dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
-            
-            res = generate_timeseries(dates).filterMetadata('l8_images', 'greater_than', 0)
-            # pprint.pprint(res.getInfo())
+            # If 16 days have not passed since last observation, skip the processing
+            days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
+            print(f"No. of days passed since: {days_passed}")
+            if days_passed < TEMPORAL_RESOLUTION:
+                print(f"No new observation expected. Quitting early")
+                return None
+        else:
+            to_combine = []
+        
+        savedir = os.path.join(scratchdir, f"{res_name}_l8_cordeiro_zhao_gao_{fo}_{enddate}")
+        if not os.path.isdir(savedir):
+            os.makedirs(savedir)
+        
+        print(f"Extracting SA for the period {fo} -> {enddate}")
 
-            uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images']
-            uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
-            uncorrected_final_data = uncorrected_final_data_ee.getInfo()
-            print("Uncorrected", uncorrected_final_data)
+        dates = pd.date_range(fo, enddate, freq=f'{TEMPORAL_RESOLUTION}D')
+        grouped_dates = grouper(dates, RESULTS_PER_ITER)
 
-            res_corrected_cordeiro = res.map(lambda im: postprocess_wrapper(im, 'water_map_cordeiro', im.get('water_area_cordeiro')))
-            corrected_columns_to_extract = ['to_date', 'corrected_area']
-            corrected_final_data_cordeiro_ee = res_corrected_cordeiro \
-                                                .filterMetadata('corrected_area', 'not_equals', None) \
-                                                .reduceColumns(
-                                                    ee.Reducer.toList(
-                                                        len(corrected_columns_to_extract)), 
-                                                        corrected_columns_to_extract
-                                                        ).get('list')
-            corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
-            print("Corrected - Cordeiro", corrected_final_data_cordeiro)
+        # # redo the calculations part and see where it is complaining about too many aggregations
+        # subset_dates = next(grouped_dates)
+        # dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
 
-            # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
-            # corrected_final_data_NDWI_ee = res_corrected_NDWI \
-            #                                     .filterMetadata('corrected_area', 'not_equals', None) \
-            #                                     .reduceColumns(
-            #                                         ee.Reducer.toList(
-            #                                             len(corrected_columns_to_extract)), 
-            #                                             corrected_columns_to_extract
-            #                                             ).get('list')
-            
-            # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
-            
-            # print(uncorrected_final_data, corrected_final_data_cordeiro)
-            if len(uncorrected_final_data) == 0:
+        # print(subset_dates)
+        # res = generate_timeseries(dates).filterMetadata('s2_images', 'greater_than', 0)
+        # pprint.pprint(res.aggregate_array('s2_images').getInfo())
+
+        # uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 's2_images']
+        # uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
+        # uncorrected_final_data = uncorrected_final_data_ee.getInfo()
+        
+        for subset_dates in grouped_dates:
+            try:
+                print(subset_dates)
+                dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
+                
+                res = generate_timeseries(dates).filterMetadata('l8_images', 'greater_than', 0)
+                # pprint.pprint(res.getInfo())
+
+                uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images']
+                uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
+                uncorrected_final_data = uncorrected_final_data_ee.getInfo()
+                print("Uncorrected", uncorrected_final_data)
+
+                res_corrected_cordeiro = res.map(lambda im: postprocess_wrapper(im, 'water_map_cordeiro', im.get('water_area_cordeiro')))
+                corrected_columns_to_extract = ['to_date', 'corrected_area']
+                corrected_final_data_cordeiro_ee = res_corrected_cordeiro \
+                                                    .filterMetadata('corrected_area', 'not_equals', None) \
+                                                    .reduceColumns(
+                                                        ee.Reducer.toList(
+                                                            len(corrected_columns_to_extract)), 
+                                                            corrected_columns_to_extract
+                                                            ).get('list')
+                corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
+                print("Corrected - Cordeiro", corrected_final_data_cordeiro)
+
+                # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
+                # corrected_final_data_NDWI_ee = res_corrected_NDWI \
+                #                                     .filterMetadata('corrected_area', 'not_equals', None) \
+                #                                     .reduceColumns(
+                #                                         ee.Reducer.toList(
+                #                                             len(corrected_columns_to_extract)), 
+                #                                             corrected_columns_to_extract
+                #                                             ).get('list')
+                
+                # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
+                
+                # print(uncorrected_final_data, corrected_final_data_cordeiro)
+                if len(uncorrected_final_data) == 0:
+                    continue
+                uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
+                corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
+                # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
+                # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
+                df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
+
+                df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
+                df['to_date'] = pd.to_datetime(df['to_date'], format="%Y-%m-%d")
+                df['mosaic_enddate'] = df['to_date'] - pd.Timedelta(1, unit='day')
+                df = df.set_index('mosaic_enddate')
+                print(df.head(2))
+
+                fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
+                df.to_csv(fname)
+
+                s_time = randint(20, 30)
+                print(f"Sleeping for {s_time} seconds")
+                time.sleep(randint(20, 30))
+
+                if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
+                    print(f"Quitting: Reached enddate {enddate}")
+                    break
+                elif df.index[-1].strftime('%Y-%m-%d') == fo:
+                    print(f"Reached last available observation - {fo}")
+                    break
+                elif num_runs > 1000:
+                    print("Quitting: Reached 1000 iterations")
+                    break
+            except Exception as e:
+                log.error(e)
                 continue
-            uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
-            corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
-            # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
-            # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
-            df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
-
-            df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
-            df['to_date'] = pd.to_datetime(df['to_date'], format="%Y-%m-%d")
-            df['mosaic_enddate'] = df['to_date'] - pd.Timedelta(1, unit='day')
-            df = df.set_index('mosaic_enddate')
-            print(df.head(2))
-
-            fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
-            df.to_csv(fname)
-
-            s_time = randint(20, 30)
-            print(f"Sleeping for {s_time} seconds")
-            time.sleep(randint(20, 30))
-
-            if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
-                print(f"Quitting: Reached enddate {enddate}")
-                break
-            elif df.index[-1].strftime('%Y-%m-%d') == fo:
-                print(f"Reached last available observation - {fo}")
-                break
-            elif num_runs > 1000:
-                print("Quitting: Reached 1000 iterations")
-                break
-        except Exception as e:
-            log.error(e)
-            continue
+        
 
 
-    # Combine the files into one database
-    to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
+        # Combine the files into one database
+        to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
 
-    files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
-    data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
+        files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
+        data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
 
-    data.to_csv(savepath)
+        data.to_csv(savepath)
 
-    return savepath
+        return savepath
+    
+    else:
+        print(f"No observation observed between {start} and {end}. Quitting!")
+        return None
 
 # User-facing wrapper function
 def sarea_l8(res_name,res_polygon, start, end, datadir):
