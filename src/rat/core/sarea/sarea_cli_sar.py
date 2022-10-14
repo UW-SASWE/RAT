@@ -7,6 +7,7 @@ import os
 from datetime import datetime, timedelta
 
 from ee_utils.ee_utils import poly2feature
+from utils.utils import days_between
 
 #### initialize the connection to the server ####
 from ee_utils.ee_config import service_account,key_file
@@ -136,30 +137,46 @@ def sarea_s1(reservoir, reservoir_polygon ,start_date, end_date, datadir):
     ROI = poly2feature(reservoir_polygon,BUFFER_DIST).geometry()
     TEMPORAL_RESOLUTION = 12
 
-    savepath = os.path.join(datadir, f"{reservoir}_12d_sar.csv")
-    if os.path.isfile(savepath):
-        existing_df = pd.read_csv(savepath, parse_dates=['time']).set_index('time')
-
-        last_date = existing_df.index[-1].to_pydatetime()
-        start_date = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
-        to_combine = [existing_df.reset_index()]
-        print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
-
-        # If <TEMPORAL RESOLUTION> days have not passed since last observation, skip the processing
-        days_passed = (datetime.strptime(end_date, "%Y-%m-%d") - last_date).days
-        print(f"No. of days passed since: {days_passed}")
-        if days_passed < TEMPORAL_RESOLUTION:
-            print(f"No new observation expected. Quitting early")
-            return savepath
+    ## Checking if time interval is small then the image collection should not be empty in GEE
+    if (days_between(start_date,end_date) < 30):     # less than a month difference
+        number_of_images = s1.filterDate(start_date,end_date) \
+            .filterBounds(ROI) \
+            .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
+            .filter(ee.Filter.eq('instrumentMode', 'IW')).size().getInfo()
     else:
-        to_combine = []
-
-    results = retrieve_sar(start_date, end_date, res='6MS')
-    to_combine.append(results)
-    data = pd.concat(to_combine).drop_duplicates().sort_values("time")
+        number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
     
-    if not os.path.isdir(datadir):
-        os.makedirs(datadir)
-    data.to_csv(savepath, index=False)
+    if(number_of_images):
+        savepath = os.path.join(datadir, f"{reservoir}_12d_sar.csv")
+        if os.path.isfile(savepath):
+            existing_df = pd.read_csv(savepath, parse_dates=['time']).set_index('time')
+
+            last_date = existing_df.index[-1].to_pydatetime()
+            start_date = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
+            to_combine = [existing_df.reset_index()]
+            print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
+
+            # If <TEMPORAL RESOLUTION> days have not passed since last observation, skip the processing
+            days_passed = (datetime.strptime(end_date, "%Y-%m-%d") - last_date).days
+            print(f"No. of days passed since: {days_passed}")
+            if days_passed < TEMPORAL_RESOLUTION:
+                print(f"No new observation expected. Quitting early")
+                return savepath
+        else:
+            to_combine = []
+
+        results = retrieve_sar(start_date, end_date, res='6MS')
+        to_combine.append(results)
+        data = pd.concat(to_combine).drop_duplicates().sort_values("time")
+        
+        if not os.path.isdir(datadir):
+            os.makedirs(datadir)
+        data.to_csv(savepath, index=False)
+
+        return savepath
+
+    else:
+        print(f"No observation observed between {start_date} and {end_date}. Quitting!")
+        return None
 
     return savepath
