@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, timedelta
 from tqdm import tqdm
 import os
+import time
 import shutil
 import tempfile
 import rioxarray as rxr
@@ -164,11 +165,11 @@ def download_tmax(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()
-    days_ago_20 = tod - timedelta(days=20)
-    today_year = str(tod.year)
-    recent_year_20day_ago = str(days_ago_20.year) 
-    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
+    tod = datetime.now()  #today date
+    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
+    today_year = str(tod.year)    # today year 
+    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
+    if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
             '-O', 
@@ -179,6 +180,21 @@ def download_tmax(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists tmax: %s", year)
+        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
+        log.info(f"Last modified date:{date_of_file_modification}")
+        if ((year == recent_year_20day_ago) or (year == today_year)):
+            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
+                log.info("No data since last modified date. No need to download.")
+            else:
+                cmd = [
+                    'wget', 
+                    '-O', 
+                    f'{outputpath}', 
+                    f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmax.{year}.nc'
+                ]
+                log.debug("Last modified date is not today. So, updating tmax: %s", year)
+                return run_command(cmd)
+                
 
 def download_tmin(year, outputpath):
     """
@@ -187,11 +203,11 @@ def download_tmin(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()
-    days_ago_20 = tod - timedelta(days=20)
-    today_year = str(tod.year)
-    recent_year_20day_ago = str(days_ago_20.year)  
-    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
+    tod = datetime.now()  #today date
+    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
+    today_year = str(tod.year)    # today year 
+    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
+    if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
             '-O', 
@@ -202,6 +218,20 @@ def download_tmin(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists tmin: %s", year)
+        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
+        log.info(f"Last modified date:{date_of_file_modification}")
+        if ((year == recent_year_20day_ago) or (year == today_year)):
+            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
+                log.info("No data since last modified date. No need to download.")
+            else:
+                cmd = [
+                    'wget', 
+                    '-O', 
+                    f'{outputpath}', 
+                    f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmin.{year}.nc'
+                ]
+                log.debug("Last modified date is not today. So, updating tmin: %s", year)
+                return run_command(cmd)
 
 def download_uwnd(year, outputpath):
     """
@@ -210,11 +240,11 @@ def download_uwnd(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()
-    days_ago_20 = tod - timedelta(days=20)
-    today_year = str(tod.year)
-    recent_year_20day_ago = str(days_ago_20.year) 
-    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
+    tod = datetime.now()  #today date
+    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
+    today_year = str(tod.year)    # today year 
+    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
+    if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
             '-O', 
@@ -225,6 +255,20 @@ def download_uwnd(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists uwnd: %s", year)
+        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
+        log.info(f"Last modified date:{date_of_file_modification}")
+        if ((year == recent_year_20day_ago) or (year == today_year)):
+            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
+                log.info("No data since last modified date. No need to download.")
+            else:
+                cmd = [
+                    'wget', 
+                    '-O', 
+                    f'{outputpath}', 
+                    f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/uwnd.10m.gauss.{year}.nc'
+                ]
+                log.debug("Last modified date is not today. So, updating uwnd: %s", year)
+                return run_command(cmd)
 
 def download_vwnd(year, outputpath):
     """
@@ -233,11 +277,11 @@ def download_vwnd(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()
-    days_ago_20 = tod - timedelta(days=20)
-    today_year = str(tod.year)
-    recent_year_20day_ago = str(days_ago_20.year) 
-    if ((not(os.path.exists(outputpath))) or (year == recent_year_20day_ago) or (year == today_year)):
+    tod = datetime.now()  #today date
+    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
+    today_year = str(tod.year)    # today year 
+    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
+    if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
             '-O', 
@@ -247,6 +291,19 @@ def download_vwnd(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists vwnd: %s", year)
+        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
+        log.info(f"Last modified date:{date_of_file_modification}")
+        if ((year == recent_year_20day_ago) or (year == today_year)):
+            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
+                log.info("No data since last modified date. No need to download.")
+            else:
+                cmd = [
+                    'wget', 
+                    '-O', 
+                    f'{outputpath}', 
+                    f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/vwnd.10m.gauss.{year}.nc']
+                log.debug("Last modified date is not today. So, updating vwnd: %s", year)
+                return run_command(cmd)
 
 def download_data(begin, end, datadir, secrets):
     """Downloads the data between dates defined by begin and end
@@ -530,9 +587,9 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
 
 
 def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, download=True, process=True):
-    raw_datadir = os.path.join(data_dir, "raw",'')
-    processed_datadir = os.path.join(basin_data_dir, "processed",'')
-    temp_datadir = os.path.join(basin_data_dir, "temp",'')
+    raw_datadir = os.path.join(data_dir,"raw",'')
+    processed_datadir = os.path.join(basin_data_dir,"pre_processing","processed",'')
+    temp_datadir = os.path.join(basin_data_dir,"pre_processing","temp",'')
     
     ####Creating the required directories####
 

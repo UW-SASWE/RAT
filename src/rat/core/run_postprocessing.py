@@ -108,20 +108,24 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
     data['P'] = P
     print(data)
     data = data.dropna()
-    data['penman_E'] = data.apply(lambda row: penman(row['OUT_R_NET'], row['OUT_AIR_TEMP'], row['OUT_WIND'], row['OUT_VP'], row['P'], row['area']), axis=1)
-    data = data.reset_index()
-
-    # Save (Writing new file if not exist otherwise append)
-    if os.path.isfile(savepath):
-        existing_data = pd.read_csv(savepath, parse_dates=['time'])
-        new_data = data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1)
-        # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
-        complement = pd.concat([existing_data, new_data], ignore_index=True)
-        # Remove all duplicates:
-        complement.drop_duplicates(subset=['time'],inplace=True, keep=False)
-        complement.to_csv(savepath, index=False)
+    if (data.empty):
+        print('After removal of NAN values, no data left to calculate evaporation.')
+        return None
     else:
-        data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
+        data['penman_E'] = data.apply(lambda row: penman(row['OUT_R_NET'], row['OUT_AIR_TEMP'], row['OUT_WIND'], row['OUT_VP'], row['P'], row['area']), axis=1)
+        data = data.reset_index()
+
+        # Save (Writing new file if not exist otherwise append)
+        if os.path.isfile(savepath):
+            existing_data = pd.read_csv(savepath, parse_dates=['time'])
+            new_data = data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1)
+            # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
+            complement = pd.concat([existing_data, new_data], ignore_index=True)
+            # Remove all duplicates:
+            complement.drop_duplicates(subset=['time'],inplace=True, keep=False)
+            complement.to_csv(savepath, index=False)
+        else:
+            data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
 
 
 def calc_outflow(inflowpath, dspath, epath, area, savepath):

@@ -14,6 +14,7 @@ import pprint
 from ee_utils.ee_utils import poly2feature
 
 from utils.logging import LOG_NAME, NOTIFICATION
+from utils.utils import days_between
 from logging import getLogger
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
@@ -341,145 +342,154 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
     # Extracting reservoir geometry 
     global aoi
     aoi = poly2feature(res_polygon,BUFFER_DIST).geometry()
-    
-    fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
-    first_obs = datetime.strptime(fo, '%Y-%m-%d')
-
-    scratchdir = os.path.join(datadir, "_scratch")
-
-    # flag = True
-    num_runs = 0
-
-    # If data already exists, only get new data starting from the last one
-    savepath = os.path.join(datadir, f"{res_name}.csv")
-    
-    if os.path.isfile(savepath):
-        temp_df = pd.read_csv(savepath, parse_dates=['date']).set_index('date')
-
-        last_date = temp_df.index[-1].to_pydatetime()
-        fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
-        to_combine = [savepath]
-        print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
-
-        # If 16 days have not passed since last observation, skip the processing
-        days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
-        print(f"No. of days passed since: {days_passed}")
-        if days_passed < TEMPORAL_RESOLUTION:
-            print(f"No new observation expected. Quitting early")
-            return None
+     ## Checking if time interval is small then the image collection should not be empty in GEE
+    if (days_between(start,end) < 30):     # less than a month difference
+        number_of_images = s2.filterBounds(aoi).filterDate(start, end).size().getInfo()
     else:
-        to_combine = []
+        number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
     
-    savedir = os.path.join(scratchdir, f"{res_name}_s2_cordeiro_zhao_gao_{fo}_{enddate}")
-    if not os.path.isdir(savedir):
-        os.makedirs(savedir)
-    
-    print(f"Extracting SA for the period {fo} -> {enddate}")
+    if(number_of_images):
+        fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
+        first_obs = datetime.strptime(fo, '%Y-%m-%d')
 
-    dates = pd.date_range(fo, enddate, freq=f'{TEMPORAL_RESOLUTION}D')
-    grouped_dates = grouper(dates, RESULTS_PER_ITER)
+        scratchdir = os.path.join(datadir, "_scratch")
 
-    # # redo the calculations part and see where it is complaining about too many aggregations
-    # subset_dates = next(grouped_dates)
-    # dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
+        # flag = True
+        num_runs = 0
 
-    # print(subset_dates)
-    # res = generate_timeseries(dates).filterMetadata('s2_images', 'greater_than', 0)
-    # pprint.pprint(res.aggregate_array('s2_images').getInfo())
+        # If data already exists, only get new data starting from the last one
+        savepath = os.path.join(datadir, f"{res_name}.csv")
+        
+        if os.path.isfile(savepath):
+            temp_df = pd.read_csv(savepath, parse_dates=['date']).set_index('date')
 
-    # uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 's2_images']
-    # uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
-    # uncorrected_final_data = uncorrected_final_data_ee.getInfo()
-    
+            last_date = temp_df.index[-1].to_pydatetime()
+            fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
+            to_combine = [savepath]
+            print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
+
+            # If 16 days have not passed since last observation, skip the processing
+            days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
+            print(f"No. of days passed since: {days_passed}")
+            if days_passed < TEMPORAL_RESOLUTION:
+                print(f"No new observation expected. Quitting early")
+                return None
+        else:
+            to_combine = []
+        
+        savedir = os.path.join(scratchdir, f"{res_name}_s2_cordeiro_zhao_gao_{fo}_{enddate}")
+        if not os.path.isdir(savedir):
+            os.makedirs(savedir)
+        
+        print(f"Extracting SA for the period {fo} -> {enddate}")
+
+        dates = pd.date_range(fo, enddate, freq=f'{TEMPORAL_RESOLUTION}D')
+        grouped_dates = grouper(dates, RESULTS_PER_ITER)
+
+        # # redo the calculations part and see where it is complaining about too many aggregations
+        # subset_dates = next(grouped_dates)
+        # dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
+
+        # print(subset_dates)
+        # res = generate_timeseries(dates).filterMetadata('s2_images', 'greater_than', 0)
+        # pprint.pprint(res.aggregate_array('s2_images').getInfo())
+
+        # uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 's2_images']
+        # uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
+        # uncorrected_final_data = uncorrected_final_data_ee.getInfo()
+        
 
 
-    for subset_dates in grouped_dates:
-        try:
-            print(subset_dates)
-            dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
-            
-            ts_imcoll = generate_timeseries(dates)
-            postprocessed_ts_imcoll = ts_imcoll.map(postprocess_wrapper)
+        for subset_dates in grouped_dates:
+            try:
+                print(subset_dates)
+                dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
+                
+                ts_imcoll = generate_timeseries(dates)
+                postprocessed_ts_imcoll = ts_imcoll.map(postprocess_wrapper)
 
-            # Download the data locally
-            ts_imcoll_L = ts_imcoll.getInfo()
-            postprocessed_ts_imcoll_L = postprocessed_ts_imcoll.getInfo()
+                # Download the data locally
+                ts_imcoll_L = ts_imcoll.getInfo()
+                postprocessed_ts_imcoll_L = postprocessed_ts_imcoll.getInfo()
 
-            # Parse the data to create dataframe
-            PROCESSING_STATUSES = []
-            POSTPROCESSING_STATUSES = []
-            cloud_areas = []
-            cloud_percents = []
-            from_dates = []
-            to_dates = []
-            obs_dates = []
-            non_water_areas = []
-            water_areas = []
-            water_areas_zhaogao = []
-            for f, f_postprocessed in zip(ts_imcoll_L['features'], postprocessed_ts_imcoll_L['features']):
-                PROCESSING_STATUS = f['properties']['PROCESSING_SUCCESSFUL']
-                PROCESSING_STATUSES.append(PROCESSING_STATUS)
-                POSTPROCESSING_STATUS = f_postprocessed['properties']['POSTPROCESSING_SUCCESSFUL']
-                POSTPROCESSING_STATUSES.append(POSTPROCESSING_STATUS)
-                obs_dates.append(pd.to_datetime(f['properties']['system:time_start']))
-                from_dates.append(pd.to_datetime(f['properties']['from_date']))
-                to_dates.append(pd.to_datetime(f['properties']['to_date']))
-                if PROCESSING_STATUS:
-                    water_areas.append(f['properties']['water_area_clustering'])
-                    non_water_areas.append(f['properties']['non_water_area_clustering'])
-                    cloud_areas.append(f['properties']['cloud_area'])
-                    cloud_percents.append(f['properties']['cloud_percent'])
-                else:
-                    water_areas.append(np.nan)
-                    non_water_areas.append(np.nan)
-                    cloud_areas.append(np.nan)
-                    cloud_percents.append(np.nan)
-                if POSTPROCESSING_STATUS:
-                    water_areas_zhaogao.append(f_postprocessed['properties']['corrected_area'])
-                else:
-                    water_areas_zhaogao.append(np.nan)
-            
-            df = pd.DataFrame({
-                'date': obs_dates,
-                'PROCESSING_STATUS': PROCESSING_STATUSES,
-                'POSTPROCESSING_STATUS': POSTPROCESSING_STATUSES,
-                'from_date': from_dates,
-                'to_date': to_dates,
-                'cloud_area': cloud_areas,
-                'cloud_percent': cloud_percents,
-                'water_area_uncorrected': water_areas,
-                'non_water_area': non_water_areas,
-                'water_area_corrected': water_areas_zhaogao
-            }).set_index('date')
+                # Parse the data to create dataframe
+                PROCESSING_STATUSES = []
+                POSTPROCESSING_STATUSES = []
+                cloud_areas = []
+                cloud_percents = []
+                from_dates = []
+                to_dates = []
+                obs_dates = []
+                non_water_areas = []
+                water_areas = []
+                water_areas_zhaogao = []
+                for f, f_postprocessed in zip(ts_imcoll_L['features'], postprocessed_ts_imcoll_L['features']):
+                    PROCESSING_STATUS = f['properties']['PROCESSING_SUCCESSFUL']
+                    PROCESSING_STATUSES.append(PROCESSING_STATUS)
+                    POSTPROCESSING_STATUS = f_postprocessed['properties']['POSTPROCESSING_SUCCESSFUL']
+                    POSTPROCESSING_STATUSES.append(POSTPROCESSING_STATUS)
+                    obs_dates.append(pd.to_datetime(f['properties']['system:time_start']))
+                    from_dates.append(pd.to_datetime(f['properties']['from_date']))
+                    to_dates.append(pd.to_datetime(f['properties']['to_date']))
+                    if PROCESSING_STATUS:
+                        water_areas.append(f['properties']['water_area_clustering'])
+                        non_water_areas.append(f['properties']['non_water_area_clustering'])
+                        cloud_areas.append(f['properties']['cloud_area'])
+                        cloud_percents.append(f['properties']['cloud_percent'])
+                    else:
+                        water_areas.append(np.nan)
+                        non_water_areas.append(np.nan)
+                        cloud_areas.append(np.nan)
+                        cloud_percents.append(np.nan)
+                    if POSTPROCESSING_STATUS:
+                        water_areas_zhaogao.append(f_postprocessed['properties']['corrected_area'])
+                    else:
+                        water_areas_zhaogao.append(np.nan)
+                
+                df = pd.DataFrame({
+                    'date': obs_dates,
+                    'PROCESSING_STATUS': PROCESSING_STATUSES,
+                    'POSTPROCESSING_STATUS': POSTPROCESSING_STATUSES,
+                    'from_date': from_dates,
+                    'to_date': to_dates,
+                    'cloud_area': cloud_areas,
+                    'cloud_percent': cloud_percents,
+                    'water_area_uncorrected': water_areas,
+                    'non_water_area': non_water_areas,
+                    'water_area_corrected': water_areas_zhaogao
+                }).set_index('date')
 
-            fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
-            df.to_csv(fname)
-            print(df.tail())
+                fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
+                df.to_csv(fname)
+                print(df.tail())
 
-            s_time = randint(5, 10)
-            print(f"Sleeping for {s_time} seconds")
-            time.sleep(s_time)
+                s_time = randint(5, 10)
+                print(f"Sleeping for {s_time} seconds")
+                time.sleep(s_time)
 
-            if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
-                print(f"Quitting: Reached enddate {enddate}")
-                break
-            elif df.index[-1].strftime('%Y-%m-%d') == fo:
-                print(f"Reached last available observation - {fo}")
-                break
-            elif num_runs > 1000:
-                print("Quitting: Reached 1000 iterations")
-                break
-        except Exception as e:
-            log.error(e)
-            continue
+                if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
+                    print(f"Quitting: Reached enddate {enddate}")
+                    break
+                elif df.index[-1].strftime('%Y-%m-%d') == fo:
+                    print(f"Reached last available observation - {fo}")
+                    break
+                elif num_runs > 1000:
+                    print("Quitting: Reached 1000 iterations")
+                    break
+            except Exception as e:
+                log.error(e)
+                continue
 
-    # Combine the files into one database
-    to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
+        # Combine the files into one database
+        to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
 
-    files = [pd.read_csv(f, parse_dates=["date"]).set_index("date") for f in to_combine]
-    data = pd.concat(files).drop_duplicates().sort_values("date")
+        files = [pd.read_csv(f, parse_dates=["date"]).set_index("date") for f in to_combine]
+        data = pd.concat(files).drop_duplicates().sort_values("date")
 
-    data.to_csv(savepath)
+        data.to_csv(savepath)
+    else:
+        print(f"No observation observed between {start} and {end}. Quitting!")
+        return None
 
     return savepath
 

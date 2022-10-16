@@ -1,4 +1,5 @@
 from logging import getLogger
+import numpy as np
 import yaml
 import os
 import xarray as xr
@@ -45,8 +46,8 @@ class MetSimRunner():
                 # xr.concat([existing, ds], dim='time').to_netcdf(p)
                 last_existing_time = existing.time[-1]
                 log.debug("Existing data: %s", last_existing_time)
-                ds = ds.sel(time=slice(last_existing_time, ds.time[-1]))
-                ds = ds.isel(time=slice(1, None))
+                ds = ds.sel(time=slice(last_existing_time + np.timedelta64(6,'h'), ds.time[-1]))
+                #ds = ds.isel(time=slice(1, None))
                 xr.merge([existing, ds]).to_netcdf(p)
             else:
                 log.debug(f"Writing file for year {year}: {p} -- Updating new")

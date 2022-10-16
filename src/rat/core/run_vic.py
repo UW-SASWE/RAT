@@ -7,6 +7,7 @@ from tqdm import tqdm
 import csv
 import time
 import math
+import datetime
 
 from logging import getLogger
 from utils.logging import LOG_NAME, NOTIFICATION
@@ -43,12 +44,14 @@ class VICRunner():
             prev_vic_output = xr.open_dataset(rout_input_state_file).load()
             prev_vic_output.close()
             last_existing_time = prev_vic_output.time[-1]
+            sliced_prev_vic_output = prev_vic_output.sel(time=slice(last_existing_time - np.timedelta64(ndays,'D') , last_existing_time))
             sliced_new_vic_output = new_vic_output.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , new_vic_output.time[-1]))
-            merged_vic_output = xr.merge([prev_vic_output, sliced_new_vic_output])
-            merged_vic_output[dict(time=slice(-ndays,None))].to_netcdf(rout_input_state_file)
+            save_vic_output = xr.merge([sliced_prev_vic_output, sliced_new_vic_output])
         else:
-            new_vic_output[dict(time=slice(-ndays,None))].to_netcdf(rout_input_state_file)
-
+            save_vic_output = new_vic_output[dict(time=slice(-ndays,None))]
+        vic_output_start_date = save_vic_output.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
+        save_vic_output.to_netcdf(rout_input_state_file)
+        return vic_output_start_date
 
     def disagg_results(self, rout_input_state_file):
         log.log(NOTIFICATION, "Started disaggregating VIC results")
