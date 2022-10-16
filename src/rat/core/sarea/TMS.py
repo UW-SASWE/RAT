@@ -5,7 +5,7 @@ from scipy.stats import sigmaclip
 import warnings
 warnings.filterwarnings('ignore')
 
-from utils.utils import clip_ts
+from rat.utils.utils import clip_ts
 
 
 class TMS():

@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-from utils.utils import create_directory
+from rat.utils.utils import create_directory
 
 def convert_sarea(sarea_dir, website_v_dir):
     # Surface Area

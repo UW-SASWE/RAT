@@ -18,31 +18,31 @@ import numpy as np
 import math
 import glob
 
-from utils.utils import create_directory
-from utils.logging import init_logger,close_logger,NOTIFICATION
-from utils.files_creator import create_basingridfile, create_basin_domain_nc_file ,create_vic_domain_param_file, create_basin_grid_flow_asc
-from utils.files_creator import create_basin_station_latlon_csv, create_basin_reservoir_shpfile
+from rat.utils.utils import create_directory
+from rat.utils.logging import init_logger,close_logger,NOTIFICATION
+from rat.utils.files_creator import create_basingridfile, create_basin_domain_nc_file ,create_vic_domain_param_file, create_basin_grid_flow_asc
+from rat.utils.files_creator import create_basin_station_latlon_csv, create_basin_reservoir_shpfile
 
-from data_processing.newdata import get_newdata
+from rat.data_processing.newdata import get_newdata
 
-from data_processing.metsim_input_processing import CombinedNC,generate_state_and_inputs
-from utils.metsim_param_reader import MSParameterFile
-from core.run_metsim import MetSimRunner
+from rat.data_processing.metsim_input_processing import CombinedNC,generate_state_and_inputs
+from rat.utils.metsim_param_reader import MSParameterFile
+from rat.core.run_metsim import MetSimRunner
 
-from utils.vic_param_reader import VICParameterFile
-from core.run_vic import VICRunner
+from rat.utils.vic_param_reader import VICParameterFile
+from rat.core.run_vic import VICRunner
 
-from utils.route_param_reader import RouteParameterFile
-from core.run_routing import RoutingRunner
+from rat.utils.route_param_reader import RouteParameterFile
+from rat.core.run_routing import RoutingRunner
 
-from core.run_sarea import run_sarea
-from core.run_altimetry import altimeter_routine, run_altimetry
+from rat.core.run_sarea import run_sarea
+from rat.core.run_altimetry import altimeter_routine, run_altimetry
 
-from ee_utils.ee_aec_file_creator import aec_file_creator
-from core.run_postprocessing import run_postprocessing
+from rat.ee_utils.ee_aec_file_creator import aec_file_creator
+from rat.core.run_postprocessing import run_postprocessing
 
-from utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
-from core.generate_plots import generate_plots
+from rat.utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
+from rat.core.generate_plots import generate_plots
 
 # Step-1: Downloading and Pre-processing of meteorolgical data
 # Step-2: Pre-processing of data and preparation of MetSim Input

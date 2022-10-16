@@ -4,10 +4,10 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from itertools import zip_longest,chain
-from ee_utils.ee_utils import poly2feature
+from rat.ee_utils.ee_utils import poly2feature
 
 #### initialize the connection to the server ####
-from ee_utils.ee_config import service_account,key_file
+from rat.ee_utils.ee_config import service_account,key_file
 
 ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
 ee.Initialize(ee_credentials)

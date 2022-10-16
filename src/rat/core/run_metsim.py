@@ -3,9 +3,9 @@ import numpy as np
 import yaml
 import os
 import xarray as xr
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.run_command import run_command
-from utils.utils import create_directory
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.run_command import run_command
+from rat.utils.utils import create_directory
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 

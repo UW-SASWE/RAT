@@ -10,9 +10,9 @@ import bs4
 import geopandas as gpd
 
 from logging import getLogger
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.convert_for_website import convert_v2_frontend
-from utils.utils import create_directory
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.convert_for_website import convert_v2_frontend
+from rat.utils.utils import create_directory
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 

@@ -11,16 +11,16 @@ from random import randint
 import argparse
 from itertools import zip_longest
 import pprint
-from ee_utils.ee_utils import poly2feature
 
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import days_between
-from logging import getLogger
+from rat.ee_utils.ee_utils import poly2feature
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.utils import days_between
+from rat.utils.logging import getLogger
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
 #### initialize the connection to the server ####
-from ee_utils.ee_config import service_account,key_file
+from rat.ee_utils.ee_config import service_account,key_file
 
 ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
 ee.Initialize(ee_credentials)

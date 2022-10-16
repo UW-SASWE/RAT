@@ -4,12 +4,12 @@ import subprocess
 import geopandas as gpd
 
 from logging import getLogger
-from utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, NOTIFICATION
 
-from core.sarea.sarea_cli_s2 import sarea_s2
-from core.sarea.sarea_cli_l8 import sarea_l8
-from core.sarea.sarea_cli_sar import sarea_s1
-from core.sarea.TMS import TMS
+from rat.core.sarea.sarea_cli_s2 import sarea_s2
+from rat.core.sarea.sarea_cli_l8 import sarea_l8
+from rat.core.sarea.sarea_cli_sar import sarea_s1
+from rat.core.sarea.TMS import TMS
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 

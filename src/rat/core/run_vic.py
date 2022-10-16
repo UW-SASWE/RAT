@@ -10,10 +10,10 @@ import math
 import datetime
 
 from logging import getLogger
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import create_directory
-from utils.run_command import run_command
-from utils.vic_param_reader import VICParameterFile
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.utils import create_directory
+from rat.utils.run_command import run_command
+from rat.utils.vic_param_reader import VICParameterFile
 
 log = getLogger(LOG_NAME)
 

@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.fft import fft
 from shapely.geometry.linestring import LineString
 import netCDF4 
-from utils.utils import round_up
+from rat.utils.utils import round_up
 
 
 def get_j3_tracks(reservoir, reservoir_column_dict, tracks_df, custom_reservoir_range_dict):

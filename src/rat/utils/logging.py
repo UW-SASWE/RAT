@@ -7,7 +7,7 @@ from time import gmtime, strftime
 import datetime
 import logging
 import subprocess
-from utils.utils import create_directory
+from rat.utils.utils import create_directory
 
 # -------------------------------------------------------------------- #
 LOG_NAME = 'rat-logger'

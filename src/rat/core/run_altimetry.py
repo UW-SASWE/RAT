@@ -2,8 +2,8 @@ import configparser
 import os
 import pandas as pd
 import geopandas as gpd
-from utils.utils import create_directory
-from data_processing import altimetry as alt
+from rat.utils.utils import create_directory
+from rat.data_processing import altimetry as alt
 
 
 def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_reservoir_range_dict,

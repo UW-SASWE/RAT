@@ -13,7 +13,7 @@ from tqdm import tqdm
 import itertools
 import pandas as pd
 
-from utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, NOTIFICATION
 
 log = getLogger(LOG_NAME)
 
