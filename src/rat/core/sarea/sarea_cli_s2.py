@@ -1,6 +1,4 @@
 
-# import geemap as gee
-from asyncio.log import logger
 import ee
 from datetime import datetime, timedelta, timezone
 import pandas as pd
@@ -8,9 +6,7 @@ import numpy as np
 import time
 import os
 from random import randint
-import argparse
 from itertools import zip_longest
-import pprint
 from ee_utils.ee_utils import poly2feature
 
 from utils.logging import LOG_NAME, NOTIFICATION

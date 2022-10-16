@@ -1,6 +1,5 @@
 import subprocess
 from logging import getLogger
-import os
 from utils.logging import LOG_NAME
 
 def run_command(args, metsim=False, **kwargs):

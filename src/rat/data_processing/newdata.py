@@ -1,8 +1,6 @@
-import subprocess
-import yaml
+import subprocesssu
 import requests
 from datetime import datetime, timedelta
-from tqdm import tqdm
 import os
 import time
 import shutil

@@ -2,7 +2,6 @@ from core.sarea.sarea_cli_s2 import TEMPORAL_RESOLUTION
 import ee
 import numpy as np
 import pandas as pd
-import argparse
 import os
 from datetime import datetime, timedelta
 

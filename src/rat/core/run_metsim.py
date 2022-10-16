@@ -1,6 +1,5 @@
 from logging import getLogger
 import numpy as np
-import yaml
 import os
 import xarray as xr
 from utils.logging import LOG_NAME, NOTIFICATION

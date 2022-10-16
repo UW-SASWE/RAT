@@ -1,4 +1,3 @@
-from mimetypes import init
 import yaml
 import datetime
 from logging import getLogger
