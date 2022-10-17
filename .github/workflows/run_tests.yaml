@@ -16,16 +16,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Setup conda
-        # You may pin to the exact commit or the version.
-        # uses: cascode-labs/build-conda-action@3b83f3e6e899bdd83f1d81a61cc4786917124ce4
-        
-      - name: Build RAT and test
+      - name: Setup environment with mamba
         uses: conda-incubator/setup-miniconda@v2
         with:
-          activate-environment: rat
-          environment-file: environment.yml
-          auto-activate-base: false
+          mamba-version: "*"
+          channels: conda-forge,defaults
+          environment-file: envs/rat.yaml
+      - name: Build RAT and test
         run: |
           conda info
           conda install mamba -y
