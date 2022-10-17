@@ -5,9 +5,13 @@ package:
   name: {{ name|lower }}
   version: {{ version }}
 
+# source:
+#   url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/rat-{{ version }}.tar.gz
+#   sha256: b3a5045caa0a80ee4b01765350d049bfd6e3f2d63a02893df76aa4b342f00cf2
 source:
-  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/rat-{{ version }}.tar.gz
-  sha256: b3a5045caa0a80ee4b01765350d049bfd6e3f2d63a02893df76aa4b342f00cf2
+  git_url: https://github.com/UW-SASWE/RAT.git
+  git_tag: sm-main-pypi
+  git_depth: 1
 
 build:
   noarch: python
@@ -20,6 +24,11 @@ requirements:
     - pip
   run:
     - python >=3.6
+    - pandas
+    - numpy
+    - xarray
+    - geopandas
+    - rasterio
 
 about:
   home: https://pypi.org/project/rat/
