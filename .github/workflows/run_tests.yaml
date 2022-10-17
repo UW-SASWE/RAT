@@ -20,13 +20,32 @@ jobs:
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
           $CONDA/bin/conda env update --file environment.yml --name base
-      - name: Build conda package and test
-        run: |
-          $CONDA/bin/conda activate base
-          $CONDA/bin/conda install conda-build pytest -y
-          $CONDA/bin/conda build .
-          $CONDA/bin/conda install --user-local rat
-          $CONDA/bin/pytest
+      - name: Build Conda
+        # You may pin to the exact commit or the version.
+        # uses: cascode-labs/build-conda-action@3b83f3e6e899bdd83f1d81a61cc4786917124ce4
+        uses: cascode-labs/build-conda-action@v0.1.4
+        with:
+          # The path to the recipe from the repo root
+          recipe_path: meta.yaml # optional, default is conda-recipe
+          # Yaml Conda build environment definition file
+          conda_build_env_filepath: environment.yml # optional, default is action_default
+          # Conda build environment name
+          # conda_build_env_name: # optional, default is action_default
+          # The prefix of the base Conda environment
+          base_env_prefix: $CONDA # optional, default is /usr/share/miniconda
+          # Name of the package artifact
+          # package_artifact_name: # optional, default is conda_package
+          # Name of the test results artifact
+          # test_results_artifact_name: # optional, default is test_results
+          # Options to be passed to conda-build
+          # build_options: # optional, default is -c defaults -c conda-forge
+      # - name: Build conda package and test
+      #   run: |
+      #     $CONDA/bin/conda activate base
+      #     $CONDA/bin/conda install conda-build pytest -y
+      #     $CONDA/bin/conda build .
+      #     $CONDA/bin/conda install --user-local rat
+      #     $CONDA/bin/pytest
       # - name: Lint with flake8
       #   run: |
       #     # stop the build if there are Python syntax errors or undefined names
