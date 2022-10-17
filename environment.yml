@@ -7,11 +7,11 @@ dependencies:
   - xarray
   - numpy
   - netcdf4
-  - dask
+  # - dask
   - scipy
   - yaml
   - pandas
-  - scikit-learn
+  # - scikit-learn
   - conda-build
   - ca-certificates
   - certifi
@@ -19,8 +19,8 @@ dependencies:
   - ncl
   - gdal
   - fiona
-  - rtree
+  # - rtree
   - python=3.9
   - geopandas
-  - earthengine-api
-  - google-cloud-sdk
+  # - earthengine-api
+  # - google-cloud-sdk
