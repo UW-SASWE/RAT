@@ -10,7 +10,7 @@ package:
 #   sha256: b3a5045caa0a80ee4b01765350d049bfd6e3f2d63a02893df76aa4b342f00cf2
 source:
   git_url: https://github.com/UW-SASWE/RAT.git
-  git_tag: sm-main-pypi
+  git_tag: {{ github.ref }}
   git_depth: 1
 
 build:
