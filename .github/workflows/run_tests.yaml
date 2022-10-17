@@ -19,21 +19,17 @@ jobs:
       - name: Setup conda
         # You may pin to the exact commit or the version.
         # uses: cascode-labs/build-conda-action@3b83f3e6e899bdd83f1d81a61cc4786917124ce4
+        
+      - name: Build RAT and test
         uses: conda-incubator/setup-miniconda@v2
         with:
           activate-environment: rat
-          python-version: 3.6
-          channels: conda-forge
-          allow-softlinks: true
-          channel-priority: flexible
-          show-channel-urls: true
-          use-only-tar-bz2: true
-      - name: Build RAT and test
+          environment-file: environment.yml
+          auto-activate-base: false
         run: |
           conda info
           conda install mamba -y
-          mamba env update --file environment.yml -n rat
-          mamba install conda-build pytest -y
+          mamba install pytest -y
           conda develop src/
           conda activate rat
           pytest
