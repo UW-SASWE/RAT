@@ -23,7 +23,6 @@ jobs:
           auto-update-conda: true
           channels: conda-forge,defaults
           environment-file: environment.yml
-          python-version: ${{ matrix.python-version }}
       - name: Build RAT and test
         shell: bash -l {0}
         run: |
