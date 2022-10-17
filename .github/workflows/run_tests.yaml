@@ -28,14 +28,12 @@ jobs:
           channel-priority: flexible
           show-channel-urls: true
           use-only-tar-bz2: true
-      - name: Build RAT
+      - name: Build RAT and test
         run: |
           conda info
           conda install mamba -y
           mamba env update --file environment.yml -n rat
           mamba install conda-build pytest -y
           conda develop src/
-      - name: Test with pytest
-        run: |
           conda activate rat
           pytest
