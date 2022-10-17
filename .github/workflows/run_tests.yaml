@@ -28,7 +28,7 @@ jobs:
         uses: cascode-labs/build-conda-action@v0.1.4
         with:
           # The path to the recipe from the repo root
-          recipe_path: meta.yaml # optional, default is conda-recipe
+          recipe_path: conda-recipe # optional, default is conda-recipe
           # Yaml Conda build environment definition file
           conda_build_env_filepath: environment.yml # optional, default is action_default
           # Conda build environment name
