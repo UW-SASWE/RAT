@@ -1,19 +1,15 @@
-name: /houston2/pritam/rat_mekong_v3/.condaenv
+name: base
 channels:
   - conda-forge
   - defaults
 dependencies:
   - rasterio
   - xarray
-  - jupyterlab
   - numpy
-  - matplotlib
   - netcdf4
   - dask
   - scipy
-  - ipywidgets
   - yaml
-  - wget
   - pandas
   - scikit-learn
   - conda-build
@@ -25,9 +21,6 @@ dependencies:
   - fiona
   - rtree
   - python=3.9
-  - ipython
-  - jupyter
   - geopandas
   - earthengine-api
   - google-cloud-sdk
-prefix: /houston2/pritam/rat_mekong_v3/.condaenv
