@@ -22,7 +22,9 @@ jobs:
           mamba-version: "*"
           channels: conda-forge,defaults
           environment-file: environment.yml
+          python-version: ${{ matrix.python-version }}
       - name: Build RAT and test
+        shell: bash -l {0}
         run: |
           conda info
           conda install mamba -y
