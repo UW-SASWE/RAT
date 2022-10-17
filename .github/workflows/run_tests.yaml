@@ -21,12 +21,18 @@ jobs:
           auto-update-conda: true
           channels: conda-forge,defaults
           environment-file: environment.yml
-      - name: Build RAT and test
+      - name: Install test modules
         shell: bash -l {0}
         run: |
           conda info
           conda install mamba -y
           mamba install pytest conda-build -y
+      - name: Build RAT
+        shell: bash -l {0}
+        run: |
           conda develop src/
-          conda activate rat
+      - name: Test RAT
+        shell: bash -l {0}
+        run: |
+          conda activate test
           pytest
