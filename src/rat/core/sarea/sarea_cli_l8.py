@@ -12,7 +12,7 @@ import pprint
 from rat.ee_utils.ee_utils import poly2feature
 from rat.utils.logging import LOG_NAME, NOTIFICATION
 from rat.utils.utils import days_between
-from rat.utils.logging import getLogger
+from logging import getLogger
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 

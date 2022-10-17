@@ -5,7 +5,7 @@ import os
 import datetime
 import subprocess
 
-from rat.utils.logging import getLogger
+from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION
 from rat.utils.run_command import run_command
 
