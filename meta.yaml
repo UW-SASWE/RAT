@@ -30,6 +30,10 @@ requirements:
     - geopandas
     - rasterio
 
+test:
+  requires:
+    - pytest
+
 about:
   home: https://pypi.org/project/rat/
   summary: Resevoir Monitoring using Satellite Remote Sensing
