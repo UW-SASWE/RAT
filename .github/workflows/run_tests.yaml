@@ -34,8 +34,7 @@ jobs:
           conda install mamba -y
           mamba env update --file environment.yml -n rat
           mamba install conda-build pytest -y
-          conda build .
-          conda install --use-local rat
+          conda develop src/
       - name: Test with pytest
         run: |
           pytest
