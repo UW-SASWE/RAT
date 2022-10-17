@@ -16,10 +16,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          # $CONDA is an environment variable pointing to the root of the miniconda directory
-          $CONDA/bin/conda env update --file environment.yml --name base
+      # - name: Install dependencies
+      #   run: |
+      #     # $CONDA is an environment variable pointing to the root of the miniconda directory
+      #     $CONDA/bin/conda env update --file environment.yml --name base
       - name: Build Conda
         # You may pin to the exact commit or the version.
         # uses: cascode-labs/build-conda-action@3b83f3e6e899bdd83f1d81a61cc4786917124ce4
