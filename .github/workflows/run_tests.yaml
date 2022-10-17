@@ -37,4 +37,5 @@ jobs:
           conda develop src/
       - name: Test with pytest
         run: |
+          conda activate rat
           pytest
