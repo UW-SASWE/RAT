@@ -21,7 +21,7 @@ jobs:
         with:
           mamba-version: "*"
           channels: conda-forge,defaults
-          environment-file: envs/rat.yaml
+          environment-file: environment.yml
       - name: Build RAT and test
         run: |
           conda info
