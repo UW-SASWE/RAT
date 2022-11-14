@@ -1,6 +1,4 @@
 import os
-import datetime
-import subprocess
 import geopandas as gpd
 
 from logging import getLogger

@@ -1,9 +1,7 @@
-import logging
 import pandas as pd
 import rasterio as rio
 import os
 import datetime
-import subprocess
 
 from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION

@@ -1,10 +1,6 @@
 import geopandas as gpd
-from osgeo import gdal, ogr
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.fft import fft
-from shapely.geometry.linestring import LineString
 import netCDF4 
 from rat.utils.utils import round_up
 

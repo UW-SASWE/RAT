@@ -5,9 +5,8 @@ import pandas as pd
 import time
 import os
 from random import randint
-import argparse
 from itertools import zip_longest
-import pprint
+from ee_utils.ee_utils import poly2feature
 
 from rat.ee_utils.ee_utils import poly2feature
 from rat.utils.logging import LOG_NAME, NOTIFICATION

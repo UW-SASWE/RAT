@@ -1,22 +1,9 @@
-import subprocess
-import yaml
-from datetime import datetime, timedelta
-from tqdm import tqdm
+from datetime import datetime
 import os
-import shutil
-import tempfile
-import xarray as xr
-import rioxarray as rxr
-import rasterio
 from logging import getLogger
-import pandas as pd
-import configparser
 import datetime
 import geopandas as gpd
-from shapely.geometry import Polygon,mapping
 import numpy as np
-import math
-import glob
 
 from rat.utils.utils import create_directory
 from rat.utils.logging import init_logger,close_logger,NOTIFICATION
@@ -35,14 +22,13 @@ from rat.core.run_vic import VICRunner
 from rat.utils.route_param_reader import RouteParameterFile
 from rat.core.run_routing import RoutingRunner
 
-from rat.core.run_sarea import run_sarea
-from rat.core.run_altimetry import altimeter_routine, run_altimetry
+from core.run_sarea import run_sarea
+from core.run_altimetry import run_altimetry
 
 from rat.ee_utils.ee_aec_file_creator import aec_file_creator
 from rat.core.run_postprocessing import run_postprocessing
 
-from rat.utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
-from rat.core.generate_plots import generate_plots
+from utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
 
 # Step-1: Downloading and Pre-processing of meteorolgical data
 # Step-2: Pre-processing of data and preparation of MetSim Input
@@ -64,7 +50,7 @@ from rat.core.generate_plots import generate_plots
 #module-4 step-10to12 storage_change
 #module-5 step-13 outflow
 
-def rat(config, rat_logger, steps=[2,3,5,7,9,12,13,1,4,6,8,10,11]):
+def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
 
     rat_logger = getLogger('run_rat')
     ##--------------------- Reading and initialising global parameters ----------------------##
