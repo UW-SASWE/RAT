@@ -26,8 +26,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda info
-          conda install mamba -y
-          mamba install pytest conda-build -y
+          conda install pytest conda-build -y
       - name: Build RAT
         shell: bash -l {0}
         run: |
