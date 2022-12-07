@@ -22,8 +22,8 @@ from rat.core.run_vic import VICRunner
 from rat.utils.route_param_reader import RouteParameterFile
 from rat.core.run_routing import RoutingRunner
 
-from core.run_sarea import run_sarea
-from core.run_altimetry import run_altimetry
+from rat.core.run_sarea import run_sarea
+from rat.core.run_altimetry import run_altimetry
 
 from rat.ee_utils.ee_aec_file_creator import aec_file_creator
 from rat.core.run_postprocessing import run_postprocessing

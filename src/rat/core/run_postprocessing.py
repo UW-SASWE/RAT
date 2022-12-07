@@ -8,8 +8,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from logging import getLogger
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.science import penman
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.science import penman
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
