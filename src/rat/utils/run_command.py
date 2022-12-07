@@ -1,6 +1,6 @@
 import subprocess
 from logging import getLogger
-from utils.logging import LOG_NAME
+from rat.utils.logging import LOG_NAME
 
 def run_command(args, metsim=False, **kwargs):
     """Safely runs a command, logs and returns the returncode silently in case of no error. 

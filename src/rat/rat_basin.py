@@ -28,7 +28,7 @@ from core.run_altimetry import run_altimetry
 from rat.ee_utils.ee_aec_file_creator import aec_file_creator
 from rat.core.run_postprocessing import run_postprocessing
 
-from utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
+from rat.utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
 
 # Step-1: Downloading and Pre-processing of meteorolgical data
 # Step-2: Pre-processing of data and preparation of MetSim Input
