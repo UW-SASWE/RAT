@@ -9,6 +9,7 @@ from utils.utils import create_directory
 from utils.logging import init_logger,close_logger,NOTIFICATION
 from utils.files_creator import create_basingridfile, create_basin_domain_nc_file ,create_vic_domain_param_file, create_basin_grid_flow_asc
 from utils.files_creator import create_basin_station_latlon_csv, create_basin_reservoir_shpfile
+from utils.clean import Clean
 
 from data_processing.newdata import get_newdata
 
@@ -81,6 +82,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     #config['BASIN']['begin'] = datetime.datetime.combine(config['BASIN']['begin'], datetime.time.min)
     config['BASIN']['start'] = datetime.datetime.combine(config['BASIN']['start'], datetime.time.min)
     config['BASIN']['end'] = datetime.datetime.combine(config['BASIN']['end'], datetime.time.min)
+    rout_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
 
     if(not config['BASIN']['first_run']):
         config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
@@ -103,6 +105,14 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         notify= False,
         log_level= 'DEBUG'
     )
+
+    # Cleaning class object for removing/deleting unwanted data
+    cleaner = Clean(basin_data_dir)
+
+    # Clearing out previous rat outputs so that the new data does not gets appended.
+    if(config['EFFICIENCY']['clean_previous_outputs']):
+        rat_logger.info("Clearing up memory space: Removal of previous rat outputs, routing inflow, extracted altimetry data and gee extracted surface area time series")
+        cleaner.clean_previous_outputs()
 
     # Initializing Status for different models & tasks (1 for successful run & 0 for failed run)
     NEW_DATA_STATUS = 1
@@ -239,7 +249,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                         param_path= m.ms_param_path,
                         metsim_env= config['METSIM']['metsim_env'],
                         results_path= m.results,
-                        multiprocessing= config['GLOBAL']['multiprocessing']
+                        multiprocessing= config['EFFICIENCY']['multiprocessing']
                     )
                     log.log(NOTIFICATION, f'Starting metsim from {config["BASIN"]["start"].strftime("%Y-%m-%d")} to {config["BASIN"]["end"].strftime("%Y-%m-%d")}')
                     ms.run_metsim()
@@ -278,9 +288,10 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
 
             vic_input_forcing_path = os.path.join(vic_input_path,'forcing_')
             vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
-            rout_input_path = create_directory(os.path.join(basin_data_dir,'routing','rout_inputs',''), True)
-            rout_input_state_file = create_directory(os.path.join(basin_data_dir,'routing','rout_state_file',''), True)
-            rout_input_state_file = os.path.join(rout_input_state_file,'combined_input_state_file.nc')
+            rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
+            rout_input_state_file = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+            rout_input_state_file = os.path.join(rout_input_state_file,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
+            rout_init_state_save_file = os.path.join(rout_input_state_file,'ro_init_state_file_'+rout_init_state_save_date.strftime("%Y-%m-%d")+'.nc')
         except:
             rat_logger.exception("Error Executing Step-5: Preparation of VIC Parameter Files")
         else:
@@ -308,8 +319,8 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                         vic_result_file= p.vic_result_file,
                         rout_input_dir= rout_input_path
                     )
-                    vic.run_vic(np=config['GLOBAL']['multiprocessing'])
-                    rout_input_state_start_date = vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file) # Start date of routing state file will be returned
+                    vic.run_vic(np=config['EFFICIENCY']['multiprocessing'])
+                    rout_input_state_start_date = vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file, save_path=rout_init_state_save_file) # Start date of routing state file will be returned
                     if(config['BASIN']['first_run']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run, use vic result file
                         rout_input_state_start_date = config['BASIN']['start']            # Start date will become same as vic result file 
@@ -336,11 +347,11 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
 
             # Creating routing parameter directory
-            rout_param_dir = create_directory(os.path.join(basin_data_dir,'routing','rout_basin_params',''), True)
+            rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
 
             ### Basin Grid Flow Firection File
             # Defining path and name for basin flow direction file
-            basin_flow_dir_file = os.path.join(rout_param_dir,'basin_flow_dir')
+            basin_flow_dir_file = os.path.join(rout_param_dir,'fl')
             # Creating basin grid flow diretion file if not present
             if (config['ROUTING'].get('global_flow_dir_tif_file')):
                 if not os.path.exists(basin_flow_dir_file+'.asc'):
@@ -358,7 +369,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                 basin_station_latlon_file = config['ROUTING']['station_latlon_path']
 
             # Creating routing inflow directory
-            rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'routing', 'rout_inflow',''), True)
+            rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'ro', 'rout_inflow',''), True)
         except:
             rat_logger.exception("Error Executing Step-7: Preparation of Routing Parameter Files")
         else:    
@@ -543,5 +554,22 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         else:
             rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
             ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
+        
+        # Clearing out memory space as per user input 
+        if(config['EFFICIENCY']['clean_metsim']):
+            rat_logger.info("Clearing up memory space: Removal of metsim output files")
+            cleaner.clean_metsim()
+        if(config['EFFICIENCY']['clean_vic']):
+            rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
+            cleaner.clean_vic()
+        if(config['EFFICIENCY']['clean_routing']):
+            rat_logger.info("Clearing up memory space: Removal of routing input and output files")
+            cleaner.clean_routing()
+        if(config['EFFICIENCY']['clean_gee']):
+            rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
+            cleaner.clean_gee()
+        if(config['EFFICIENCY']['clean_altimetry']):
+            rat_logger.info("Clearing up memory space: Removal of raw altimetry downloaded data files.")
+            cleaner.clean_altimetry()
 
     close_logger()
