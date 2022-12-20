@@ -112,7 +112,8 @@ class RoutingRunner():
                 # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
                 complement = pd.concat([existing_data, new_data], ignore_index=True)
                 # Remove all duplicates:
-                complement.drop_duplicates(subset=['date'],inplace=True, keep=False)
+                complement.drop_duplicates(subset=['date'],inplace=True, keep='first')
+                complement.sort_values(by='date', inplace=True)
                 complement.to_csv(outpath, index=False)
             else:
                 self._convert_streamflow(f).to_csv(outpath, index=False)
