@@ -72,7 +72,7 @@ class RouteParameterFile:
         else:
             if(self.intermediate_files):
                 self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',
-                                                                self.basin_name,'routing','rout_workspace',f'run_{self.runname}'))
+                                                                self.basin_name,'ro','rout_workspace',f'run_{self.runname}'))
         
         ## Route parameter file, this is where the parameter file will be saved
         if (self.intermediate_files):
@@ -92,15 +92,15 @@ class RouteParameterFile:
 
         ## output dir
         self.params['output_dir'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
-                                                            'basins',self.basin_name,'routing','rout_outputs'),True)
+                                                            'basins',self.basin_name,'ro','ou'),True)
         
         ## stations
         if (self.intermediate_files):
-            self.params['station'] = os.path.join(self.workspace, 'stations_xy.txt')
+            self.params['station'] = os.path.join(self.workspace, 'sta_xy.txt')
         else:
             self.params['station'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
-                                                        'basins',self.basin_name,'routing','rout_basin_params'),True)
-            self.params['station'] = os.path.join(self.params['station'],'stations_xy.txt')
+                                                        'basins',self.basin_name,'ro','pars'),True)
+            self.params['station'] = os.path.join(self.params['station'],'sta_xy.txt')
 
         # Routing Input file prefix path   
         self.params['input_files_prefix'] = self.rout_input_path_prefix
