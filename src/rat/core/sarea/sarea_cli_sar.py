@@ -112,7 +112,7 @@ def ee_get_data(ee_Date_Start, ee_Date_End):
     return df
 
 def retrieve_sar(start_date, end_date, res='ys'):
-    date_ranges = list(pd.date_range(start_date, end_date, freq=res).strftime("%Y-%m-%d").tolist()) + [end_date]
+    date_ranges = list((pd.date_range(start_date, end_date, freq=res).union([pd.to_datetime(start_date), pd.to_datetime(end_date)])).strftime("%Y-%m-%d").tolist()) 
     print(date_ranges)
     dfs = []
     # for begin, end in zip(date_ranges[:-1], date_ranges.shift(1)[:-1]):
