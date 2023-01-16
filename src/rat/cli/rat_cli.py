@@ -1,8 +1,27 @@
 import argparse
+import os
 
+from rat.utils.utils import create_directory
 
 def init_func(args):
-    print("Initializing RAT using: ", args) # TODO: debug line, delete later
+    print("Initializing RAT using: ", args)
+    
+    #### Directory creation
+    if args.project_dir is None:
+        project_dir = os.path.abspath(input(f"Enter path of RAT project directory: "))
+    else:
+        project_dir = os.path.abspath(args.project_dir)
+    
+    try:
+        os.mkdir(project_dir)
+    except Exception as e:
+        print(f"Failed creating RAT project directory: {e}")
+        raise e
+
+    # create additional directories
+    data_dir = create_directory(os.path.join(project_dir, 'data'))
+    models_dir = create_directory(os.path.join(project_dir, 'models'))
+    params_dir = create_directory(os.path.join(project_dir, 'params'))
 
 def run_func(args):
     print("Running RAT using: ", args) # TODO: debug line, delete later
@@ -41,8 +60,8 @@ def main():
     
     run_parser.set_defaults(func=run_func)
 
-    print(p.parse_args(['init', '-d', 'test_directory']))
-    print(p.parse_args(['run', '-p', 'test_param']))
+    args = p.parse_args(['init', '-d', '/mnt/2tb/pritam/rat_test/RAT'])
+    args.func(args)
 
 
 if __name__ == '__main__':
