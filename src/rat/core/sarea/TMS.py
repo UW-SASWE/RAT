@@ -27,13 +27,14 @@ class TMS():
         self.AREA_DEVIATION_THRESHOLD = self.area * AREA_DEVIATION_THRESHOLD_PCNT/100
 
     def tms_os(self,
-            l8_dfpath: str, 
-            s2_dfpath: str, 
-            l9_dfpath: str, 
-            s1_dfpath: str, 
+            l8_dfpath: str = "", 
+            s2_dfpath: str = "", 
+            l9_dfpath: str = "", 
+            s1_dfpath: str = "", 
             CLOUD_THRESHOLD: float = 90.0,
             MIN_DATE: str = '2019-01-01'
         ):
+        ## TODO: add conditional, S1 required, any one of optical datasets required
         """Implements the TMS-OS methodology
         Args:
             l8_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l8.py` - Landsat derived surface areas
