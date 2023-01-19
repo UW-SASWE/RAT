@@ -12,7 +12,7 @@ def convert_sarea(sarea_dir, website_v_dir):
         res_name = os.path.splitext(os.path.split(sarea_path)[-1])[0]
 
         
-        savepath = os.path.join(sarea_web_dir, f"{res_name}.txt")
+        savepath = os.path.join(sarea_web_dir, f"{res_name}.csv")
 
         df = pd.read_csv(sarea_path, parse_dates=['date'])
         df = df[['date', 'area']]
@@ -35,7 +35,7 @@ def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,
 
         if res_name in reservoirs['Inflow_filename'].tolist():
             savename = reservoirs[reservoirs['Inflow_filename'] == res_name][reservoir_shpfile_column_dict['unique_identifier']].values[0]
-            savepath = os.path.join(inflow_web_dir ,f"{savename}.txt")
+            savepath = os.path.join(inflow_web_dir ,f"{savename}.csv")
 
             df = pd.read_csv(inflow_path, parse_dates=['date'])
             df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
@@ -56,7 +56,7 @@ def convert_dels(dels_dir, website_v_dir):
         res_name = os.path.splitext(os.path.split(dels_path)[-1])[0]
         savename = res_name
 
-        savepath = os.path.join(dels_web_dir , f"{savename}.txt")
+        savepath = os.path.join(dels_web_dir , f"{savename}.csv")
 
         df = pd.read_csv(dels_path, parse_dates=['date'])[['date', 'dS', 'days_passed']]
         df['dS (m3)'] = df['dS'] * 1e9                                     # indicate units, convert from BCM to m3
@@ -74,7 +74,7 @@ def convert_evaporation(evap_dir, website_v_dir):
         res_name = os.path.splitext(os.path.split(evap_path)[-1])[0]
         savename = res_name
 
-        savepath = os.path.join(evap_web_dir , f"{savename}.txt")
+        savepath = os.path.join(evap_web_dir , f"{savename}.csv")
 
         df = pd.read_csv(evap_path)
         df = df[['time', 'OUT_EVAP']]
@@ -93,7 +93,7 @@ def convert_outflow(outflow_dir, website_v_dir):
 
         savename = res_name
 
-        savepath = os.path.join(outflow_web_dir, f"{savename}.txt")
+        savepath = os.path.join(outflow_web_dir, f"{savename}.csv")
 
         df = pd.read_csv(outflow_path, parse_dates=['date'])[['date', 'outflow_rate']]
         df.loc[df['outflow_rate']<0, 'outflow_rate'] = 0
@@ -112,7 +112,7 @@ def convert_altimeter(altimeter_ts_dir, website_v_dir):
         for altimeter_ts_path in altimeter_tses:
             res_name = os.path.splitext(os.path.split(altimeter_ts_path)[-1])[0]
             savename = res_name
-            savepath = os.path.join(altimeter_web_dir , f"{savename}.txt")
+            savepath = os.path.join(altimeter_web_dir , f"{savename}.csv")
 
             df = pd.read_csv(altimeter_ts_path, parse_dates=['date'])
             df = df[['date', 'H [m w.r.t. EGM2008 Geoid]']]
