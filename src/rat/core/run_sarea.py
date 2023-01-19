@@ -47,10 +47,3 @@ def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_d
     tmsos_savepath = os.path.join(datadir, reservoir_name+'.csv')
     log.debug(f"Saving surface area of {reservoir_name} at {tmsos_savepath}")
     result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
-
-def main():
-    run_sarea("2021-01-01", "2022-05-02", datadir='backend/data/sarea_tmsos')
-
-
-if __name__ == '__main__':
-    main()
