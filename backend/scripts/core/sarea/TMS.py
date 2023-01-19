@@ -172,6 +172,10 @@ class TMS():
         sar['date'] = sar['date'].apply(lambda d: np.datetime64(d.strftime('%Y-%m-%d')))
         sar.set_index('date', inplace=True)
         sar.sort_index(inplace=True)
+
+        # apply weekly area change filter
+        sar = sar_data_statistical_fix(sar, self.area, 15)
+
         std = zscore(sar['sarea'])
         SAR_ZSCORE_LIM = 3
         sar.loc[(std > SAR_ZSCORE_LIM) | (std < -SAR_ZSCORE_LIM), 'sarea'] = np.nan
@@ -206,7 +210,40 @@ class TMS():
 
         return result
 
+def area_change(df, date, n=14):
+    """calculate the change in area in last n days"""
+    start = date - pd.Timedelta(days=n)
+    end = date
 
+    # if start date is before the first date in the df, return nan
+    if start < df.index[0]:
+        return np.nan
+
+    start_area = df.loc[start:end, "sarea"].iloc[0]
+    end_area = df.loc[date, "sarea"]
+    try:  # if end_area is a series which may happen in a SAR area dataframe (TODO: fix the cause of this issue, same area is returned twice), take the first value
+        end_area = end_area.iloc[0]
+    except AttributeError as AE:
+        pass
+    except Exception as E:
+        raise E
+
+    return end_area - start_area
+    
+
+def sar_data_statistical_fix(sar_df, nominal_area, threshold_percentage=15):
+    """fix the sar data using statistical method"""
+    threshold = (threshold_percentage / 100) * nominal_area
+
+    sar_df_copy = sar_df.copy()
+    sar_df_copy['date'] = sar_df_copy.index.to_series()
+
+    sar_df_copy['area_change'] = sar_df_copy['date'].apply(lambda x: area_change(sar_df_copy, x))
+
+    sar_df_copy.loc[(sar_df_copy['area_change'] < -threshold)|(sar_df_copy['area_change'] > threshold), 'sarea'] = np.nan
+    sar_df_copy['sarea'] = sar_df_copy['sarea'].interpolate(method='time')
+
+    return sar_df_copy.drop('area_change', axis=1).drop('date', axis=1)
 
 def deviation_from_sar(optical_areas, sar_areas, DEVIATION_THRESHOLD = 20, LOW_STD_LIM=2, HIGH_STD_LIM=2):
     """Filter out points based on deviations from SAR reported areas after correcting for bias in SAR water areas. Remove NaNs beforehand.
