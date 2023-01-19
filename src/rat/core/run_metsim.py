@@ -1,3 +1,4 @@
+from http.server import executable
 from logging import getLogger
 import numpy as np
 import os
@@ -22,7 +23,7 @@ class MetSimRunner():
         else:
             args = f'source {self._conda_hook} && conda activate {self._metsim_env} && ms -n {self._mp} {self._param_path}'
         # print("will run: ", args)
-        ret_code = run_command(args, metsim=True, shell=True)
+        ret_code = run_command(args, metsim=True, shell=True, executable="/bin/bash")
     
     def convert_to_vic_forcings(self, forcings_dir):
         # The results have to be converted to VIC readable yearly netcdf files.

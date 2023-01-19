@@ -1,3 +1,4 @@
+from http.server import executable
 import pandas as pd
 import rasterio as rio
 import os
@@ -35,7 +36,7 @@ class VICRunner():
         else:
             arg = f"source {self.conda_hook} && conda activate {self.vic_env} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
 
-        ret_code = run_command(arg, shell=True)
+        ret_code = run_command(arg, shell=True, executable="/bin/bash")
 
     def generate_routing_input_state(self, ndays, rout_input_state_file, save_path):
         if os.path.isfile(rout_input_state_file):

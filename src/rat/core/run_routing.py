@@ -1,3 +1,4 @@
+from http.server import executable
 import pandas as pd
 import rasterio as rio
 import os
@@ -83,7 +84,7 @@ class RoutingRunner():
         args = f'cd {self.project_dir} && {self.model_path} {self.param_path}'
         log.debug("Running: %s", " ".join(args))
         # ret_code = run_command(['cd',self.project_dir])
-        ret_code = run_command(args,shell=True)
+        ret_code = run_command(args,shell=True, executable="/bin/bash")
 
         # clean up
         log.debug("Cleaning up routing files")
