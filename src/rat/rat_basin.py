@@ -4,6 +4,7 @@ from logging import getLogger
 import datetime
 import geopandas as gpd
 import numpy as np
+import xarray as xr
 
 from utils.utils import create_directory
 from utils.logging import init_logger,close_logger,NOTIFICATION
@@ -63,7 +64,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     basins_shapefile_path = config['GLOBAL']['basin_shpfile'] # Shapefile containg information of basin(s)- geometry and attributes
     basins_shapefile = gpd.read_file(basins_shapefile_path)  # Reading basins_shapefile_path to get basin polygons and their attributes
     basins_shapefile_column_dict = config['GLOBAL']['basin_shpfile_column_dict'] # Dictionary of column names in basins_shapefile, Must contain 'id' field
-    major_basin_name = config['BASIN']['major_basin_name']  # Major basin name used to cluster multiple basins data in data-directory
+    region_name = config['BASIN']['region_name']  # Major basin name used to cluster multiple basins data in data-directory
     basin_name = config['BASIN']['basin_name']              # Basin name used to save basin related data
     basin_id = config['BASIN']['basin_id']                  # Unique identifier for each basin used to map basin polygon in basins_shapefile
     basin_data = basins_shapefile[basins_shapefile[basins_shapefile_column_dict['id']]==basin_id] # Getting the particular basin related information corresponding to basin_id
@@ -74,9 +75,9 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     # Defining paths for RAT processing
     project_dir = config['GLOBAL']['project_dir']    # Directory of RAT 
     data_dir = config['GLOBAL']['data_dir']          # Data-Directory of RAT
-    major_basin_data_dir = create_directory(os.path.join(data_dir,major_basin_name), True) # Major Basin data-directory within the data-directory of RAT
-    basin_data_dir = create_directory(os.path.join(major_basin_data_dir,'basins',basin_name), True)  # Basin data-directory within the major basin's data-directory 
-    log_dir = create_directory(os.path.join(major_basin_data_dir,'logs',basin_name,''), True)  # Log directory within the major basin's data-directory
+    region_data_dir = create_directory(os.path.join(data_dir,region_name), True) # Major Basin data-directory within the data-directory of RAT
+    basin_data_dir = create_directory(os.path.join(region_data_dir,'basins',basin_name), True)  # Basin data-directory within the major basin's data-directory 
+    log_dir = create_directory(os.path.join(region_data_dir,'logs',basin_name,''), True)  # Log directory within the major basin's data-directory
 
     # Change datetimes format
     #config['BASIN']['begin'] = datetime.datetime.combine(config['BASIN']['begin'], datetime.time.min)
@@ -128,7 +129,93 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     ##--------------------- Read and initialised global parameters ----------------------##
 
     rat_logger.info(f"Running RAT from {config['BASIN']['start']} to {config['BASIN']['end']}")
-    
+
+    ######### Step-0 Mandatory Step
+    try:
+        rat_logger.info("Starting Step-0: Creating required directory structure for RAT")
+        #----------- Paths Necessary for running of METSIM  -----------#
+        # Path of directory which will contain the combined data in nc format.
+        combined_datapath = create_directory(os.path.join(basin_data_dir,'pre_processing','nc', ''), True)
+        combined_datapath = os.path.join(combined_datapath, 'combined_data.nc')
+        # Path where the processed downloaded data is present
+        processed_datadir = os.path.join(basin_data_dir,'pre_processing','processed')
+        # basingrid_file path to clip the global downloaded data
+        basingridfile_path= create_directory(os.path.join(basin_data_dir, 'basin_grid_data',''), True)
+        basingridfile_path= os.path.join(basingridfile_path, basin_name+'_grid_mask.tif')
+        #Creating metsim input directory for basin if not exist
+        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
+        #Defining paths for metsim input data, metsim state and metsim domain
+        ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
+        ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
+        domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
+        #Creating metsim output directory for basin if not exist
+        metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
+        #Creating vic input directory for basin if not exist
+        vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'vic_inputs',''), True)
+        #----------- Paths Necessary for running of METSIM  -----------#
+
+        #----------- Paths Necessary for running of VIC  -----------#
+        vic_input_forcing_path = os.path.join(vic_input_path,'forcing_')
+        vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
+        rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
+        rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+        rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
+        rout_init_state_save_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state_save_date.strftime("%Y-%m-%d")+'.nc')
+        #----------- Paths Necessary for running of VIC  -----------#
+
+        #----------- Paths Necessary for running of Routing  -----------#
+        # Routing_input files prefix path
+        rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
+        # Creating routing parameter directory
+        rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
+        # Defining path and name for basin flow direction file
+        basin_flow_dir_file = os.path.join(rout_param_dir,'fl')
+        # Defining Basin station latlon file path
+        if (config['ROUTING']['station_global_data']):
+            basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
+        else:
+            basin_station_latlon_file = config['ROUTING']['station_latlon_path']
+        # Creating routing inflow directory
+        rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'ro', 'rout_inflow',''), True)
+        #----------- Paths Necessary for running of Routing  -----------#
+
+        #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
+        # Defining path for basin reservoir shapefile
+        basin_reservoir_shpfile_path = create_directory(os.path.join(basin_data_dir,'gee','gee_basin_params',''), True)
+        basin_reservoir_shpfile_path = os.path.join(basin_reservoir_shpfile_path,'basin_reservoirs.shp')
+        # Reading dictionary of column values for reservoir shapefile path
+        reservoirs_gdf_column_dict = config['GEE']['reservoir_vector_file_columns_dict']
+        # Adding key-value pair to Basin Reservoir Shapefile's column dictionary ### 
+        if (config['ROUTING']['station_global_data']):
+            reservoirs_gdf_column_dict['unique_identifier'] = 'uniq_id'
+        else:
+            reservoirs_gdf_column_dict['unique_identifier'] = reservoirs_gdf_column_dict['dam_name_column']
+        # Defining paths to save surface area from gee and heights from altimetry
+        sarea_savepath = create_directory(os.path.join(basin_data_dir,'gee','gee_sarea_tmsos',''), True)
+        altimetry_savepath = os.path.join(basin_data_dir,'altimetry','altimetry_timeseries')
+        #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
+
+        #----------- Paths Necessary for running of Post-Processing-----------#
+        # Defining path for the Area Elevation curve
+        if (config['POST_PROCESSING'].get('aec_dir')):
+            aec_dir_path = config['POST_PROCESSING'].get('aec_dir')
+        else:
+            aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
+        ## Paths for storing post-processed data and in webformat data
+        evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
+        dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
+        outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
+        web_dir_path = create_directory(os.path.join(basin_data_dir,'web_format_data',''),True)
+        ## End of defining paths for storing post-processed data and webformat data
+        #----------- Paths Necessary for running of Post-Processing-----------#
+
+
+    except:
+        rat_logger.exception("Error Executing Step-0: Downloading and Pre-processing of meteorological data")
+    else:
+        rat_logger.info("Finished Step-0: Downloading and Pre-processing of meteorological data")
+        
+
     ######### Step-1
     if(1 in steps):
         try:
@@ -160,22 +247,11 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         try:
             rat_logger.info("Starting Step-2: Pre-processing of data and preparation of MetSim Input")
             ##----------------------- Pre-processing step for METSIM ------------------------##
-            #----------- Paths Necessary for creating METSIM Input Data  -----------#
-            # Path of directory which will contain the combined data in nc format.
-            combined_datapath = create_directory(os.path.join(basin_data_dir,'pre_processing','nc', ''), True)
-            combined_datapath = os.path.join(combined_datapath, 'combined_data.nc')
-
-            # Path where the processed downloaded data is present
-            processed_datadir = os.path.join(basin_data_dir,'pre_processing','processed')
-
-            # basingrid_file path to clip the global downloaded data
-            basingridfile_path= create_directory(os.path.join(basin_data_dir, 'basin_grid_data',''), True)
-            basingridfile_path= os.path.join(basingridfile_path, basin_name+'_grid_mask.tif')
-
+            #----------- Files Necessary for creating METSIM Input Data  -----------#
             # Creating basinggrid_file if not exists
             if not os.path.exists(basingridfile_path):
                 create_basingridfile(basin_bounds,basin_geometry,basingridfile_path,xres,yres)
-            #----------- Created Paths Necessary for creating METSIM Input Data  -----------#
+            #----------- Created Files Necessary for creating METSIM Input Data  -----------#
 
             #----------- Process Data Begin to combine all var data -----------#
             CombinedNC(
@@ -189,8 +265,6 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
 
             #------ MetSim Input Data Preparation Begin ------#
             # Prepare data to metsim input format
-            metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
-
             ms_state, ms_input_data = generate_state_and_inputs(
                 forcings_startdate= config['BASIN']['start'],
                 forcings_enddate= config['BASIN']['end'],
@@ -198,14 +272,6 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                 out_dir= metsim_inputs_dir
             )
             #------- MetSim Input Data Preparation End -------#
-
-            #---------- Creating metsim output directory for basin if not exist---------#
-            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
-            #----------metsim output directory created for basin if not exist---------#
-
-            #---------- Creating vic input directory for basin if not exist---------#
-            vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'vic_inputs',''), True)
-            #----------vic input directory created for basin if not exist---------#
         except:
             rat_logger.exception("Error Executing Step-2: Pre-processing of data and preparation of MetSim Input")
         else:
@@ -218,7 +284,6 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             rat_logger.info("Starting Step-3: Preparation of MetSim Parameter Files")
             ##----------------------- Preparing parameter files for METSIM ------------------------##
             ## ---------- Creating domain.nc file for basin if not exist---------#
-            domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
             if not os.path.exists(domain_nc_path):
                 elevation_tif_filepath = config['GLOBAL']['elevation_tif_file']
                 create_basin_domain_nc_file(elevation_tif_filepath,basingridfile_path,domain_nc_path)
@@ -285,13 +350,6 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                 # Setting vic soil_param_file and domain file paths in config, will be used in vic_params produced by VICParameterFile
                 config['VIC']['vic_soil_param_file']=os.path.join(vic_param_dir,'vic_soil_param.nc')
                 config['VIC']['vic_domain_file']=os.path.join(vic_param_dir,'vic_domain.nc')
-
-            vic_input_forcing_path = os.path.join(vic_input_path,'forcing_')
-            vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
-            rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
-            rout_input_state_file = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
-            rout_input_state_file = os.path.join(rout_input_state_file,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
-            rout_init_state_save_file = os.path.join(rout_input_state_file,'ro_init_state_file_'+rout_init_state_save_date.strftime("%Y-%m-%d")+'.nc')
         except:
             rat_logger.exception("Error Executing Step-5: Preparation of VIC Parameter Files")
         else:
@@ -343,33 +401,18 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         try:    
             rat_logger.info("Starting Step-7: Preparation of Routing Parameter Files")
             ##--------------- Preparation of Routing Parameter Files begin--------------##
-            # Routing_input files prefix path
-            rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
-
-            # Creating routing parameter directory
-            rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
-
             ### Basin Grid Flow Firection File
-            # Defining path and name for basin flow direction file
-            basin_flow_dir_file = os.path.join(rout_param_dir,'fl')
             # Creating basin grid flow diretion file if not present
             if (config['ROUTING'].get('global_flow_dir_tif_file')):
-                if not os.path.exists(basin_flow_dir_file+'.asc'):
-                    create_basin_grid_flow_asc(config['ROUTING']['global_flow_dir_tif_file'], basingridfile_path, basin_flow_dir_file,
+                if not os.path.exists(basin_flow_dir_file):
+                    create_basin_grid_flow_asc(config['ROUTING']['global_flow_dir_tif_file'], basingridfile_path, basin_flow_dir_file[:-4],
                                                                     config['ROUTING'].get('replace_flow_directions'))
-            basin_flow_dir_file = basin_flow_dir_file+'.asc'
-
             ### Basin Station File
             basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
             if (config['ROUTING']['station_global_data']):
                 if not os.path.exists(basin_station_latlon_file):
-                    create_basin_station_latlon_csv(basin_name, config['ROUTING']['stations_vector_file'], basin_data, 
+                    create_basin_station_latlon_csv(region_name,basin_name, config['ROUTING']['stations_vector_file'], basin_data, 
                                                         config['ROUTING']['stations_vector_file_columns_dict'], basin_station_latlon_file)
-            else:
-                basin_station_latlon_file = config['ROUTING']['station_latlon_path']
-
-            # Creating routing inflow directory
-            rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'ro', 'rout_inflow',''), True)
         except:
             rat_logger.exception("Error Executing Step-7: Preparation of Routing Parameter Files")
         else:    
@@ -381,6 +424,14 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         try:
             if(VIC_STATUS):
                 rat_logger.info("Starting Step-8: Runnning Routing and generating Inflow")
+                ### Extracting routing start date ###
+                if(config['BASIN']['first_run']):
+                    rout_input_state_start_date = config['BASIN']['start']
+                else:
+                    rout_state_data = xr.open_dataset(rout_input_state_file).load()
+                    rout_input_state_start_date = rout_state_data.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
+                    rout_state_data.close()
+                ### Extracted routing start date ###
                 #------------- Routing Begins and Pre processing for Mass Balance --------------#
                 with RouteParameterFile(
                     config = config,
@@ -421,22 +472,9 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             #------------- Selection of Reservoirs within the basin begins--------------#
             ###### Preparing basin's reservoir shapefile and it's associated column dictionary for calculating surface area #####
             ### Creating Basin Reservoir Shapefile, if not exists ###
-            reservoirs_gdf_column_dict = config['GEE']['reservoir_vector_file_columns_dict']
-
-            basin_reservoir_shpfile_path = create_directory(os.path.join(basin_data_dir,'gee','gee_basin_params',''), True)
-            basin_reservoir_shpfile_path = os.path.join(basin_reservoir_shpfile_path,'basin_reservoirs.shp')
             if not os.path.exists(basin_reservoir_shpfile_path):
                 create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_station_xy_path,
                                                                                 config['ROUTING']['station_global_data'], basin_reservoir_shpfile_path)
-            ### Creating Basin Reservoir Shapefile's column dictionary ### 
-            if (config['ROUTING']['station_global_data']):
-                reservoirs_gdf_column_dict['unique_identifier'] = 'uniq_id'
-            else:
-                reservoirs_gdf_column_dict['unique_identifier'] = reservoirs_gdf_column_dict['dam_name_column']
-            ### Defining paths to save surface area from gee and heights from altimetry
-            sarea_savepath = create_directory(os.path.join(basin_data_dir,'gee','gee_sarea_tmsos',''), True)
-            altimetry_savepath = os.path.join(basin_data_dir,'altimetry','altimetry_timeseries')
-            
             ###### Prepared basin's reservoir shapefile and it's associated column dictionary #####
         except:
             rat_logger.exception("Error Executing Step-9: Preparation of parameter files for Surface Area Calculation")
@@ -480,18 +518,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             rat_logger.info("Starting Step-12: Generating Area Elevation Curves for reservoirs")
             ##--------------------------------Area Elevation Curves Extraction begins ------------------- ##
             ## Creating AEC files if not present for post-processing dels calculation
-            if (config['POST_PROCESSING'].get('aec_dir')):
-                aec_dir_path = config['POST_PROCESSING'].get('aec_dir')
-            else:
-                aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
             aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path)
-
-            ## Paths for storing post-processed data and in webformat data
-            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
-            dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
-            outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
-            web_dir_path = create_directory(os.path.join(basin_data_dir,'web_format_data',''),True)
-            ## End of defining paths for storing post-processed data and webformat data
         except:
             rat_logger.exception("Finished Step-12: Generating Area Elevation Curves for reservoirs")
         else:
