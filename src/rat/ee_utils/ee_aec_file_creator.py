@@ -6,13 +6,6 @@ import numpy as np
 from itertools import zip_longest,chain
 from ee_utils.ee_utils import poly2feature
 
-#### initialize the connection to the server ####
-from ee_utils.ee_config import service_account,key_file
-
-ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
-ee.Initialize(ee_credentials)
-#### Connection established ####
-
 BUFFER_DIST = 500
 DEM = ee.Image('USGS/SRTMGL1_003')
 
