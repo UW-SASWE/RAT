@@ -58,6 +58,13 @@ rat_v2/
 - The `backend/scripts/run_rat.sh` is a shell script that should be set up as a cron job to run everyday. This script updates the paramter file so that the RAT 2.0 model runs for the latest day. After making suitable changes to the `rat_mekong.yml` file, it invokes the `run_rat.py` file.
 
 
+## Development guide
+1. Clone the project and navigate into the RAT source code directory: `git clone https://github.com/UW-SASWE/RAT.git; cd RAT`.
+2. Create a new conda environment, say `rat_dev` as such: `conda env create -n rat_dev`.
+3. Activate the environment: `conda activate rat_dev`.
+4. Build the RAT package: `conda build .`. (if conda build tools are not installed, install using: `conda install conda-build`).
+5. Install built package: `conda install -c ${CONDA_PREFIX}/conda-bld rat --force-reinstall -y`
+
 ## LICENSE
 RAT 2.0 is distributed under the GPL v3 license. You may copy, distribute and modify the software as long as you track changes/dates in sourcefiles. Any modifications to or software including GPL-licensed code must also be made available under the GPL along with build & install instructions.
 For more information, please see [LICENSE](./LICENSE).
