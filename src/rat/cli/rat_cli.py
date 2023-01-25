@@ -4,6 +4,8 @@ from pathlib import Path
 import subprocess
 import shutil
 import requests, zipfile, io
+import yaml
+import ruamel.yaml as ryaml
 
 
 def init_func(args):
@@ -33,6 +35,8 @@ def init_func(args):
     data_dir.mkdir(exist_ok=True)
     models_dir = project_dir.joinpath('models')
     models_dir.mkdir(exist_ok=True)
+    params_dir = project_dir.joinpath('params')
+    params_dir.mkdir(exist_ok=True)
 
     #### Model installation
     # install metsim
@@ -63,7 +67,6 @@ def init_func(args):
     r = requests.get(params_template_dl_path)
     z = zipfile.ZipFile(io.BytesIO(r.content))
     z.extractall(project_dir)
-    params_dir = project_dir.joinpath('params')
 
     #### download global data
     global_data_dl_path = "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1"
@@ -91,6 +94,39 @@ def init_func(args):
     ## cleanup
     # delete all __MACOSX folders
     [shutil.rmtree(junk_dir) for junk_dir in project_dir.glob("**/__MACOSX/")]
+
+    #### update params
+    update_param_file(
+        project_dir,
+        global_data == 'Y'
+    )
+
+
+def update_param_file(
+        project_dir: Path,
+        global_data_downloaded: bool, # if global data was downloaded, then we can use the global_data dir
+    ):
+
+    config_template_path = (project_dir / 'params' / 'config_template.yml')
+    config_path = (project_dir / 'params' / 'config.yml')
+    
+    ryaml_client = ryaml.YAML()
+    config_template = ryaml_client.load(config_template_path.read_text())
+    
+    # read suffixes file
+    from rat.cli.rat_init import SUFFIXES
+
+    # if global data was downloaded, update the suffixes of the config file's contents by prepending the project dir path
+    if global_data_downloaded:
+        for k1, v1 in SUFFIXES.items():
+            for k2, v2 in v1.items():
+                config_template[k1][k2] = str(project_dir.joinpath(v2))
+    else:
+        # TODO
+        pass
+    
+    ryaml_client.dump(config_template, config_path.open('w'))
+
 
 def run_func(args):
     print("Running RAT using: ", args) # TODO: debug line, delete later
