@@ -51,9 +51,12 @@ def init_func(args):
     print(f"Installing VIC: {' '.join(cmd)}")
     subprocess.run(cmd)
     
+    # import download links
+    from rat_init_config import DOWNLOAD_LINKS
+
     # install route
     print(f"Downloading source code of routing model")
-    route_model_src_dl_path = "https://www.dropbox.com/s/9jwep2g5pyj8sni/routing.zip?dl=1"
+    route_model_src_dl_path = DOWNLOAD_LINKS["route_model"]
     r = requests.get(route_model_src_dl_path)
     z = zipfile.ZipFile(io.BytesIO(r.content))
     z.extractall(models_dir)
@@ -63,14 +66,14 @@ def init_func(args):
     subprocess.run(cmd, cwd=route_model)
 
     #### download params
-    params_template_dl_path = "https://www.dropbox.com/s/r5tai778y2ihi85/params.zip?dl=1"
+    params_template_dl_path = DOWNLOAD_LINKS["params"]
     r = requests.get(params_template_dl_path)
     z = zipfile.ZipFile(io.BytesIO(r.content))
     z.extractall(project_dir)
 
     #### download global data
-    global_data_dl_path = "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1"
-    global_vic_params_dl_path = "https://www.dropbox.com/s/fbxwwoo7bbkhjn8/global_vic_params.zip?dl=1"
+    global_data_dl_path = DOWNLOAD_LINKS["global_data"]
+    global_vic_params_dl_path = DOWNLOAD_LINKS["global_vic_params"]
     
     if global_data == 'Y':
         r = requests.get(global_data_dl_path)
@@ -95,36 +98,51 @@ def init_func(args):
     # delete all __MACOSX folders
     [shutil.rmtree(junk_dir) for junk_dir in project_dir.glob("**/__MACOSX/")]
 
+    # determine how many cores are available
+    n_cores = None
+    try:
+        from multiprocessing import cpu_count
+        n_cores = cpu_count()
+    except Exception as e:
+        print(f"Failed to determine number of cores: {e}")
+        print("Leaving GLOBAL:Multiprocessing empty in config file. Please update manually if needed.")
+
     #### update params
     update_param_file(
         project_dir,
-        global_data == 'Y'
+        global_data == 'Y',
+        n_cores
     )
 
 
 def update_param_file(
         project_dir: Path,
-        global_data_downloaded: bool, # if global data was downloaded, then we can use the global_data dir
+        global_data_downloaded: bool = False, # if global data was downloaded, then we can use the global_data dir
+        n_cores: int = None
     ):
 
-    config_template_path = (project_dir / 'params' / 'config_template.yml')
-    config_path = (project_dir / 'params' / 'config.yml')
-    
+    config_template_path = (project_dir / 'params' / 'rat_config_template.yml')
+    config_path = (project_dir / 'params' / 'rat_config.yml')
+
     ryaml_client = ryaml.YAML()
     config_template = ryaml_client.load(config_template_path.read_text())
     
     # read suffixes file
-    from rat.cli.rat_init import SUFFIXES
+    from rat.cli.rat_init_config import SUFFIXES_GLOBAL, SUFFIXES_NOTGLOBAL
 
     # if global data was downloaded, update the suffixes of the config file's contents by prepending the project dir path
     if global_data_downloaded:
-        for k1, v1 in SUFFIXES.items():
+        for k1, v1 in SUFFIXES_GLOBAL.items():
             for k2, v2 in v1.items():
                 config_template[k1][k2] = str(project_dir.joinpath(v2))
     else:
-        # TODO
-        pass
-    
+        for k1, v1 in SUFFIXES_NOTGLOBAL.items():
+            for k2, v2 in v1.items():
+                config_template[k1][k2] = str(project_dir.joinpath(v2))
+
+    # update the number of cores
+    config_template['GLOBAL']['multiprocessing'] = n_cores
+
     ryaml_client.dump(config_template, config_path.open('w'))
 
 
@@ -173,7 +191,7 @@ def main():
     
     run_parser.set_defaults(func=run_func)
 
-    args = p.parse_args(['init', '-d', '/home/pdas47/rat_test/RAT']) # TODO: remove this line and uncomment next line
+    args = p.parse_args(['init', '-d', '/home/pdas47/rat_test/RAT'])
     # args = p.parse_args()
     args.func(args)
 
