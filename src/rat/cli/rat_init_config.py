@@ -1,6 +1,11 @@
+DOWNLOAD_LINKS = {
+    'route_model': "https://www.dropbox.com/s/9jwep2g5pyj8sni/routing.zip?dl=1",
+    'params': "https://www.dropbox.com/s/cu1c4m80o66riu3/params.zip?dl=1",
+    'global_data': "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1",
+    'global_vic_params': "https://www.dropbox.com/s/fbxwwoo7bbkhjn8/global_vic_params.zip?dl=1"
+}
 
-
-SUFFIXES = {
+SUFFIXES_GLOBAL = {
     'GLOBAL': {
         'project_dir': '',
         'data_dir': 'data',
@@ -40,3 +45,31 @@ SUFFIXES = {
         'geoid_grid': 'global_data/global_altimetry/geoidegm2008grid.mat'
     },
 }
+
+SUFFIXES_NOTGLOBAL = {
+    'GLOBAL': {
+        'project_dir': '',
+        'data_dir': 'data',
+        'basins_metadata': 'params/basins_metadata.csv'
+    },
+
+    'METSIM':{
+        'metsim_env': 'models/metsim',
+        'metsim_param_file': 'params/metsim/params.yaml'
+    },
+
+    'VIC': {
+        'vic_env': 'models/vic',
+        'vic_param_file': 'params/vic/vic_params.txt',
+    },
+
+    'ROUTING': {
+        'route_model': 'models/routing/rout',
+        'route_param_file': 'params/routing/route_param.txt',
+    },
+
+    'ROUTING PARAMETERS':{
+        'uh': 'params/routing/uh.txt'
+    }
+}
+
