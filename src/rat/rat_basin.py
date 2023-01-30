@@ -111,7 +111,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     cleaner = Clean(basin_data_dir)
 
     # Clearing out previous rat outputs so that the new data does not gets appended.
-    if(config['EFFICIENCY']['clean_previous_outputs']):
+    if(config['CLEAN_UP']['clean_previous_outputs']):
         rat_logger.info("Clearing up memory space: Removal of previous rat outputs, routing inflow, extracted altimetry data and gee extracted surface area time series")
         cleaner.clean_previous_outputs()
 
@@ -314,7 +314,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                         param_path= m.ms_param_path,
                         metsim_env= config['METSIM']['metsim_env'],
                         results_path= m.results,
-                        multiprocessing= config['EFFICIENCY']['multiprocessing']
+                        multiprocessing= config['GLOBAL']['multiprocessing']
                     )
                     log.log(NOTIFICATION, f'Starting metsim from {config["BASIN"]["start"].strftime("%Y-%m-%d")} to {config["BASIN"]["end"].strftime("%Y-%m-%d")}')
                     ms.run_metsim()
@@ -377,7 +377,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                         vic_result_file= p.vic_result_file,
                         rout_input_dir= rout_input_path
                     )
-                    vic.run_vic(np=config['EFFICIENCY']['multiprocessing'])
+                    vic.run_vic(np=config['GLOBAL']['multiprocessing'])
                     rout_input_state_start_date = vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file, save_path=rout_init_state_save_file) # Start date of routing state file will be returned
                     if(config['BASIN']['first_run']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run, use vic result file
@@ -583,19 +583,19 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
         
         # Clearing out memory space as per user input 
-        if(config['EFFICIENCY']['clean_metsim']):
+        if(config['CLEAN_UP']['clean_metsim']):
             rat_logger.info("Clearing up memory space: Removal of metsim output files")
             cleaner.clean_metsim()
-        if(config['EFFICIENCY']['clean_vic']):
+        if(config['CLEAN_UP']['clean_vic']):
             rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
             cleaner.clean_vic()
-        if(config['EFFICIENCY']['clean_routing']):
+        if(config['CLEAN_UP']['clean_routing']):
             rat_logger.info("Clearing up memory space: Removal of routing input and output files")
             cleaner.clean_routing()
-        if(config['EFFICIENCY']['clean_gee']):
+        if(config['CLEAN_UP']['clean_gee']):
             rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
             cleaner.clean_gee()
-        if(config['EFFICIENCY']['clean_altimetry']):
+        if(config['CLEAN_UP']['clean_altimetry']):
             rat_logger.info("Clearing up memory space: Removal of raw altimetry downloaded data files.")
             cleaner.clean_altimetry()
 
