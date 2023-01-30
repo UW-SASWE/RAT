@@ -147,7 +147,9 @@ def update_param_file(
 
 
 def run_func(args):
-    print("Running RAT using: ", args) # TODO: debug line, delete later
+    from rat.run_rat import run_rat
+
+    run_rat(args.param)
 
 def main():
     ## CLI interface
@@ -191,8 +193,7 @@ def main():
     
     run_parser.set_defaults(func=run_func)
 
-    args = p.parse_args(['init', '-d', '/home/pdas47/rat_test/RAT'])
-    # args = p.parse_args()
+    args = p.parse_args()
     args.func(args)
 
 
