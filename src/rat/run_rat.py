@@ -2,9 +2,11 @@ import pandas as pd
 import yaml
 import os
 import argparse
+import configparser
+import ee
 
 from rat.utils.logging import init_logger,close_logger
-from rat.rat_basin import rat
+import ee_utils.ee_config as ee_configuration
 
 #------------ Define Variables ------------#
 def run_rat(config_fn):
@@ -13,7 +15,6 @@ def run_rat(config_fn):
     parameters:
         config_fn (str): Path to the configuration file
     """
-    # config = yaml.safe_load(open("/home/msanchit/San_Research/Rat_trial/sm-main/params/rat_runner.yml", 'r'))
     config = yaml.safe_load(open(config_fn, 'r'))
 
     log_dir = os.path.join(config['GLOBAL']['data_dir'],'runs','logs','')
@@ -26,6 +27,21 @@ def run_rat(config_fn):
         logger_name='run_rat',
         for_basin=False
     )
+    # 
+    # Tring the ee credentials given by user
+    try:
+        log.info("Checking earth engine credentials")
+        secrets = configparser.ConfigParser()
+        secrets.read(config['CONFIDENTIAL']['secrets'])
+        ee_configuration.service_account = secrets["ee"]["service_account"]
+        ee_configuration.key_file = secrets["ee"]["key_file"]
+        ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
+        ee.Initialize(ee_credentials)
+        log.info("Connected to earth engine succesfully.")
+    except:
+        log.info("Failed to connect to Earth engine. Wrong credentials. If you want to use Surface Area Estimations from RAT, please update the EE credentials.")
+
+    from rat.rat_basin import rat
 
     if(not config['GLOBAL']['multiple_basin_run']):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')

@@ -16,14 +16,6 @@ from logging import getLogger
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
-#### initialize the connection to the server ####
-from rat.ee_utils.ee_config import service_account,key_file
-
-ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
-ee.Initialize(ee_credentials)
-#### Connection established ####
-
-
 def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
     "Collect data into non-overlapping fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, fillvalue='x') --> ABC DEF Gxx

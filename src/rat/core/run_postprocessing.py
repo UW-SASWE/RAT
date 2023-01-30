@@ -103,7 +103,6 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
 
     data['area'] = sarea_interpolated['area']
     data['P'] = P
-    print(data)
     data = data.dropna()
     if (data.empty):
         print('After removal of NAN values, no data left to calculate evaporation.')
@@ -119,7 +118,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
             # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
             complement = pd.concat([existing_data, new_data], ignore_index=True)
             # Remove all duplicates:
-            complement.drop_duplicates(subset=['time'],inplace=True, keep=False)
+            complement.drop_duplicates(subset=['time'],inplace=True, keep='first')
             complement.to_csv(savepath, index=False)
         else:
             data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
@@ -226,7 +225,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     # Outflow
     if((routing_status) and (EVAP_STATUS) and (DELS_STATUS)):
         log.debug("Calculating Outflow")
-        inflow_dir = os.path.join(basin_data_dir,'routing', "rout_inflow")
+        inflow_dir = os.path.join(basin_data_dir,'ro', "rout_inflow")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
             # Reading reservoir information

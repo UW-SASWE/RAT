@@ -8,13 +8,6 @@ from rat.core.sarea.sarea_cli_s2 import TEMPORAL_RESOLUTION
 from rat.ee_utils.ee_utils import poly2feature
 from rat.utils.utils import days_between
 
-#### initialize the connection to the server ####
-from rat.ee_utils.ee_config import service_account,key_file
-
-ee_credentials = ee.ServiceAccountCredentials(service_account, key_file)
-ee.Initialize(ee_credentials)
-#### Connection established ####
-
 s1 = ee.ImageCollection("COPERNICUS/S1_GRD")
 
 # definitions
@@ -112,7 +105,7 @@ def ee_get_data(ee_Date_Start, ee_Date_End):
     return df
 
 def retrieve_sar(start_date, end_date, res='ys'):
-    date_ranges = list(pd.date_range(start_date, end_date, freq=res).strftime("%Y-%m-%d").tolist()) + [end_date]
+    date_ranges = list((pd.date_range(start_date, end_date, freq=res).union([pd.to_datetime(start_date), pd.to_datetime(end_date)])).strftime("%Y-%m-%d").tolist()) 
     print(date_ranges)
     dfs = []
     # for begin, end in zip(date_ranges[:-1], date_ranges.shift(1)[:-1]):

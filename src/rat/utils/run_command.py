@@ -28,6 +28,3 @@ def run_command(args, metsim=False, **kwargs):
         raise Exception
     
     return exitcode
-
-
-

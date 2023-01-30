@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.stats import sigmaclip
+from scipy.stats import sigmaclip, zscore
 import warnings
+import os
 warnings.filterwarnings('ignore')
 
 from rat.utils.utils import clip_ts
@@ -11,15 +12,12 @@ from rat.utils.utils import clip_ts
 class TMS():
     def __init__(self, reservoir_name, area=None, AREA_DEVIATION_THRESHOLD_PCNT=5):
         """_summary_
-
         Args:
             reservoir_name (_type_): _description_
             area (_type_, optional): _description_
             AREA_DEVIATION_THRESHOLD_PCNT (float, optional): _description_. Defaults to 5.
-
         Raises:
             Exception: _description_
-
         Returns:
             _type_: _description_
         """
@@ -29,14 +27,15 @@ class TMS():
         self.AREA_DEVIATION_THRESHOLD = self.area * AREA_DEVIATION_THRESHOLD_PCNT/100
 
     def tms_os(self,
-            l8_dfpath: str, 
-            s2_dfpath: str, 
-            s1_dfpath: str, 
+            l8_dfpath: str = "", 
+            s2_dfpath: str = "", 
+            l9_dfpath: str = "", 
+            s1_dfpath: str = "", 
             CLOUD_THRESHOLD: float = 90.0,
             MIN_DATE: str = '2019-01-01'
         ):
+        ## TODO: add conditional, S1 required, any one of optical datasets required
         """Implements the TMS-OS methodology
-
         Args:
             l8_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l8.py` - Landsat derived surface areas
             s2_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_s2.py` - Sentinel-2 derived surface areas
@@ -48,78 +47,136 @@ class TMS():
         S2_TEMPORAL_RESOLUTION = 5
         S1_TEMPORAL_RESOLUTION = 12
         L8_TEMPORAL_RESOLUTION = 16
+        L9_TEMPORAL_RESOLUTION = 16
 
-        # Read in Landsat-8
-        l8df = pd.read_csv(l8_dfpath, parse_dates=['mosaic_enddate']).rename({
-            'mosaic_enddate': 'date',
-            'water_area_cordeiro': 'water_area_uncorrected',
-            'non_water_area_cordeiro': 'non_water_area', 
-            'corrected_area_cordeiro': 'water_area_corrected'
-            }, axis=1).set_index('date')
-        l8df = l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-        l8df['cloud_percent'] = l8df['cloud_area']*100/(l8df['water_area_uncorrected']+l8df['non_water_area']+l8df['cloud_area'])
-        l8df.replace(-1, np.nan, inplace=True)
+        TO_MERGE = []
 
-        # QUALITY_DESCRIPTION
-        #   0: Good, not interpolated either due to missing data or high clouds
-        #   1: Poor, interpolated either due to high clouds
-        #   2: Poor, interpolated either due to missing data
-        l8df.loc[:, "QUALITY_DESCRIPTION"] = 0
-        l8df.loc[l8df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
-        l8df.loc[l8df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+        if os.path.isfile(l8_dfpath):
+            # Read in Landsat-8
+            l8df = pd.read_csv(l8_dfpath, parse_dates=['mosaic_enddate']).rename({
+                'mosaic_enddate': 'date',
+                'water_area_cordeiro': 'water_area_uncorrected',
+                'non_water_area_cordeiro': 'non_water_area', 
+                'corrected_area_cordeiro': 'water_area_corrected'
+                }, axis=1).set_index('date')
+            l8df = l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            l8df['cloud_percent'] = l8df['cloud_area']*100/(l8df['water_area_uncorrected']+l8df['non_water_area']+l8df['cloud_area'])
+            l8df.replace(-1, np.nan, inplace=True)
 
-        # in some cases l8df may have duplicated rows (with same values) that have to be removed
-        if l8df.index.duplicated().sum() > 0:
-            print("Duplicated labels, deleting")
-            l8df = l8df[~l8df.index.duplicated(keep='last')]
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            l8df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            l8df.loc[l8df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+            l8df.loc[l8df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
 
-        # Fill in the gaps in l8df created due to high cloud cover with np.nan values
-        l8df_interpolated = l8df.reindex(pd.date_range(l8df.index[0], l8df.index[-1], freq=f'{L8_TEMPORAL_RESOLUTION}D'))
-        l8df_interpolated.loc[np.isnan(l8df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
-        l8df_interpolated.loc[np.isnan(l8df_interpolated['cloud_area']), 'cloud_area'] = max(l8df['cloud_area'])
-        l8df_interpolated.loc[np.isnan(l8df_interpolated['cloud_percent']), 'cloud_percent'] = 100
-        l8df_interpolated.loc[np.isnan(l8df_interpolated['non_water_area']), 'non_water_area'] = 0
-        l8df_interpolated.loc[np.isnan(l8df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+            # in some cases l8df may have duplicated rows (with same values) that have to be removed
+            if l8df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                l8df = l8df[~l8df.index.duplicated(keep='last')]
 
-        # Interpolate bad data
-        l8df_interpolated.loc[:, "water_area_corrected"] = l8df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            # Fill in the gaps in l8df created due to high cloud cover with np.nan values
+            l8df_interpolated = l8df.reindex(pd.date_range(l8df.index[0], l8df.index[-1], freq=f'{L8_TEMPORAL_RESOLUTION}D'))
+            l8df_interpolated.loc[np.isnan(l8df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            l8df_interpolated.loc[np.isnan(l8df_interpolated['cloud_area']), 'cloud_area'] = max(l8df['cloud_area'])
+            l8df_interpolated.loc[np.isnan(l8df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            l8df_interpolated.loc[np.isnan(l8df_interpolated['non_water_area']), 'non_water_area'] = 0
+            l8df_interpolated.loc[np.isnan(l8df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+            # Interpolate bad data
+            l8df_interpolated.loc[:, "water_area_corrected"] = l8df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            l8df_interpolated['sat'] = 'l8'
+
+            TO_MERGE.append(l8df_interpolated)
 
 
-        # Read in Sentinel-2 data
-        s2df = pd.read_csv(s2_dfpath, parse_dates=['date']).set_index('date')
-        s2df = s2df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-        s2df['cloud_percent'] = s2df['cloud_area']*100/(s2df['water_area_uncorrected']+s2df['non_water_area']+s2df['cloud_area'])
-        s2df.replace(-1, np.nan, inplace=True)
-        s2df.loc[s2df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+        # Read in Landsat-9
+        if os.path.isfile(l9_dfpath):
+            l9df = pd.read_csv(l9_dfpath, parse_dates=['mosaic_enddate']).rename({
+                'mosaic_enddate': 'date',
+                'water_area_cordeiro': 'water_area_uncorrected',
+                'non_water_area_cordeiro': 'non_water_area', 
+                'corrected_area_cordeiro': 'water_area_corrected'
+                }, axis=1).set_index('date')
+            l9df = l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            l9df['cloud_percent'] = l9df['cloud_area']*100/(l9df['water_area_uncorrected']+l9df['non_water_area']+l9df['cloud_area'])
+            l9df.replace(-1, np.nan, inplace=True)
 
-        # QUALITY_DESCRIPTION
-        #   0: Good, not interpolated either due to missing data or high clouds
-        #   1: Poor, interpolated either due to high clouds
-        #   2: Poor, interpolated either due to missing data
-        s2df.loc[:, "QUALITY_DESCRIPTION"] = 0
-        s2df.loc[s2df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            l9df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            l9df.loc[l9df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+            l9df.loc[l9df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
 
-        # in some cases s2df may have duplicated rows (with same values) that have to be removed
-        if s2df.index.duplicated().sum() > 0:
-            print("Duplicated labels, deleting")
-            s2df = s2df[~s2df.index.duplicated(keep='last')]
+            # in some cases l9df may have duplicated rows (with same values) that have to be removed
+            if l9df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                l9df = l9df[~l9df.index.duplicated(keep='last')]
 
-        # Fill in the gaps in s2df created due to high cloud cover with np.nan values
-        s2df_interpolated = s2df.reindex(pd.date_range(s2df.index[0], s2df.index[-1], freq=f'{S2_TEMPORAL_RESOLUTION}D'))
-        s2df_interpolated.loc[np.isnan(s2df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
-        s2df_interpolated.loc[np.isnan(s2df_interpolated['cloud_area']), 'cloud_area'] = max(s2df['cloud_area'])
-        s2df_interpolated.loc[np.isnan(s2df_interpolated['cloud_percent']), 'cloud_percent'] = 100
-        s2df_interpolated.loc[np.isnan(s2df_interpolated['non_water_area']), 'non_water_area'] = 0
-        s2df_interpolated.loc[np.isnan(s2df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+            # Fill in the gaps in l9df created due to high cloud cover with np.nan values
+            l9df_interpolated = l9df.reindex(pd.date_range(l9df.index[0], l9df.index[-1], freq=f'{L9_TEMPORAL_RESOLUTION}D'))
+            l9df_interpolated.loc[np.isnan(l9df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            l9df_interpolated.loc[np.isnan(l9df_interpolated['cloud_area']), 'cloud_area'] = max(l9df['cloud_area'])
+            l9df_interpolated.loc[np.isnan(l9df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            l9df_interpolated.loc[np.isnan(l9df_interpolated['non_water_area']), 'non_water_area'] = 0
+            l9df_interpolated.loc[np.isnan(l9df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
 
-        # Interpolate bad data
-        s2df_interpolated.loc[:, "water_area_corrected"] = s2df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            # Interpolate bad data
+            l9df_interpolated.loc[:, "water_area_corrected"] = l8df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            l9df_interpolated['sat'] = 'l9'
+            
+            TO_MERGE.append(l9df_interpolated)
+
+        if os.path.isfile(s2_dfpath):
+            # Read in Sentinel-2 data
+            s2df = pd.read_csv(s2_dfpath, parse_dates=['date']).set_index('date')
+            s2df = s2df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            s2df['cloud_percent'] = s2df['cloud_area']*100/(s2df['water_area_uncorrected']+s2df['non_water_area']+s2df['cloud_area'])
+            s2df.replace(-1, np.nan, inplace=True)
+            s2df.loc[s2df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            s2df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            s2df.loc[s2df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+
+            # in some cases s2df may have duplicated rows (with same values) that have to be removed
+            if s2df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                s2df = s2df[~s2df.index.duplicated(keep='last')]
+
+            # Fill in the gaps in s2df created due to high cloud cover with np.nan values
+            s2df_interpolated = s2df.reindex(pd.date_range(s2df.index[0], s2df.index[-1], freq=f'{S2_TEMPORAL_RESOLUTION}D'))
+            s2df_interpolated.loc[np.isnan(s2df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            s2df_interpolated.loc[np.isnan(s2df_interpolated['cloud_area']), 'cloud_area'] = max(s2df['cloud_area'])
+            s2df_interpolated.loc[np.isnan(s2df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            s2df_interpolated.loc[np.isnan(s2df_interpolated['non_water_area']), 'non_water_area'] = 0
+            s2df_interpolated.loc[np.isnan(s2df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+            # Interpolate bad data
+            s2df_interpolated.loc[:, "water_area_corrected"] = s2df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            s2df_interpolated['sat'] = 's2'
+
+            TO_MERGE.append(s2df_interpolated)
 
         # Read in Sentinel-1 data
         sar = pd.read_csv(s1_dfpath, parse_dates=['time']).rename({'time': 'date'}, axis=1)
         sar['date'] = sar['date'].apply(lambda d: np.datetime64(d.strftime('%Y-%m-%d')))
         sar.set_index('date', inplace=True)
         sar.sort_index(inplace=True)
+
+        # apply weekly area change filter
+        sar = sar_data_statistical_fix(sar, self.area, 15)
+
+        std = zscore(sar['sarea'])
+        SAR_ZSCORE_LIM = 3
+        sar.loc[(std > SAR_ZSCORE_LIM) | (std < -SAR_ZSCORE_LIM), 'sarea'] = np.nan
+        sar['sarea'] = sar['sarea'].interpolate()
         sar = sar.loc[MIN_DATE:, :]
 
         # in some cases s2df may have duplicated rows (with same values) that have to be removed
@@ -139,9 +196,8 @@ class TMS():
         sar.loc[extrapolated_date, "sarea"] = extrapolated_value
 
         # combine opticals into one dataframes
-        l8df_interpolated['sat'] = 'l8'
-        s2df_interpolated['sat'] = 's2'
-        optical = pd.concat([l8df_interpolated, s2df_interpolated]).sort_index()
+        
+        optical = pd.concat(TO_MERGE).sort_index()
         optical = optical.loc[~optical.index.duplicated(keep='last')] # when both s2 and l8 are present, keep s2
         optical.rename({'water_area_corrected': 'area'}, axis=1, inplace=True)
         sar = sar.rename({'sarea': 'area'}, axis=1)
@@ -151,10 +207,43 @@ class TMS():
 
         return result
 
+def area_change(df, date, n=14):
+    """calculate the change in area in last n days"""
+    start = date - pd.Timedelta(days=n)
+    end = date
+
+    # if start date is before the first date in the df, return nan
+    if start < df.index[0]:
+        return np.nan
+
+    start_area = df.loc[start:end, "sarea"].iloc[0]
+    end_area = df.loc[date, "sarea"]
+    try:  # if end_area is a series which may happen in a SAR area dataframe (TODO: fix the cause of this issue, same area is returned twice), take the first value
+        end_area = end_area.iloc[0]
+    except AttributeError as AE:
+        pass
+    except Exception as E:
+        raise E
+
+    return end_area - start_area
+    
+
+def sar_data_statistical_fix(sar_df, nominal_area, threshold_percentage=15):
+    """fix the sar data using statistical method"""
+    threshold = (threshold_percentage / 100) * nominal_area
+
+    sar_df_copy = sar_df.copy()
+    sar_df_copy['date'] = sar_df_copy.index.to_series()
+
+    sar_df_copy['area_change'] = sar_df_copy['date'].apply(lambda x: area_change(sar_df_copy, x))
+
+    sar_df_copy.loc[(sar_df_copy['area_change'] < -threshold)|(sar_df_copy['area_change'] > threshold), 'sarea'] = np.nan
+    sar_df_copy['sarea'] = sar_df_copy['sarea'].interpolate(method='time')
+
+    return sar_df_copy.drop('area_change', axis=1).drop('date', axis=1)
 
 def deviation_from_sar(optical_areas, sar_areas, DEVIATION_THRESHOLD = 20, LOW_STD_LIM=2, HIGH_STD_LIM=2):
     """Filter out points based on deviations from SAR reported areas after correcting for bias in SAR water areas. Remove NaNs beforehand.
-
     Args:
         optical_areas (pd.Series): Time-series of areas obtained using an optical sensor (S2, L8, etc) on which the filtering will be applied. Must have `pd.DatetimeIndex` and corresponding areas in a column named `area`.
         sar_areas (pd.Series): Time-series of S1 surface areas. Must have `pd.DatetimeIndex` and corresponding areas in a column named `area`.
@@ -240,12 +329,10 @@ def sign_based_correction(area, AREA_COL_NAME='corrected_areas_1', TREND_COL_NAM
 
 def filled_by_trend(filtered_area, sar_trend, days_passed) -> pd.Series:
     """Fills in `np.nan` values of optically obtained surface area time series using SAR based time-series.
-
     Args:
         filtered_area (pd.Series): Optical sensor based surface areas containing `np.nan` values that will be filled in.
         sar_trend (pd.Series): SAR based surface area trends.
         days_passed (pd.Series): Days sicne last observation of optical sensor observed surface areas.
-
     Returns:
         pd.Series: Filled nan values
     """
@@ -262,7 +349,6 @@ def filled_by_trend(filtered_area, sar_trend, days_passed) -> pd.Series:
 # Trend based correction function
 def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATION_THRESHOLD = 10):
     """Apply trend based correction on a time-series
-
     Args:
         area (pd.DataFrame): Pandas dataframe containing date as pd.DatetimeIndex and areas in column named `area`
         sar (pd.DataFrame): Pandas dataframe containing surface area time-series obtained from Sentinel-1 (SAR). Same format as `area`

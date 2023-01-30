@@ -97,6 +97,18 @@ class CombinedNC:
             self.winds[day, :, :] = wind
             # pbar.update(1)
 
+    def _impute_basin_missing_data(self, combined_data):
+        combine_nomiss_data = combined_data.where(combined_data['extent']==1,-9999)
+        try:
+            combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="time", method="linear", fill_value="extrapolate")
+        except:
+            try:
+                combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="lon", method="linear", fill_value="extrapolate")
+            except:
+                print("No inter or extra polation can be done.")
+        combine_nomiss_data = combine_nomiss_data.where(combine_nomiss_data!=-9999,combined_data)
+        return combine_nomiss_data
+
     def _write(self):
         precip_da = xr.DataArray(
             data = self.precips,
@@ -146,12 +158,15 @@ class CombinedNC:
             existing.close()
             last_existing_time = existing.time[-1]
             log.debug("Existing data: %s", last_existing_time)
+            existing_to_append = existing.sel(time=slice(ds.time[0] - np.timedelta64(120,'D') , last_existing_time))
             ds = ds.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , ds.time[-1]))
             # ds = ds.isel(time=slice(1, None))
-            xr.merge([existing, ds]).to_netcdf(self._outputpath)
+            write_ds = xr.merge([existing_to_append, ds])
+            ds = self._impute_basin_missing_data(write_ds)
         else:
             log.debug(f"Creating new file at {self._outputpath}")
-            ds.to_netcdf(self._outputpath)
+            ds = self._impute_basin_missing_data(ds)
+        ds.to_netcdf(self._outputpath)
         # log.debug(f"Saving {len(paths)} files at {self._outputdir}")
         # xr.save_mfdataset(datasets, paths)
 

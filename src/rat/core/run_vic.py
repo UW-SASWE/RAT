@@ -1,3 +1,4 @@
+from http.server import executable
 import pandas as pd
 import rasterio as rio
 import os
@@ -35,22 +36,30 @@ class VICRunner():
         else:
             arg = f"source {self.conda_hook} && conda activate {self.vic_env} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
 
-        ret_code = run_command(arg, shell=True)
+        ret_code = run_command(arg, shell=True, executable="/bin/bash")
 
-    def generate_routing_input_state(self, ndays, rout_input_state_file):
-        new_vic_output = xr.open_dataset(self.vic_result).load()
-        new_vic_output.close()
+    def generate_routing_input_state(self, ndays, rout_input_state_file, save_path):
         if os.path.isfile(rout_input_state_file):
-            prev_vic_output = xr.open_dataset(rout_input_state_file).load()
-            prev_vic_output.close()
+            print('Routing input state fle exists at '+rout_input_state_file)
+            prev_vic_output = xr.open_mfdataset(rout_input_state_file).load()
             last_existing_time = prev_vic_output.time[-1]
-            sliced_prev_vic_output = prev_vic_output.sel(time=slice(last_existing_time - np.timedelta64(ndays,'D') , last_existing_time))
-            sliced_new_vic_output = new_vic_output.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , new_vic_output.time[-1]))
-            save_vic_output = xr.merge([sliced_prev_vic_output, sliced_new_vic_output])
+            
+            try:
+                prev_new_combine_vic_output = xr.open_mfdataset([rout_input_state_file,self.vic_result],{'time':365})
+                save_vic_output = prev_new_combine_vic_output.sel(time=slice(last_existing_time - np.timedelta64(ndays,'D') , None))
+            except:
+                ## In case routing state file has dates matching with the vic output file. 
+                print('Rout input state has same dates as vic_output_dates')
+                starting_date_routing_file = prev_vic_output.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
+                prev_vic_output.close()
+                return starting_date_routing_file
+            prev_vic_output.close()
         else:
+            new_vic_output = xr.open_mfdataset(self.vic_result,{'time':365})
             save_vic_output = new_vic_output[dict(time=slice(-ndays,None))]
+            new_vic_output.close()
         vic_output_start_date = save_vic_output.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
-        save_vic_output.to_netcdf(rout_input_state_file)
+        save_vic_output.to_netcdf(save_path)
         return vic_output_start_date
 
     def disagg_results(self, rout_input_state_file):

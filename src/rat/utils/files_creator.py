@@ -94,7 +94,7 @@ def create_basin_grid_flow_asc(global_flow_grid_dir_tif, basingridfile_path, sav
     ]
     cmd_out_code = run_command(cmd)
 
-def create_basin_station_latlon_csv(basin_name, global_station_file, basin_gpd_df, column_dict, savepath, geojson_file=True):
+def create_basin_station_latlon_csv(region_name, basin_name, global_station_file, basin_gpd_df, column_dict, savepath, geojson_file=True):
     basins_station=gpd.read_file(global_station_file)
     basin_data_crs_changed = basin_gpd_df.to_crs(basins_station.crs)
     basins_station_spatialjoin = gpd.sjoin(basins_station, basin_data_crs_changed, "inner")[[
@@ -104,10 +104,12 @@ def create_basin_station_latlon_csv(basin_name, global_station_file, basin_gpd_d
                         column_dict['lat_column'],
                         'geometry']]
     if(geojson_file):
+        basins_station_spatialjoin['regionname'] = str(region_name)
         basins_station_spatialjoin['basinname'] = str(basin_name)
         basins_station_spatialjoin['filename'] = basins_station_spatialjoin[column_dict['id_column']].astype(str)+'_'+ \
                                         basins_station_spatialjoin[column_dict['name_column']].str.replace(' ','_')
-        basins_station_spatialjoin.to_file(savepath[:-4]+'.geojson', driver= "GeoJSON")
+        geojson_save_path = os.path.join(os.path.dirname(savepath),basin_name+'_station.geojson')
+        basins_station_spatialjoin.to_file(geojson_save_path, driver= "GeoJSON")
 
     basins_station_lat_lon = basins_station_spatialjoin[[
                             column_dict['id_column'],
