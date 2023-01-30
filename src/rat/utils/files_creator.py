@@ -7,8 +7,8 @@ from shapely.geometry import mapping
 import geopandas as gpd
 import pandas as pd
 
-from utils.utils import round_pixels,round_up
-from utils.run_command import run_command
+from rat.utils.utils import round_pixels,round_up
+from rat.utils.run_command import run_command
 
 
 def create_basingridfile(basin_bounds,basin_geometry,basingridfile_path,xres,yres):    

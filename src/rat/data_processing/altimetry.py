@@ -2,7 +2,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import netCDF4 
-from utils.utils import round_up
+from rat.utils.utils import round_up
 
 
 def get_j3_tracks(reservoir, reservoir_column_dict, tracks_df, custom_reservoir_range_dict):

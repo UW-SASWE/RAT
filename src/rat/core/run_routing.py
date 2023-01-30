@@ -5,8 +5,8 @@ import os
 import datetime
 
 from logging import getLogger
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.run_command import run_command
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.run_command import run_command
 
 log = getLogger(LOG_NAME)
 

@@ -4,8 +4,8 @@ from logging import getLogger
 
 import yaml
 
-from utils.logging import LOG_NAME, NOTIFICATION
-from utils.utils import create_directory
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.utils import create_directory
 
 log = getLogger(LOG_NAME)
 

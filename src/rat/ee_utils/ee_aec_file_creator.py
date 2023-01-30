@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from itertools import zip_longest,chain
-from ee_utils.ee_utils import poly2feature
+from rat.ee_utils.ee_utils import poly2feature
 
 BUFFER_DIST = 500
 DEM = ee.Image('USGS/SRTMGL1_003')

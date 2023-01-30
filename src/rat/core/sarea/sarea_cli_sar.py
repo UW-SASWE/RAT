@@ -1,12 +1,12 @@
-from core.sarea.sarea_cli_s2 import TEMPORAL_RESOLUTION
 import ee
 import numpy as np
 import pandas as pd
 import os
 from datetime import datetime, timedelta
 
-from ee_utils.ee_utils import poly2feature
-from utils.utils import days_between
+from rat.core.sarea.sarea_cli_s2 import TEMPORAL_RESOLUTION
+from rat.ee_utils.ee_utils import poly2feature
+from rat.utils.utils import days_between
 
 s1 = ee.ImageCollection("COPERNICUS/S1_GRD")
 
