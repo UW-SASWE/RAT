@@ -101,8 +101,28 @@ def run_sarea_for_res(reservoir, start_date, end_date, datadir):
     log.debug(f"Saving surface area of {reservoir} at {tmsos_savepath}")
     result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
 
+TE_areas = {
+    "4464_Tabqa": 636.77,
+    "4461_Mosul": 346.9
+}
+
+def check_hotfix(res_fn):
+    prefix = "/Users/pdas47/phd/rat_v2/extras/2023_01_13-hotfix_weekly_delta/data/sarea_tmsos_te"
+    s2_dfpath = os.path.join(prefix, 's2', res_fn+'.csv')
+    l8_dfpath = os.path.join(prefix, 'l8', res_fn+'.csv')
+    l9_dfpath = os.path.join(prefix, 'l9', res_fn+'.csv')
+    s1_dfpath = os.path.join(prefix, 'sar', res_fn+'_12d_sar.csv')
+
+    tmsos = TMS(res_fn, TE_areas[res_fn])
+    result = tmsos.tms_os(l8_dfpath, s2_dfpath, l9_dfpath, s1_dfpath)
+    
+    tmsos_savepath = os.path.join(prefix, res_fn+'.csv')
+    log.debug(f"Saving surface area of {res_fn} at {tmsos_savepath}")
+    result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
+
 def main():
-    run_sarea("2019-01-01", "2022-09-01", datadir='backend/data/sarea_tmsos')
+    # run_sarea("2019-01-01", "2022-09-01", datadir='backend/data/sarea_tmsos')
+    check_hotfix("4461_Mosul")
 
 
 if __name__ == '__main__':
