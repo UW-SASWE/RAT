@@ -205,8 +205,13 @@ backend/scripts/_send_files.py
 .DS_Store
 backend/scripts/data_processing/_download_data.py
 
-backend/params/routing/DRT_FDR_ARCfmt.tif
 
-backend/params/secrets/
-
-backend/params/vic/params_all_mekong.nc
+#SM
+data/*
+global_data/*
+trial_notebooks/*
+params/*
+models/*
+*dask-worker-space/*
+!src/params/rat_mekong.yml
+src/RAT/ee_utils/ee_config.py
