@@ -71,7 +71,7 @@ class RouteParameterFile:
                                                                  f'run_{self.runname}'))
         else:
             if(self.intermediate_files):
-                self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],'basins',
+                self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',
                                                                 self.basin_name,'ro','rout_workspace',f'run_{self.runname}'))
         
         ## Route parameter file, this is where the parameter file will be saved
@@ -83,7 +83,7 @@ class RouteParameterFile:
                 self.route_param_path = os.path.relpath(config[self.config_section].get('route_param_file'),self.project_dir)
             # Or storing it in route basin params dir and replace it from next cycle
             else:
-                self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+                self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],
                                                             'basins',self.basin_name,'rout_basin_params'),True)
                 self.route_param_path = os.path.relpath(os.path.join(self.route_param_path,'route_param.txt'),self.project_dir)
         
@@ -91,14 +91,14 @@ class RouteParameterFile:
         self.params['flow_direction_file'] = self.basin_flow_direction_file
 
         ## output dir
-        self.params['output_dir'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+        self.params['output_dir'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],
                                                             'basins',self.basin_name,'ro','ou'),True)
         
         ## stations
         if (self.intermediate_files):
             self.params['station'] = os.path.join(self.workspace, 'sta_xy.txt')
         else:
-            self.params['station'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['major_basin_name'],
+            self.params['station'] = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],
                                                         'basins',self.basin_name,'ro','pars'),True)
             self.params['station'] = os.path.join(self.params['station'],'sta_xy.txt')
 
