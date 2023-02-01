@@ -6,7 +6,7 @@ import configparser
 import ee
 
 from rat.utils.logging import init_logger,close_logger
-import ee_utils.ee_config as ee_configuration
+import rat.ee_utils.ee_config as ee_configuration
 
 #------------ Define Variables ------------#
 def run_rat(config_fn):
