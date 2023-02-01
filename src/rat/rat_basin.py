@@ -413,6 +413,8 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                 if not os.path.exists(basin_station_latlon_file):
                     create_basin_station_latlon_csv(region_name,basin_name, config['ROUTING']['stations_vector_file'], basin_data, 
                                                         config['ROUTING']['stations_vector_file_columns_dict'], basin_station_latlon_file)
+            elif (config['ROUTING']['station_latlon_path']):
+                basin_station_latlon_file = config['ROUTING']['station_latlon_path']
         except:
             rat_logger.exception("Error Executing Step-7: Preparation of Routing Parameter Files")
         else:    
