@@ -86,7 +86,8 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     rout_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
 
     if(not config['BASIN']['first_run']):
-        config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
+        if(config['BASIN'].get('vic_init_state_date')):
+            config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
     
     # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
     if(config['BASIN']['first_run']):
@@ -94,9 +95,12 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
         data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
         vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
-    else:
+    elif(config['BASIN'].get('vic_init_state_date')):
         data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
         vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
+    else:
+        data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
+        vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
     
     # Defining logger
     log = init_logger(
@@ -169,7 +173,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         # Creating routing parameter directory
         rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
         # Defining path and name for basin flow direction file
-        basin_flow_dir_file = os.path.join(rout_param_dir,'fl')
+        basin_flow_dir_file = os.path.join(rout_param_dir,'fl.asc')
         # Defining Basin station latlon file path
         if (config['ROUTING']['station_global_data']):
             basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
@@ -205,7 +209,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
-        web_dir_path = create_directory(os.path.join(basin_data_dir,'web_format_data',''),True)
+        final_output_path = create_directory(os.path.join(basin_data_dir,'final_outputs',''),True)
         ## End of defining paths for storing post-processed data and webformat data
         #----------- Paths Necessary for running of Post-Processing-----------#
 
@@ -382,8 +386,11 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                     if(config['BASIN']['first_run']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run, use vic result file
                         rout_input_state_start_date = config['BASIN']['start']            # Start date will become same as vic result file 
-                    else:
+                    elif(config['BASIN'].get('vic_init_state_date')):                      # If vic_state file exists
                         vic.disagg_results(rout_input_state_file=rout_input_state_file)    # If not first run, use rout input state file
+                    else:
+                        vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run is false and vic state file does not exist, use vic result file
+                        rout_input_state_start_date = config['BASIN']['start']            # Start date will become same as vic result file 
                     vic_startdate = p.vic_startdate
                     vic_enddate = p.vic_enddate
                 VIC_STATUS=1         #Vic run successfully
@@ -427,10 +434,12 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                 ### Extracting routing start date ###
                 if(config['BASIN']['first_run']):
                     rout_input_state_start_date = config['BASIN']['start']
-                else:
+                elif(config['BASIN'].get('vic_init_state_date')): 
                     rout_state_data = xr.open_dataset(rout_input_state_file).load()
                     rout_input_state_start_date = rout_state_data.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
                     rout_state_data.close()
+                else:
+                    rout_input_state_start_date = config['BASIN']['start']
                 ### Extracted routing start date ###
                 #------------- Routing Begins and Pre processing for Mass Balance --------------#
                 with RouteParameterFile(
@@ -537,42 +546,42 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             # Convert to format that is expected by the website and save in web_dir
             ## Surface Area
             if(GEE_STATUS):
-                convert_sarea(sarea_savepath,web_dir_path)
+                convert_sarea(sarea_savepath,final_output_path)
                 rat_logger.info("Converted Surface Area to the Output Format.")
             else:
                 rat_logger.info("Could not convert Surface Area to the Output Format as GEE run failed.")
             
             ## Inflow
             if(ROUTING_STATUS):
-                convert_inflow(rout_inflow_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, web_dir_path)
+                convert_inflow(rout_inflow_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_output_path)
                 rat_logger.info("Converted Inflow to the Output Format.")
             else:
                 rat_logger.info("Could not convert Inflow to the Output Format as Routing run failed.")
             
             ## Dels 
             if(DELS_STATUS):
-                convert_dels(dels_savedir, web_dir_path)
+                convert_dels(dels_savedir, final_output_path)
                 rat_logger.info("Converted ∆S to the Output Format.")
             else:
                 rat_logger.info("Could not convert ∆S to the Output Format as GEE run failed.")
             
             ## Evaporation
             if(EVAP_STATUS):
-                convert_evaporation(evap_savedir, web_dir_path)
+                convert_evaporation(evap_savedir, final_output_path)
                 rat_logger.info("Converted Evaporation to the Output Format.")
             else:
                 rat_logger.info("Could not convert Evaporation to the Output Format as either GEE or VIC run failed.")
 
             ## Outflow
             if(OUTFLOW_STATUS):
-                convert_outflow(outflow_savedir, web_dir_path)
+                convert_outflow(outflow_savedir, final_output_path)
                 rat_logger.info("Converted Outflow to the Output Format.")
             else:
                 rat_logger.info("Could not convert Outflow to the Output Format as either GEE or Routing run failed resulting in failure of calculation of either Inflow, ∆S or Evaporation.")
             
             ## Altimeter
             if(ALTIMETER_STATUS):
-                convert_altimeter(altimetry_savepath, web_dir_path)
+                convert_altimeter(altimetry_savepath, final_output_path)
                 rat_logger.info("Converted Extracted Height from Altimeter to the Output Format.")
             else:
                 rat_logger.info("Could not convert Extracted Height from Altimeter to the Output Format as Altimeter Run failed.")
