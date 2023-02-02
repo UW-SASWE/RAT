@@ -415,13 +415,10 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                     create_basin_grid_flow_asc(config['ROUTING']['global_flow_dir_tif_file'], basingridfile_path, basin_flow_dir_file[:-4],
                                                                     config['ROUTING'].get('replace_flow_directions'))
             ### Basin Station File
-            basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
             if (config['ROUTING']['station_global_data']):
                 if not os.path.exists(basin_station_latlon_file):
                     create_basin_station_latlon_csv(region_name,basin_name, config['ROUTING']['stations_vector_file'], basin_data, 
                                                         config['ROUTING']['stations_vector_file_columns_dict'], basin_station_latlon_file)
-            elif (config['ROUTING']['station_latlon_path']):
-                basin_station_latlon_file = config['ROUTING']['station_latlon_path']
         except:
             rat_logger.exception("Error Executing Step-7: Preparation of Routing Parameter Files")
         else:    
