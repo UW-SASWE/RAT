@@ -30,7 +30,7 @@ from rat.core.run_altimetry import run_altimetry
 from rat.ee_utils.ee_aec_file_creator import aec_file_creator
 from rat.core.run_postprocessing import run_postprocessing
 
-from rat.utils.convert_for_website import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
+from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
 
 # Step-1: Downloading and Pre-processing of meteorolgical data
 # Step-2: Pre-processing of data and preparation of MetSim Input
@@ -415,7 +415,6 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                     create_basin_grid_flow_asc(config['ROUTING']['global_flow_dir_tif_file'], basingridfile_path, basin_flow_dir_file[:-4],
                                                                     config['ROUTING'].get('replace_flow_directions'))
             ### Basin Station File
-            basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
             if (config['ROUTING']['station_global_data']):
                 if not os.path.exists(basin_station_latlon_file):
                     create_basin_station_latlon_csv(region_name,basin_name, config['ROUTING']['stations_vector_file'], basin_data, 
