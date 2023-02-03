@@ -85,12 +85,12 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
     config['BASIN']['end'] = datetime.datetime.combine(config['BASIN']['end'], datetime.time.min)
     rout_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
 
-    if(not config['BASIN']['first_run']):
+    if(not config['BASIN']['spin_up']):
         if(config['BASIN'].get('vic_init_state_date')):
             config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
     
     # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
-    if(config['BASIN']['first_run']):
+    if(config['BASIN']['spin_up']):
         user_given_start = config['BASIN']['start']
         config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
         data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
@@ -215,9 +215,9 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
 
 
     except:
-        rat_logger.exception("Error Executing Step-0: Downloading and Pre-processing of meteorological data")
+        rat_logger.exception("Error Executing Step-0: Creating required directory structure for RAT")
     else:
-        rat_logger.info("Finished Step-0: Downloading and Pre-processing of meteorological data")
+        rat_logger.info("Finished Step-0: Creating required directory structure for RAT")
         
 
     ######### Step-1
@@ -288,9 +288,12 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             rat_logger.info("Starting Step-3: Preparation of MetSim Parameter Files")
             ##----------------------- Preparing parameter files for METSIM ------------------------##
             ## ---------- Creating domain.nc file for basin if not exist---------#
-            if not os.path.exists(domain_nc_path):
-                elevation_tif_filepath = config['GLOBAL']['elevation_tif_file']
-                create_basin_domain_nc_file(elevation_tif_filepath,basingridfile_path,domain_nc_path)
+            if(config['GLOBAL'].get('elevation_tif_file')):
+                if not os.path.exists(domain_nc_path):
+                    elevation_tif_filepath = config['GLOBAL']['elevation_tif_file']
+                    create_basin_domain_nc_file(elevation_tif_filepath,basingridfile_path,domain_nc_path)
+            else:
+                domain_nc_path = config['METSIM']['metsim_domain_file']
             #----------domain.nc file created for basin if not exist ---------#
         except:
             rat_logger.exception("Error Executing Step-3: Preparation of MetSim Parameter Files")
@@ -383,7 +386,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                     )
                     vic.run_vic(np=config['GLOBAL']['multiprocessing'])
                     rout_input_state_start_date = vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file, save_path=rout_init_state_save_file) # Start date of routing state file will be returned
-                    if(config['BASIN']['first_run']):
+                    if(config['BASIN']['spin_up']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If first run, use vic result file
                         rout_input_state_start_date = config['BASIN']['start']            # Start date will become same as vic result file 
                     elif(config['BASIN'].get('vic_init_state_date')):                      # If vic_state file exists
@@ -431,7 +434,7 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             if(VIC_STATUS):
                 rat_logger.info("Starting Step-8: Runnning Routing and generating Inflow")
                 ### Extracting routing start date ###
-                if(config['BASIN']['first_run']):
+                if(config['BASIN']['spin_up']):
                     rout_input_state_start_date = config['BASIN']['start']
                 elif(config['BASIN'].get('vic_init_state_date')): 
                     rout_state_data = xr.open_dataset(rout_input_state_file).load()
@@ -590,21 +593,21 @@ def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
             ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
         
-        # Clearing out memory space as per user input 
-        if(config['CLEAN_UP']['clean_metsim']):
-            rat_logger.info("Clearing up memory space: Removal of metsim output files")
-            cleaner.clean_metsim()
-        if(config['CLEAN_UP']['clean_vic']):
-            rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
-            cleaner.clean_vic()
-        if(config['CLEAN_UP']['clean_routing']):
-            rat_logger.info("Clearing up memory space: Removal of routing input and output files")
-            cleaner.clean_routing()
-        if(config['CLEAN_UP']['clean_gee']):
-            rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
-            cleaner.clean_gee()
-        if(config['CLEAN_UP']['clean_altimetry']):
-            rat_logger.info("Clearing up memory space: Removal of raw altimetry downloaded data files.")
-            cleaner.clean_altimetry()
+    # Clearing out memory space as per user input 
+    if(config['CLEAN_UP']['clean_metsim']):
+        rat_logger.info("Clearing up memory space: Removal of metsim output files")
+        cleaner.clean_metsim()
+    if(config['CLEAN_UP']['clean_vic']):
+        rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
+        cleaner.clean_vic()
+    if(config['CLEAN_UP']['clean_routing']):
+        rat_logger.info("Clearing up memory space: Removal of routing input and output files")
+        cleaner.clean_routing()
+    if(config['CLEAN_UP']['clean_gee']):
+        rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
+        cleaner.clean_gee()
+    if(config['CLEAN_UP']['clean_altimetry']):
+        rat_logger.info("Clearing up memory space: Removal of raw altimetry downloaded data files.")
+        cleaner.clean_altimetry()
 
     close_logger()
