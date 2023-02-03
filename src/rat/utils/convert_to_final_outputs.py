@@ -7,7 +7,7 @@ from rat.utils.utils import create_directory
 def convert_sarea(sarea_dir, website_v_dir):
     # Surface Area
     sarea_paths = [os.path.join(sarea_dir, f) for f in os.listdir(sarea_dir) if f.endswith(".csv")]
-    sarea_web_dir = create_directory(os.path.join(website_v_dir,'sarea' ),True)
+    sarea_web_dir = create_directory(os.path.join(website_v_dir,'sarea_tmsos' ),True)
     for sarea_path in sarea_paths:
         res_name = os.path.splitext(os.path.split(sarea_path)[-1])[0]
 
