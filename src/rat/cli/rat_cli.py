@@ -30,6 +30,10 @@ def init_func(args):
         global_data = args.global_data
     global_data_dir = project_dir.joinpath("global_data")
 
+    if args.secrets is not None:
+        secrets_fp = Path(args.secrets).resolve()
+        assert secrets_fp.exists(), f"Secrets file {secrets_fp} does not exist"
+
     # create additional directories
     data_dir = project_dir.joinpath('data')
     data_dir.mkdir(exist_ok=True)
@@ -37,6 +41,7 @@ def init_func(args):
     models_dir.mkdir(exist_ok=True)
     params_dir = project_dir.joinpath('params')
     params_dir.mkdir(exist_ok=True)
+    rat_config_fp = params_dir.joinpath('rat_config.yaml')
 
     #### Model installation
     # install metsim
@@ -110,19 +115,79 @@ def init_func(args):
     #### update params
     update_param_file(
         project_dir,
-        global_data == 'Y',
-        n_cores
+        config_path=rat_config_fp,
+        global_data_downloaded=(global_data == 'Y'),
+        n_cores=n_cores,
+        secrets=secrets_fp
     )
+
+def test_func(args):
+    project_dir = Path(args.project_dir).resolve()
+    assert project_dir.exists(), f"{project_dir} does not exist - please pass a valid rat project directory after initialization using the `rat init` command."
+
+    test_param_fp = project_dir / 'params' / 'test_config.yml'
+    
+    secrets_fp = Path(args.secrets).resolve()
+    assert secrets_fp.exists(), f"{secrets_fp} does not exist - rat requires secrets.ini file to be passed. Please refer to documentation for more details."
+
+    # Download test data
+    data_dir = project_dir / 'data'
+    assert data_dir.exists(), f"{data_dir} does not exist - rat has not been initialized properly."
+
+    test_data_link = "https://www.dropbox.com/s/yd2nacjpi93ccp9/test_data.zip?dl=1"
+    r = requests.get(test_data_link)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    z.extractall(data_dir)
+
+    n_cores = 4
+    try:
+        from multiprocessing import cpu_count
+        n_cores = cpu_count()
+    except Exception as e:
+        print(f"Failed to determine number of cores: {e}")
+
+    from rat.cli.rat_test_config import GUNNISON_PATHS, GUNNISON_PARAMS
+
+    update_param_file(
+        project_dir=project_dir, 
+        config_path=test_param_fp,
+        global_data_downloaded=False, 
+        n_cores=n_cores,
+        secrets=secrets_fp,
+        any_other_suffixes=GUNNISON_PATHS,
+        any_other_args=GUNNISON_PARAMS
+    )
+
+    run_args = argparse.Namespace()
+    run_args.param = test_param_fp
+    print(run_args)
+    run_func(run_args)
 
 
 def update_param_file(
         project_dir: Path,
-        global_data_downloaded: bool = False, # if global data was downloaded, then we can use the global_data dir
-        n_cores: int = None
+        config_path: Path = None,
+        global_data_downloaded: bool = False,   # if global data was downloaded, then we can use the global_data dir
+        n_cores: int = None,
+        secrets: Path = None,
+        any_other_suffixes: dict = None,        # any other suffixes that need to be added to the config file
+        any_other_args: dict = None             # any other args that need to be added to the config file
     ):
+    """Creates RAT config file with project specific information.
+
+    Args:
+        project_dir (Path): Directory of the rat project.
+        config_path (Path, optional): Where to save the configuration path? Defaults to `project_dir/params/rat_config.yml`.
+        global_data_downloaded (bool, optional): Do global datasets need to be downloaded to initialize rat? . Defaults to False.
+        n_cores (int, optional): Number of cores to use. Defaults to None.
+        secrets (Path, optional): Path of the `secrets.ini` file. Please refer to documentation for more details. Defaults to None.
+        any_other_suffixes (dict, optional): _description_. Defaults to None.
+    """
 
     config_template_path = (project_dir / 'params' / 'rat_config_template.yml')
-    config_path = (project_dir / 'params' / 'rat_config.yml')
+
+    if config_path is None:
+        config_path = (project_dir / 'params' / 'rat_config.yml')
 
     ryaml_client = ryaml.YAML()
     config_template = ryaml_client.load(config_template_path.read_text())
@@ -140,8 +205,22 @@ def update_param_file(
             for k2, v2 in v1.items():
                 config_template[k1][k2] = str(project_dir.joinpath(v2))
 
+    if any_other_args is not None:
+        for k1, v1 in any_other_args.items():
+            for k2, v2 in v1.items():
+                config_template[k1][k2] = v2
+    
+    if any_other_suffixes is not None:
+        for k1, v1 in any_other_suffixes.items():
+            for k2, v2 in v1.items():
+                config_template[k1][k2] = str(project_dir.joinpath(v2))
+
     # update the number of cores
     config_template['GLOBAL']['multiprocessing'] = n_cores
+
+    # if secrets were provided, update the config file
+    if secrets is not None:
+        config_template['CONFIDENTIAL']['secrets'] = str(secrets)
 
     ryaml_client.dump(config_template, config_path.open('w'))
 
@@ -177,6 +256,13 @@ def main():
         required=False,
         default=None
     )
+    init_parser.add_argument(
+        '-s', '--secrets', 
+        help='Specify the path of secrets.ini file', 
+        action='store',
+        dest='secrets',
+        required=False
+    )
 
     init_parser.set_defaults(func=init_func)
 
@@ -192,6 +278,27 @@ def main():
     )
     
     run_parser.set_defaults(func=run_func)
+    
+    # Run command
+    test_parser = command_parsers.add_parser('test', help='Test RAT')
+
+    test_parser.add_argument(
+        '-d', '--dir', 
+        help='Specify RAT project directory (where rat init was run)', 
+        action='store',
+        dest='project_dir',
+        required=True
+    )
+    
+    test_parser.add_argument(
+        '-s', '--secrets', 
+        help='Specify the path of secrets.ini file', 
+        action='store',
+        dest='secrets',
+        required=True
+    )
+    
+    test_parser.set_defaults(func=test_func)
 
     args = p.parse_args()
     args.func(args)
