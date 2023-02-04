@@ -9,7 +9,7 @@ from rat.utils.logging import init_logger,close_logger
 import rat.ee_utils.ee_config as ee_configuration
 
 #------------ Define Variables ------------#
-def run_rat(config_fn):
+def run_rat(config_fn, steps=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]):
     """Runs RAT as per configuration defined in `config_fn`.
 
     parameters:
@@ -41,11 +41,11 @@ def run_rat(config_fn):
     except:
         log.info("Failed to connect to Earth engine. Wrong credentials. If you want to use Surface Area Estimations from RAT, please update the EE credentials.")
 
-    from rat.rat_basin import rat
+    from rat.rat_basin import rat_basin
 
     if(not config['GLOBAL']['multiple_basin_run']):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')
-        rat(config, log)
+        rat_basin(config, log, steps)
         log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
     else:
         basins_to_process = config['GLOBAL']['basins_to_process']
@@ -56,7 +56,7 @@ def run_rat(config_fn):
             # Extracting basin information and populating it in config
             for col in basin_info.columns:
                 config[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
-            rat(config, log)
+            rat_basin(config, log)
             log.info('############## Succesfully run RAT for '+basin+' #################')
     # Clsoing logger
     close_logger('rat_run')

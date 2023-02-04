@@ -52,7 +52,7 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-4 step-10to12 storage_change
 #module-5 step-13 outflow
 
-def rat(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
+def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
 
     rat_logger = getLogger('run_rat')
     ##--------------------- Reading and initialising global parameters ----------------------##
