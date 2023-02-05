@@ -57,7 +57,7 @@ def init_func(args):
     subprocess.run(cmd)
     
     # import download links
-    from rat_init_config import DOWNLOAD_LINKS
+    from rat.cli.rat_init_config import DOWNLOAD_LINKS
 
     # install route
     print(f"Downloading source code of routing model")
