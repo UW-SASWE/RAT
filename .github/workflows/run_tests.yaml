@@ -20,8 +20,9 @@ jobs:
         with:
           mamba-version: "*"
           auto-update-conda: true
-          channels: conda-forge,defaults
+          channels: conda-forge, defaults
           environment-file: test_env.yml
+          activate-environment: rat_test_env
       - name: Install test modules
         shell: bash -l {0}
         run: |
