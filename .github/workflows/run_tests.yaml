@@ -4,7 +4,6 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -26,7 +25,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda build .
-          conda install rat --use-local
+          conda install -c file://${CONDA_PREFIX}/conda-bld/ rat
       - name: Test RAT
         shell: bash -l {0}
         run: |
