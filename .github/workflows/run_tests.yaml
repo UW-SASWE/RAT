@@ -44,6 +44,7 @@ jobs:
         run: |
           mamba env update --file environment.yml
           conda develop src/
+          conda list
       - name: Test RAT
         shell: bash -l {0}
         run: |
