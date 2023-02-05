@@ -13,3 +13,4 @@ dependencies:
   - xarray
   - dask
   - ruamel.yaml
+  - conda-build
