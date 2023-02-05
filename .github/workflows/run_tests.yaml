@@ -28,15 +28,15 @@ jobs:
           conda info
           conda env list
           conda env export --from-history
-      # - name: Build and install RAT
-      #   shell: bash -l {0}
-      #   run: |
-      #     conda build .
-      #     conda install -c file://${CONDA_PREFIX}/conda-bld/ rat
-      # - name: Test RAT
-      #   shell: bash -l {0}
-      #   run: |
-      #     mkdir ~/rat_test
-      #     rat init -d 
-      #     rat test 
+      - name: Build and install RAT
+        shell: bash -l {0}
+        run: |
+          conda build .
+          conda install -c file://${CONDA_PREFIX}/conda-bld/ rat
+      - name: Test RAT
+        shell: bash -l {0}
+        run: |
+          mkdir ~/rat_test
+          rat init -d 
+          rat test 
           
