@@ -15,16 +15,18 @@ GUNNISON_PATHS = {
     'VIC': {
         'vic_env': 'models/vic',
         'vic_param_file': 'params/vic/vic_params.txt',
+        'vic_soil_param_file': 'data/test_data/gunnison/vic_basin_params/vic_soil_param.nc',
+        'vic_domain_file': 'data/test_data/gunnison/vic_basin_params/vic_domain.nc'
     },
 
     'ROUTING': {
         'route_model': 'models/routing/rout',
         'route_param_file': 'params/routing/route_param.txt',
-        'route_flow_dir': 'data/test_data/gunnison/fl/fl.asc',
         'station_latlon_path': 'data/test_data/gunnison/gunnison_reservoirs/gunnison_reservoirs_locations.csv'
     },
 
     'ROUTING PARAMETERS':{
+        'flow_direction_file': 'data/test_data/gunnison/fl/fl.asc',
         'uh': 'params/routing/uh.txt'
     },
 
@@ -54,9 +56,14 @@ GUNNISON_PARAMS = {
     },
 
     'VIC': {
-        'vic_global_data': True,
-        'vic_soil_param_file': 'data/test_data/gunnison/vic_basin_params/vic_domain.nc',
-        'vic_domain_file': 'data/test_data/gunnison/vic_basin_params/vic_soil_param.nc',
+        'vic_global_data': False,
+    },
+
+    'GEE': {
+        'reservoir_vector_file_columns_dict': {
+            'id_column': None, 
+            'dam_name_column': 'DAM_NAME',
+            'area_column': 'area'}
     },
 
     'ROUTING': {
