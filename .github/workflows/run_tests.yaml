@@ -27,7 +27,7 @@ jobs:
           which conda
           conda info
           conda env list
-          conda export --from-history
+          conda env export --from-history
       # - name: Build and install RAT
       #   shell: bash -l {0}
       #   run: |
