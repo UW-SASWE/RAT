@@ -44,10 +44,12 @@ jobs:
         run: |
           mamba env update --file environment.yml
           conda develop src/
-          conda list
       - name: Test RAT
         shell: bash -l {0}
         run: |
           mkdir ~/rat_test
+          which conda
+          which python
+          conda list
           python src/rat/cli/rat_cli.py init -d ~/rat_test
           python src/rat/cli/rat_cli.py test -d ~/rat_test
