@@ -6,7 +6,7 @@ dependencies:
   - numpy
   - scikit-learn
   - pandas
-  - geopanads
+  - geopandas
   - earthengine-api
   - python
   - rasterio
