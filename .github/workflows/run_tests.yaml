@@ -51,5 +51,6 @@ jobs:
           which conda
           which python
           conda list
+          mamba install ruamel.yaml --force-reinstall
           python src/rat/cli/rat_cli.py init -d ~/rat_test
           python src/rat/cli/rat_cli.py test -d ~/rat_test
