@@ -18,16 +18,17 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
+          mamba-version: "*"
           python-version: ${{ matrix.python-version }}
           environment-file: test_env.yml
           activate-environment: rat_test_env
-      - name: Test conda
-        shell: bash -l {0}
-        run: |
-          which conda
-          conda info
-          conda env list
-          conda env export --from-history
+      # - name: Test conda
+      #   shell: bash -l {0}
+      #   run: |
+      #     which conda
+      #     conda info
+      #     conda env list
+      #     conda env export --from-history
       # - name: Build and install RAT
       #   shell: bash -l {0}
       #   run: |
@@ -42,6 +43,7 @@ jobs:
       - name: Install RAT (develop mode)
         shell: bash -l {0}
         run: |
+          mamba env update --file environment.yml
           conda develop src/
       - name: Test RAT
         shell: bash -l {0}
