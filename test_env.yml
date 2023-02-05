@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - scikit-learn
+  - pandas
+  - geopanads
+  - earthengine-api
+  - python
+  - rasterio
+  - xarray
+  - dask
+  - ruamel.yaml
