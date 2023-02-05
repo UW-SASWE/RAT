@@ -3,14 +3,6 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - numpy
-  - scikit-learn
-  - pandas
-  - geopandas
-  - earthengine-api
-  - python
-  - rasterio
-  - xarray
-  - dask
-  - ruamel.yaml
   - conda-build
+  - geopandas
+  - fiona
