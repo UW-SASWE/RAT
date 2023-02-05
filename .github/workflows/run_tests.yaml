@@ -20,7 +20,6 @@ jobs:
         with:
           auto-update-conda: true
           python: ${{ matrix.python-version }}
-          mamba-version: "*"
           environment-file: test_env.yml
           activate-environment: rat_test_env
       - name: Build and install RAT
