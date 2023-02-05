@@ -37,6 +37,5 @@ jobs:
         shell: bash -l {0}
         run: |
           mkdir ~/rat_test
-          rat init -d 
-          rat test 
-          
+          rat init -d ~/rat_test
+          rat test -d ~/rat_test
