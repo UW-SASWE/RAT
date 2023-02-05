@@ -254,7 +254,7 @@ def main():
         action='store_true',
         dest='global_data',
         required=False,
-        default=None
+        default=False
     )
     init_parser.add_argument(
         '-s', '--secrets', 
