@@ -4,3 +4,4 @@ channels:
   - defaults
 dependencies:
   - conda-build
+  - mamba

@@ -18,7 +18,6 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
-          mamba-version: "*"
           python-version: ${{ matrix.python-version }}
           environment-file: test_env.yml
           activate-environment: rat_test_env
