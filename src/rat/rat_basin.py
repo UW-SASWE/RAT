@@ -498,6 +498,11 @@ def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         try:
             rat_logger.info("Starting Step-10: TMS-OS Surface Area Calculation from GEE")
             ##----------- Remote Sensing to estimate surface area begins -----------##
+            if (not os.path.exists(basin_reservoir_shpfile_path)):
+                if (not config['ROUTING']['station_global_data']):
+                    basin_reservoir_shpfile_path = config['GEE']['reservoir_vector_file']
+                else: 
+                    raise Exception('There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             # Get Sarea
             run_sarea(config['BASIN']['start'].strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
                                                                                     basin_reservoir_shpfile_path, reservoirs_gdf_column_dict)
