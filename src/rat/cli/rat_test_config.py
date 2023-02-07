@@ -138,7 +138,7 @@ PARAMS = {
         'GEE': {
             'reservoir_vector_file_columns_dict': 
                                     {'id_column' : 'GRAND_ID',
-                                    'dam_name_column' : 'DAM_NAME',
+                                    'dam_name_column' : 'uniq_id',
                                     'area_column'     : 'AREA_SKM'} 
         },
 
