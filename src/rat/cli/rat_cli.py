@@ -5,7 +5,7 @@ import subprocess
 import shutil
 import requests, zipfile, io
 import yaml
-import ruamel.yaml as ryaml
+import ruamel_yaml as ryaml
 
 
 def init_func(args):
@@ -122,6 +122,12 @@ def init_func(args):
     )
 
 def test_func(args):
+    from rat.cli.rat_test_config import DOWNLOAD_LINK, PATHS, PARAMS
+
+    test_basin_options = PARAMS.keys()
+    test_basin = args.test_basin
+    assert test_basin in test_basin_options, f"Please specify the correct test basin. Acceptable values are {test_basin_options})"
+
     project_dir = Path(args.project_dir).resolve()
     assert project_dir.exists(), f"{project_dir} does not exist - please pass a valid rat project directory after initialization using the `rat init` command."
 
@@ -134,7 +140,7 @@ def test_func(args):
     data_dir = project_dir / 'data'
     assert data_dir.exists(), f"{data_dir} does not exist - rat has not been initialized properly."
 
-    test_data_link = "https://www.dropbox.com/s/yd2nacjpi93ccp9/test_data.zip?dl=1"
+    test_data_link = DOWNLOAD_LINK['test_data']
     r = requests.get(test_data_link)
     z = zipfile.ZipFile(io.BytesIO(r.content))
     z.extractall(data_dir)
@@ -146,16 +152,14 @@ def test_func(args):
     except Exception as e:
         print(f"Failed to determine number of cores: {e}")
 
-    from rat.cli.rat_test_config import GUNNISON_PATHS, GUNNISON_PARAMS
-
     update_param_file(
         project_dir=project_dir, 
         config_path=test_param_fp,
         global_data_downloaded=False, 
         n_cores=n_cores,
         secrets=secrets_fp,
-        any_other_suffixes=GUNNISON_PATHS,
-        any_other_args=GUNNISON_PARAMS
+        any_other_suffixes=PATHS[test_basin],
+        any_other_args=PARAMS[test_basin]
     )
 
     run_args = argparse.Namespace()
@@ -279,8 +283,16 @@ def main():
     
     run_parser.set_defaults(func=run_func)
     
-    # Run command
+    # Test command
     test_parser = command_parsers.add_parser('test', help='Test RAT')
+
+    test_parser.add_argument(
+        '-b', '--basin', 
+        help='Specify name of test basin', 
+        action='store',
+        dest='test_basin',
+        required=True
+    )
 
     test_parser.add_argument(
         '-d', '--dir', 
