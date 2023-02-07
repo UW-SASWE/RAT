@@ -138,5 +138,7 @@ def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_di
         reservoirs_gdf = reservoirs.merge(stations_df[reservoirs_gdf_column_dict['dam_name_column']], 
                                         how='inner', on=reservoirs_gdf_column_dict['dam_name_column'])
     
-    reservoirs_gdf.to_file(savepath)
+    if(reservoirs_gdf.empty):
+        raise Exception('Reservoir names in reservoir shapefile are not matching with the station names in the station file used for routing.')
+    reservoirs_gdf.to_file(savepath, index=False)
 
