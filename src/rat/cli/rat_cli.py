@@ -164,7 +164,6 @@ def test_func(args):
 
     run_args = argparse.Namespace()
     run_args.param = test_param_fp
-    print(run_args)
     run_func(run_args)
 
 

@@ -15,7 +15,7 @@ class TMS():
         Args:
             reservoir_name (_type_): _description_
             area (_type_, optional): _description_
-            AREA_DEVIATION_THRESHOLD_PCNT (float, optional): _description_. Defaults to 5.
+            AREA_DEVIATION_THRESHOLD_PCNT (float, optional): _description_. Defaults to 25% for area<10 sq. km,  10% for area<100 sq. km, and 5% otherwise.
         Raises:
             Exception: _description_
         Returns:
@@ -23,6 +23,10 @@ class TMS():
         """
         self.reservoir_name = reservoir_name
         self.area = area
+        if self.area < 100:
+            AREA_DEVIATION_THRESHOLD_PCNT=10
+        elif self.area < 10:
+            AREA_DEVIATION_THRESHOLD_PCNT=25
 
         self.AREA_DEVIATION_THRESHOLD = self.area * AREA_DEVIATION_THRESHOLD_PCNT/100
 
@@ -311,9 +315,10 @@ def deviation_correction(area, DEVIATION_THRESHOLD, AREA_COL_NAME='area'):
 
     inner_area.loc[:, 'corrected_trend'] = inner_area['trend']
     inner_area.loc[inner_area['erroneous'], 'corrected_trend'] = inner_area['sar_trend']
-
-    areas = backcalculate(inner_area[AREA_COL_NAME], inner_area['corrected_trend'], inner_area['erroneous'])
-    inner_area[AREA_COL_NAME] = areas
+    print(inner_area)
+    if(not inner_area['erroneous'].empty):
+        areas = backcalculate(inner_area[AREA_COL_NAME], inner_area['corrected_trend'], inner_area['erroneous'])
+        inner_area[AREA_COL_NAME] = areas
 
     return inner_area
 
@@ -364,7 +369,7 @@ def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATI
 
     area_filtered.loc[:, 'days_passed'] = area_filtered.index.to_series().diff().dt.days
     area_filtered.loc[:, 'trend'] = area_filtered['filtered_area'].diff()/area_filtered['days_passed']
-
+    
     sar, area_filtered = clip_ts(sar, area_filtered, which='left')
     # sometimes the sar time-series has duplicate values which have to be removed
     sar = sar[~sar.index.duplicated(keep='first')]   # https://stackoverflow.com/a/34297689/4091712

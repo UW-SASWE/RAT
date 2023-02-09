@@ -125,11 +125,20 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
 
 
 def calc_outflow(inflowpath, dspath, epath, area, savepath):
-    inflow = pd.read_csv(inflowpath, parse_dates=["date"])
-    E = pd.read_csv(epath, parse_dates=['time'])
+    if os.path.isfile(inflowpath):
+        inflow = pd.read_csv(inflowpath, parse_dates=["date"])
+    else:
+        print('Inflow file does not exist and Outflow cannot be calculated.')
+    if os.path.isfile(epath):
+        E = pd.read_csv(epath, parse_dates=['time'])
+    else:
+        print('Evaporation file does not exist and Outflow cannot be calculated.')
 
     if isinstance(dspath, str):
-        df = pd.read_csv(dspath, parse_dates=['date'])
+        if os.path.isfile(dspath):
+            df = pd.read_csv(dspath, parse_dates=['date'])
+        else:
+            print('Storage Change file does not exist and Outflow cannot be calculated.')
     else:
         df = dspath
     
@@ -228,16 +237,19 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
         inflow_dir = os.path.join(basin_data_dir,'ro', "rout_inflow")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
-            # Reading reservoir information
-            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-            deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
-            inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
-            epath = os.path.join(evap_datadir, reservoir_name + ".csv")
-            a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
+            try:
+                # Reading reservoir information
+                reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+                deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
+                inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
+                epath = os.path.join(evap_datadir, reservoir_name + ".csv")
+                a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
 
-            savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
-            log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
-            calc_outflow(inflowpath, deltaS, epath, a, savepath)
+                savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
+                log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
+                calc_outflow(inflowpath, deltaS, epath, a, savepath)
+            except:
+                log.debug(f"Outflow for {reservoir_name} could not be calculated")
         OUTFLOW_STATUS = 1
     else:
         log.debug("Cannot Calculate Outflow because either evaporation, ∆S or Inflow is missing.")
