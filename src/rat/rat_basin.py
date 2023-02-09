@@ -52,91 +52,106 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-4 step-10to12 storage_change
 #module-5 step-13 outflow
 
-def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
+def rat_basin(config, rat_logger):
 
     rat_logger = getLogger('run_rat')
-    ##--------------------- Reading and initialising global parameters ----------------------##
-    # Defining resolution to run RAT
-    xres=0.0625
-    yres=0.0625 
 
-    # Obtaining basin related information from RAT_Runner.yml
-    basins_shapefile_path = config['GLOBAL']['basin_shpfile'] # Shapefile containg information of basin(s)- geometry and attributes
-    basins_shapefile = gpd.read_file(basins_shapefile_path)  # Reading basins_shapefile_path to get basin polygons and their attributes
-    basins_shapefile_column_dict = config['GLOBAL']['basin_shpfile_column_dict'] # Dictionary of column names in basins_shapefile, Must contain 'id' field
-    region_name = config['BASIN']['region_name']  # Major basin name used to cluster multiple basins data in data-directory
-    basin_name = config['BASIN']['basin_name']              # Basin name used to save basin related data
-    basin_id = config['BASIN']['basin_id']                  # Unique identifier for each basin used to map basin polygon in basins_shapefile
-    basin_data = basins_shapefile[basins_shapefile[basins_shapefile_column_dict['id']]==basin_id] # Getting the particular basin related information corresponding to basin_id
-    basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
-    basin_bounds = np.array(basin_bounds)[0]
-    basin_geometry = basin_data.geometry                      # Obtaining geometry of the particular basin
+    ######### Step -1 Mandatory Step
+    try:
+        rat_logger.info("Reading Configuration settings to run RAT")
+        ##--------------------- Reading and initialising global parameters ----------------------##
 
-    # Defining paths for RAT processing
-    project_dir = config['GLOBAL']['project_dir']    # Directory of RAT 
-    data_dir = config['GLOBAL']['data_dir']          # Data-Directory of RAT
-    region_data_dir = create_directory(os.path.join(data_dir,region_name), True) # Major Basin data-directory within the data-directory of RAT
-    basin_data_dir = create_directory(os.path.join(region_data_dir,'basins',basin_name), True)  # Basin data-directory within the major basin's data-directory 
-    log_dir = create_directory(os.path.join(region_data_dir,'logs',basin_name,''), True)  # Log directory within the major basin's data-directory
+        # Reading steps to be executed in RAT otherwise seting default value
+        if config['GLOBAL'].get('steps'):
+            steps = config['GLOBAL']['steps']
+        else:
+            steps = [1,2,3,4,5,6,7,8,9,10,11,12,13,14]
 
-    # Change datetimes format
-    #config['BASIN']['begin'] = datetime.datetime.combine(config['BASIN']['begin'], datetime.time.min)
-    config['BASIN']['start'] = datetime.datetime.combine(config['BASIN']['start'], datetime.time.min)
-    config['BASIN']['end'] = datetime.datetime.combine(config['BASIN']['end'], datetime.time.min)
-    rout_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
+        # Defining resolution to run RAT
+        xres = 0.0625
+        yres = 0.0625 
 
-    if(not config['BASIN']['spin_up']):
-        if(config['BASIN'].get('vic_init_state_date')):
-            config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
-    
-    # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
-    if(config['BASIN']['spin_up']):
-        user_given_start = config['BASIN']['start']
-        config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
-        data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
-        vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
-    elif(config['BASIN'].get('vic_init_state_date')):
-        data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
-        vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
+        # Obtaining basin related information from RAT_Runner.yml
+        basins_shapefile_path = config['GLOBAL']['basin_shpfile'] # Shapefile containg information of basin(s)- geometry and attributes
+        basins_shapefile = gpd.read_file(basins_shapefile_path)  # Reading basins_shapefile_path to get basin polygons and their attributes
+        basins_shapefile_column_dict = config['GLOBAL']['basin_shpfile_column_dict'] # Dictionary of column names in basins_shapefile, Must contain 'id' field
+        region_name = config['BASIN']['region_name']  # Major basin name used to cluster multiple basins data in data-directory
+        basin_name = config['BASIN']['basin_name']              # Basin name used to save basin related data
+        basin_id = config['BASIN']['basin_id']                  # Unique identifier for each basin used to map basin polygon in basins_shapefile
+        basin_data = basins_shapefile[basins_shapefile[basins_shapefile_column_dict['id']]==basin_id] # Getting the particular basin related information corresponding to basin_id
+        basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
+        basin_bounds = np.array(basin_bounds)[0]
+        basin_geometry = basin_data.geometry                      # Obtaining geometry of the particular basin
+
+        # Defining paths for RAT processing
+        project_dir = config['GLOBAL']['project_dir']    # Directory of RAT 
+        data_dir = config['GLOBAL']['data_dir']          # Data-Directory of RAT
+        region_data_dir = create_directory(os.path.join(data_dir,region_name), True) # Major Basin data-directory within the data-directory of RAT
+        basin_data_dir = create_directory(os.path.join(region_data_dir,'basins',basin_name), True)  # Basin data-directory within the major basin's data-directory 
+        log_dir = create_directory(os.path.join(region_data_dir,'logs',basin_name,''), True)  # Log directory within the major basin's data-directory
+
+        # Change datetimes format
+        #config['BASIN']['begin'] = datetime.datetime.combine(config['BASIN']['begin'], datetime.time.min)
+        config['BASIN']['start'] = datetime.datetime.combine(config['BASIN']['start'], datetime.time.min)
+        config['BASIN']['end'] = datetime.datetime.combine(config['BASIN']['end'], datetime.time.min)
+        rout_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
+
+        if(not config['BASIN']['spin_up']):
+            if(config['BASIN'].get('vic_init_state_date')):
+                config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
+        
+        # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
+        if(config['BASIN']['spin_up']):
+            user_given_start = config['BASIN']['start']
+            config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
+            data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
+            vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
+        elif(config['BASIN'].get('vic_init_state_date')):
+            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
+            vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
+        else:
+            data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
+            vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
+        
+        # Defining logger
+        log = init_logger(
+            log_dir= log_dir,
+            verbose= False,
+            # notify= True,
+            notify= False,
+            log_level= 'DEBUG'
+        )
+
+        # Cleaning class object for removing/deleting unwanted data
+        cleaner = Clean(basin_data_dir)
+
+        # Clearing out previous rat outputs so that the new data does not gets appended.
+        if(config['CLEAN_UP']['clean_previous_outputs']):
+            rat_logger.info("Clearing up memory space: Removal of previous rat outputs, routing inflow, extracted altimetry data and gee extracted surface area time series")
+            cleaner.clean_previous_outputs()
+
+        # Initializing Status for different models & tasks (1 for successful run & 0 for failed run)
+        NEW_DATA_STATUS = 1
+        METSIM_STATUS = 1
+        VIC_STATUS = 1
+        ROUTING_STATUS = 1
+        GEE_STATUS = 1
+        ALTIMETER_STATUS = 1
+        DELS_STATUS = 0
+        EVAP_STATUS = 0
+        OUTFLOW_STATUS = 0
+    except:
+        rat_logger.exception("Error in Configuration parameters defined to run RAT.")
     else:
-        data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
-        vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
-    
-    # Defining logger
-    log = init_logger(
-        log_dir= log_dir,
-        verbose= False,
-        # notify= True,
-        notify= False,
-        log_level= 'DEBUG'
-    )
-
-    # Cleaning class object for removing/deleting unwanted data
-    cleaner = Clean(basin_data_dir)
-
-    # Clearing out previous rat outputs so that the new data does not gets appended.
-    if(config['CLEAN_UP']['clean_previous_outputs']):
-        rat_logger.info("Clearing up memory space: Removal of previous rat outputs, routing inflow, extracted altimetry data and gee extracted surface area time series")
-        cleaner.clean_previous_outputs()
-
-    # Initializing Status for different models & tasks (1 for successful run & 0 for failed run)
-    NEW_DATA_STATUS = 1
-    METSIM_STATUS = 1
-    VIC_STATUS = 1
-    ROUTING_STATUS = 1
-    GEE_STATUS = 1
-    ALTIMETER_STATUS = 1
-    DELS_STATUS = 0
-    EVAP_STATUS = 0
-    OUTFLOW_STATUS = 0
-
-    ##--------------------- Read and initialised global parameters ----------------------##
-
-    rat_logger.info(f"Running RAT from {config['BASIN']['start']} to {config['BASIN']['end']}")
+        rat_logger.info("Read Configuration settings to run RAT.")
+        ##--------------------- Read and initialised global parameters ----------------------##
 
     ######### Step-0 Mandatory Step
     try:
-        rat_logger.info("Starting Step-0: Creating required directory structure for RAT")
+        rat_logger.info("Creating required directory structure for RAT")
+        
+        ##--------------------- Defining global paths and variables ----------------------##
+
         #----------- Paths Necessary for running of METSIM  -----------#
         # Path of directory which will contain the combined data in nc format.
         combined_datapath = create_directory(os.path.join(basin_data_dir,'pre_processing','nc', ''), True)
@@ -184,6 +199,11 @@ def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         #----------- Paths Necessary for running of Routing  -----------#
 
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
+        # Defining routing station file
+        if(config['ROUTING PARAMETERS'].get('station_file')):
+            basin_station_xy_path = config['ROUTING PARAMETERS'].get('station_file')
+        else:
+            basin_station_xy_path = os.path.join(basin_data_dir,'ro', 'pars','sta_xy.txt')
         # Defining path for basin reservoir shapefile
         basin_reservoir_shpfile_path = create_directory(os.path.join(basin_data_dir,'gee','gee_basin_params',''), True)
         basin_reservoir_shpfile_path = os.path.join(basin_reservoir_shpfile_path,'basin_reservoirs.shp')
@@ -212,13 +232,11 @@ def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         final_output_path = create_directory(os.path.join(basin_data_dir,'final_outputs',''),True)
         ## End of defining paths for storing post-processed data and webformat data
         #----------- Paths Necessary for running of Post-Processing-----------#
-
-
     except:
-        rat_logger.exception("Error Executing Step-0: Creating required directory structure for RAT")
+        rat_logger.exception("Error in creating required directory structure for RAT")
     else:
-        rat_logger.info("Finished Step-0: Creating required directory structure for RAT")
-        
+        rat_logger.info("Finished creating required directory structure for RAT")
+        ##--------------------- Definied global paths and variables ----------------------##
 
     ######### Step-1
     if(1 in steps):
@@ -484,7 +502,8 @@ def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
             ###### Preparing basin's reservoir shapefile and it's associated column dictionary for calculating surface area #####
             ### Creating Basin Reservoir Shapefile, if not exists ###
             if not os.path.exists(basin_reservoir_shpfile_path):
-                create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_station_xy_path,
+                if os.path.exists(basin_station_xy_path):
+                    create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_station_xy_path,
                                                                                 config['ROUTING']['station_global_data'], basin_reservoir_shpfile_path)
             ###### Prepared basin's reservoir shapefile and it's associated column dictionary #####
         except:
@@ -546,11 +565,22 @@ def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
         try:
             rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation and Storage change")
             
-            ##---------- Mass-balance Approach begins and then post-processing ----------##
+            ##---------- Mass-balance Approach begins and then post-processing ----------## 
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
 
-            # Convert to format that is expected by the website and save in web_dir
+        except:
+            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation and Storage change")
+        else:
+            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
+            ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
+    
+    ######### Step-14
+    if(14 in steps):
+        try:
+            rat_logger.info("Starting Step-14: Creating final outputs in a timeseries format and cleaning up.")
+
+            ##---------- Convert all time-series to final output csv format and clean up----------## 
             ## Surface Area
             if(GEE_STATUS):
                 convert_sarea(sarea_savepath,final_output_path)
@@ -592,27 +622,27 @@ def rat_basin(config, rat_logger, steps=[1,2,3,4,5,6,7,8,9,10,11,12,13]):
                 rat_logger.info("Converted Extracted Height from Altimeter to the Output Format.")
             else:
                 rat_logger.info("Could not convert Extracted Height from Altimeter to the Output Format as Altimeter Run failed.")
+            
+            # Clearing out memory space as per user input 
+            if(config['CLEAN_UP'].get('clean_metsim')):
+                rat_logger.info("Clearing up memory space: Removal of metsim output files")
+                cleaner.clean_metsim()
+            if(config['CLEAN_UP'].get('clean_vic')):
+                rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
+                cleaner.clean_vic()
+            if(config['CLEAN_UP'].get('clean_routing')):
+                rat_logger.info("Clearing up memory space: Removal of routing input and output files")
+                cleaner.clean_routing()
+            if(config['CLEAN_UP'].get('clean_gee')):
+                rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
+                cleaner.clean_gee()
+            if(config['CLEAN_UP'].get('clean_altimetry')):
+                rat_logger.info("Clearing up memory space: Removal of raw altimetry downloaded data files.")
+                cleaner.clean_altimetry()
         except:
-            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.exception("Error Executing Step-14: Creating final outputs in a timeseries format and cleaning up.")
         else:
-            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
-            ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
-        
-    # Clearing out memory space as per user input 
-    if(config['CLEAN_UP']['clean_metsim']):
-        rat_logger.info("Clearing up memory space: Removal of metsim output files")
-        cleaner.clean_metsim()
-    if(config['CLEAN_UP']['clean_vic']):
-        rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
-        cleaner.clean_vic()
-    if(config['CLEAN_UP']['clean_routing']):
-        rat_logger.info("Clearing up memory space: Removal of routing input and output files")
-        cleaner.clean_routing()
-    if(config['CLEAN_UP']['clean_gee']):
-        rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
-        cleaner.clean_gee()
-    if(config['CLEAN_UP']['clean_altimetry']):
-        rat_logger.info("Clearing up memory space: Removal of raw altimetry downloaded data files.")
-        cleaner.clean_altimetry()
+            rat_logger.info("Finished Step-14: Creating final outputs in a timeseries format and cleaning up.")
+            ##----------Converted all time-series to final output csv format and cleaned up----------## 
 
     close_logger()

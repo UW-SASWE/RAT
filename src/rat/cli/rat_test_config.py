@@ -88,6 +88,7 @@ PATHS = {
 PARAMS = {
     'GUNNISON':{
         'GLOBAL': {
+            'steps':[1,2,3,4,5,6,7,8,9,10,12,13,14],
             'basin_shpfile_column_dict': {'id': 'gridcode'},
             'multiple_basin_run': False,
         },
@@ -118,6 +119,7 @@ PARAMS = {
     },
     'NUECES':{
         'GLOBAL': {
+            'steps':[1,2,3,4,5,6,7,8,9,10,12,13,14],
             'basin_shpfile_column_dict': {'id': 'MRBID'},
             'multiple_basin_run': False,
         },

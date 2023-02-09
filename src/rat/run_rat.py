@@ -9,7 +9,7 @@ from rat.utils.logging import init_logger,close_logger
 import rat.ee_utils.ee_config as ee_configuration
 
 #------------ Define Variables ------------#
-def run_rat(config_fn, steps=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]):
+def run_rat(config_fn):
     """Runs RAT as per configuration defined in `config_fn`.
 
     parameters:
@@ -45,7 +45,7 @@ def run_rat(config_fn, steps=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]):
 
     if(not config['GLOBAL']['multiple_basin_run']):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')
-        rat_basin(config, log, steps)
+        rat_basin(config, log)
         log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
     else:
         basins_to_process = config['GLOBAL']['basins_to_process']
