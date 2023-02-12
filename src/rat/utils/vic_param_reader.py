@@ -108,16 +108,18 @@ class VICParameterFile:
         self.straight_from_metsim = False
         self.save_init_state = save_init_state
         #VIC State Save Date
-        self.vic_init_state_save_date = config['BASIN']['end']+datetime.timedelta(days=1)
+        self.vic_init_state_save_date = config['BASIN']['end']
 
         if runname is None:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         else:
             self.runname = str(runname)
-        if self.workspace:
-            self.workspace = create_directory(os.path.join(self.workspace, f'run_{self.runname}'),True)
-        else :
-            self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',basin_name,'vic','vic_workspace',f'run_{self.runname}'),True)
+        
+        if (self.intermediate_files):
+            if self.workspace:
+                self.workspace = create_directory(os.path.join(self.workspace, f'run_{self.runname}'),True)
+            else :
+                self.workspace = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',basin_name,'vic','vic_workspace',f'run_{self.runname}'),True)
 
         if self.init_param_file:
             self._load_from_vic_param()
