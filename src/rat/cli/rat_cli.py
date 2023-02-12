@@ -230,8 +230,7 @@ def update_param_file(
 
 def run_func(args):
     from rat.run_rat import run_rat
-
-    run_rat(args.param)
+    run_rat(args.param, args.operational_latency)
 
 def main():
     ## CLI interface
@@ -278,6 +277,13 @@ def main():
         action='store',
         dest='param',
         required=True
+    )
+    run_parser.add_argument(
+        '-o', '--operational',
+        help='RAT Operational Latency in days',
+        action='store',
+        dest='operational_latency',
+        required=False
     )
     
     run_parser.set_defaults(func=run_func)
