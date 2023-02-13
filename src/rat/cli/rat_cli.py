@@ -164,6 +164,7 @@ def test_func(args):
 
     run_args = argparse.Namespace()
     run_args.param = test_param_fp
+    run_args.operational_latency = None
     run_func(run_args)
 
 
