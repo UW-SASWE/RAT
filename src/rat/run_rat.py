@@ -70,8 +70,8 @@ def run_rat(config_fn, operational_latency=None):
                 return None
         # Running RAT if start < end date
         if (config['BASIN']['start'] >= config['BASIN']['end']):
-            log.info('Sorry, RAT operational run for '+config['BASIN']['basin_name']+' failed.')
-            log.info(f"Start date - {config['BASIN']['start']} is before the end date - {config['BASIN']['end']}")
+            log.error('Sorry, RAT operational run for '+config['BASIN']['basin_name']+' failed.')
+            log.error(f"Start date - {config['BASIN']['start']} is before the end date - {config['BASIN']['end']}")
             return None
         else:
             ryaml_client.dump(config, config_fn.open('w'))
@@ -85,7 +85,7 @@ def run_rat(config_fn, operational_latency=None):
         elif(no_errors==0):
             log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
         else:
-            log.info('############## RAT run failed for '+config['BASIN']['basin_name']+' #################')
+            log.error('############## RAT run failed for '+config['BASIN']['basin_name']+' #################')
 
     ############ ----------- Multiple basin run ---------------- ################
     else:
@@ -126,8 +126,8 @@ def run_rat(config_fn, operational_latency=None):
                     config_copy[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
             # Running RAT if start < end date
             if (config_copy['BASIN']['start'] >= config_copy['BASIN']['end']):
-                log.info('Sorry, RAT operational run for '+config_copy['BASIN']['basin_name']+' failed.')
-                log.info(f"Start date - {config_copy['BASIN']['start']} is before the end date - {config_copy['BASIN']['end']}")
+                log.error('Sorry, RAT operational run for '+config_copy['BASIN']['basin_name']+' failed.')
+                log.error(f"Start date - {config_copy['BASIN']['start']} is before the end date - {config_copy['BASIN']['end']}")
                 continue
             else:
                 basins_metadata.to_csv(config['GLOBAL']['basins_metadata'], index=False)
@@ -145,7 +145,7 @@ def run_rat(config_fn, operational_latency=None):
             elif(no_errors==0):
                 log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
             else:
-                log.info('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
+                log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
 
     # Clsoing logger
     close_logger('rat_run')
