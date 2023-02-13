@@ -30,6 +30,8 @@ from rat.core.run_postprocessing import run_postprocessing
 
 from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
 
+# Step-(-1): Reading Configuration settings to run RAT
+# Step-0: Creating required directory structure for RAT
 # Step-1: Downloading and Pre-processing of meteorolgical data
 # Step-2: Pre-processing of data and preparation of MetSim Input
 # Step-3: Preparation of MetSim Parameter Files
@@ -159,8 +161,9 @@ def rat_basin(config, rat_logger):
         EVAP_STATUS = 0
         OUTFLOW_STATUS = 0
     except:
-        no_errors = no_errors+1
+        no_errors = -1
         rat_logger.exception("Error in Configuration parameters defined to run RAT.")
+        return (no_errors, latest_altimetry_cycle)
     else:
         rat_logger.info("Read Configuration settings to run RAT.")
         ##--------------------- Read and initialised global parameters ----------------------##
@@ -254,8 +257,9 @@ def rat_basin(config, rat_logger):
         ## End of defining paths for storing post-processed data and webformat data
         #----------- Paths Necessary for running of Post-Processing-----------#
     except:
-        no_errors = no_errors+1
+        no_errors = -1
         rat_logger.exception("Error in creating required directory structure for RAT")
+        return (no_errors, latest_altimetry_cycle)
     else:
         rat_logger.info("Finished creating required directory structure for RAT")
         ##--------------------- Definied global paths and variables ----------------------##
