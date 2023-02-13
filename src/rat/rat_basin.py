@@ -121,15 +121,15 @@ def rat_basin(config, rat_logger):
             config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
             vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
-            use_rout_state = False            # Routing state file won't be used
+            use_state = False            # Routing state file won't be used
         elif(config['BASIN'].get('vic_init_state_date')):
             data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
             vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
-            use_rout_state = True           # Routing state file will be used
+            use_state = True           # Routing state file will be used
         else:
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
             vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
-            use_rout_state = False            # Routing state file won't be used
+            use_state = False            # Routing state file won't be used
 
         # Defining logger
         log = init_logger(
@@ -304,7 +304,8 @@ def rat_basin(config, rat_logger):
                 end= config['BASIN']['end'],
                 datadir= processed_datadir,
                 basingridpath= basingridfile_path,
-                outputdir= combined_datapath
+                outputdir= combined_datapath,
+                use_previous= use_state,
             )
             #----------- Process Data End and combined data created -----------#
 
@@ -431,7 +432,7 @@ def rat_basin(config, rat_logger):
                     )
                     vic.run_vic(np=config['GLOBAL']['multiprocessing'])
                     vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file, 
-                                                                                        save_path=rout_init_state_save_file, use_rout_state=use_rout_state) # Start date of routing state file will be returned
+                                                                                        save_path=rout_init_state_save_file, use_rout_state=use_state) # Start date of routing state file will be returned
                     if(config['BASIN']['spin_up']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If spin_up, use vic result file
                     elif(config['BASIN'].get('vic_init_state_date')):                      # If vic_state file exists
@@ -601,7 +602,7 @@ def rat_basin(config, rat_logger):
             
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
-                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_rout_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
+                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
 
         except:
             no_errors = no_errors+1
