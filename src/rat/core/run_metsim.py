@@ -19,7 +19,7 @@ class MetSimRunner():
 
     def run_metsim(self):
         if not self._conda_hook:
-            args = f'eval "$(conda shell.bash hook)" && source activate {self._metsim_env} && ms -n {self._mp} {self._param_path}'
+            args = f'eval "$(conda shell.bash hook)" && conda activate {self._metsim_env} && ms -n {self._mp} {self._param_path}'
         else:
             args = f'source {self._conda_hook} && conda activate {self._metsim_env} && ms -n {self._mp} {self._param_path}'
         # print("will run: ", args)

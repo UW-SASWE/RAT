@@ -32,7 +32,7 @@ class VICRunner():
         log.log(NOTIFICATION, "Running VIC Model using %s cores", np)
 
         if not self.conda_hook:
-            arg = f'eval "$(conda shell.bash hook)" && source activate {self.vic_env} && mpiexec -n {np} {self.model_path} -g {self.param_file}'
+            arg = f'eval "$(conda shell.bash hook)" && conda activate {self.vic_env} && mpiexec -n {np} {self.model_path} -g {self.param_file}'
         else:
             arg = f"source {self.conda_hook} && conda activate {self.vic_env} && mpiexec -n  {np} {self.model_path} -g {self.param_file}"
 
