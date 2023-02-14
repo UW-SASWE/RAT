@@ -24,10 +24,10 @@ def init_func(args):
         print(f"Failed creating RAT project directory: {e}")
         raise e
     
-    if args.global_data is None:
-        global_data = str(input(f"Do you want to download global data? (y/N) : ")).capitalize()
+    if args.global_data is True:
+        global_data = "Y"
     else:
-        global_data = args.global_data
+        global_data = str(input(f"Do you want to download global data? (y/N) : ")).capitalize()
     global_data_dir = project_dir.joinpath("global_data")
 
     if args.secrets is not None:
