@@ -6,11 +6,9 @@ package:
   version: {{ version }}
 
 source:
-  path: ./src
-  folder: /cheetah1/sanchit_global_rat/rat_build
-  # git_url: https://github.com/UW-SASWE/RAT.git
-  # git_tag: {{ version }}
-  # git_depth: 1
+  git_url: https://github.com/UW-SASWE/RAT.git
+  git_tag: sm-main
+  git_depth: 1
 
 build:
   noarch: python
