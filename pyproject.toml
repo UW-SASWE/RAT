@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rat"
-version = "2.1"
+version = "3.0.0.alpha.1"
 authors = [
   { name="Pritam Das", email="pdas47@uw.edu" },
   { name="Sanchit Minocha", email="msanchit@uw.edu" },

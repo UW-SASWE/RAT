@@ -1,5 +1,5 @@
 {% set name = "rat" %}
-{% set version = "2.1" %}
+{% set version = "3.0.0.alpha.1" %}
 
 package:
   name: {{ name|lower }}
@@ -12,7 +12,8 @@ package:
 #   git_url: https://github.com/UW-SASWE/RAT.git
 #   git_branch: sm-main-pypi
 source:
-  path: ./
+  path: ./src
+  folder: /cheetah1/sanchit_global_rat/rat_build
 
 build:
   noarch: python
@@ -30,9 +31,15 @@ requirements:
     - python >=3.6
     - pandas
     - numpy
-    - xarray
+    - xarray =2022.3.0
     - geopandas
     - rasterio
+    - rioxarray
+    - earthengine-api
+    - pyyaml
+    - ruamel_yaml
+    - netcdf4
+    - dask
 
 test:
   requires:
