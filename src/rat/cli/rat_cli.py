@@ -30,9 +30,11 @@ def init_func(args):
         global_data = str(input(f"Do you want to download global data? (y/N) : ")).capitalize()
     global_data_dir = project_dir.joinpath("global_data")
 
+    secrets_fp = None
     if args.secrets is not None:
         secrets_fp = Path(args.secrets).resolve()
         assert secrets_fp.exists(), f"Secrets file {secrets_fp} does not exist"
+        
 
     # create additional directories
     data_dir = project_dir.joinpath('data')
