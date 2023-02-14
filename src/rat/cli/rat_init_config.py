@@ -1,8 +1,8 @@
 DOWNLOAD_LINKS = {
     'route_model': "https://www.dropbox.com/s/9jwep2g5pyj8sni/routing.zip?dl=1",
-    'params': "https://www.dropbox.com/s/9n6b1pn73fgl0y9/params.zip?dl=1",
+    'params': "https://www.dropbox.com/s/obb5bd24eb8u12h/params.zip?dl=1",
     'global_data': "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1",
-    'global_vic_params': "https://www.dropbox.com/s/jsg2wu62qi2ltwz/global_vic_params.zip?dl=1"
+    'global_vic_params': "https://www.dropbox.com/s/jsg2wu62qi2ltwz/global_vic_params.zip?dl=1",
 }
 
 SUFFIXES_GLOBAL = {

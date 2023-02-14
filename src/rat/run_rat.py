@@ -1,22 +1,34 @@
 import pandas as pd
+import numpy as np
 import yaml
 import os
 import argparse
 import configparser
 import ee
+import ruamel_yaml as ryaml
+from pathlib import Path 
+import datetime
+import copy
 
 from rat.utils.logging import init_logger,close_logger
 import rat.ee_utils.ee_config as ee_configuration
+from rat.rat_basin import rat_basin
 
 #------------ Define Variables ------------#
-def run_rat(config_fn):
+def run_rat(config_fn, operational_latency=None):
     """Runs RAT as per configuration defined in `config_fn`.
 
     parameters:
         config_fn (str): Path to the configuration file
+        operational_latency (int): Number of days in the past from today to end RAT operational run . RAT won't run operationally if operational_latency is None. Default is None.
     """
-    config = yaml.safe_load(open(config_fn, 'r'))
 
+    # Reading config with comments
+    config_fn = Path(config_fn).resolve()
+    ryaml_client = ryaml.YAML()
+    config = ryaml_client.load(config_fn.read_text())
+
+    # Logging this run
     log_dir = os.path.join(config['GLOBAL']['data_dir'],'runs','logs','')
     log = init_logger(
         log_dir,
@@ -27,8 +39,8 @@ def run_rat(config_fn):
         logger_name='run_rat',
         for_basin=False
     )
-    # 
-    # Tring the ee credentials given by user
+     
+    # Trying the ee credentials given by user
     try:
         log.info("Checking earth engine credentials")
         secrets = configparser.ConfigParser()
@@ -41,23 +53,100 @@ def run_rat(config_fn):
     except:
         log.info("Failed to connect to Earth engine. Wrong credentials. If you want to use Surface Area Estimations from RAT, please update the EE credentials.")
 
-    from rat.rat_basin import rat
-
+    ############ ----------- Single basin run ---------------- ################
     if(not config['GLOBAL']['multiple_basin_run']):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')
-        rat(config, log)
-        log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
+        
+        # Checking if Rat is running operationally with some latency. If yes, update start, end and vic_init_state dates.
+        if operational_latency:
+            try:
+                log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
+                config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
+                config['BASIN']['vic_init_state_date'] = copy.deepcopy(config['BASIN']['end'])
+                config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
+            except:
+                log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
+                log.info('polo')
+                return None
+        # Running RAT if start < end date
+        if (config['BASIN']['start'] >= config['BASIN']['end']):
+            log.error('Sorry, RAT operational run for '+config['BASIN']['basin_name']+' failed.')
+            log.error(f"Start date - {config['BASIN']['start']} is before the end date - {config['BASIN']['end']}")
+            return None
+        else:
+            ryaml_client.dump(config, config_fn.open('w'))
+            no_errors, latest_altimetry_cycle = rat_basin(config, log)
+        # Displaying and storing RAT function outputs
+        if(latest_altimetry_cycle):
+            config['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
+            ryaml_client.dump(config, config_fn.open('w'))
+        if(no_errors>0):
+            log.info('############## RAT run finished for '+config['BASIN']['basin_name']+ 'with '+str(no_errors)+' errors. #################')
+        elif(no_errors==0):
+            log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
+        else:
+            log.error('############## RAT run failed for '+config['BASIN']['basin_name']+' #################')
+
+    ############ ----------- Multiple basin run ---------------- ################
     else:
         basins_to_process = config['GLOBAL']['basins_to_process']
-        basins_metadata = pd.read_csv(config['GLOBAL']['basins_metadata'],header=[0,1])
+        # For each basin
         for basin in basins_to_process:
             log.info('############## Starting RAT for '+basin+' #################')
+            # Reading basins metadata
+            basins_metadata = pd.read_csv(config['GLOBAL']['basins_metadata'],header=[0,1])
+            # Checking if Rat is running operationally with some latency. If yes, update start, end and vic_init_state dates.
+            if operational_latency:
+                try:
+                    log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
+                    if ('BASIN','end') not in basins_metadata.columns:
+                        config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
+                        config['BASIN']['vic_init_state_date'] = copy.deepcopy(config['BASIN']['end'])
+                        config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
+                    else:
+                        # Updating start
+                        if ('BASIN','start') not in basins_metadata.columns:
+                            basins_metadata['BASIN','start'] = None    
+                        basins_metadata['BASIN','start'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','end'], inplace=True)
+                        # Updating end
+                        operational_end_date = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
+                        basins_metadata['BASIN','end'].where(basins_metadata['BASIN','basin_name']!= basin, operational_end_date, inplace=True)
+                        # Updating vic_init_state_date
+                        if ('BASIN','vic_init_state_date') not in basins_metadata.columns:
+                            basins_metadata['BASIN','vic_init_state_date'] = None    
+                        basins_metadata['BASIN','vic_init_state_date'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','start'], inplace=True)
+                except:
+                    log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
+                    return None
+            # Extracting basin information and populating it in config if it's not NaN
             basin_info = basins_metadata[basins_metadata['BASIN']['basin_name']==basin]
-            # Extracting basin information and populating it in config
+            config_copy = copy.deepcopy(config)
             for col in basin_info.columns:
-                config[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
-            rat(config, log)
-            log.info('############## Succesfully run RAT for '+basin+' #################')
+                if(not np.isnan(basin_info[col[0]][col[1]].values[0])):
+                    config_copy[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
+            # Running RAT if start < end date
+            if (config_copy['BASIN']['start'] >= config_copy['BASIN']['end']):
+                log.error('Sorry, RAT operational run for '+config_copy['BASIN']['basin_name']+' failed.')
+                log.error(f"Start date - {config_copy['BASIN']['start']} is before the end date - {config_copy['BASIN']['end']}")
+                continue
+            else:
+                basins_metadata.to_csv(config['GLOBAL']['basins_metadata'], index=False)
+                ryaml_client.dump(config, config_fn.open('w'))
+                no_errors, latest_altimetry_cycle = rat_basin(config_copy, log)
+            # Displaying and storing RAT function outputs
+            if(latest_altimetry_cycle):
+                # If column doesn't exist in basins_metadata, create one
+                if ('ALTIMETER','last_cycle_number') not in basins_metadata.columns:
+                    basins_metadata['ALTIMETER','last_cycle_number'] = None    
+                basins_metadata['ALTIMETER','last_cycle_number'].where(basins_metadata['BASIN','basin_name']!= basin, latest_altimetry_cycle, inplace=True)
+                basins_metadata.to_csv(config_copy['GLOBAL']['basins_metadata'], index=False)
+            if(no_errors>0):
+                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ 'with '+str(no_errors)+' errors. #################')
+            elif(no_errors==0):
+                log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
+            else:
+                log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
+
     # Clsoing logger
     close_logger('rat_run')
 

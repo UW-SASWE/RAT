@@ -37,7 +37,7 @@ class Clean:
         
         try:
             vic_init_states_dir_path = os.path.join(self.basin_data_dir,'vic','vic_init_states','') 
-            days_old = 2 #n max of days
+            days_old = 15 #n max of days
 
             time_interval = datetime.now() - timedelta(days_old)
             file_namelist = os.listdir(vic_init_states_dir_path)
@@ -46,7 +46,7 @@ class Clean:
             for file in file_namelist:
                 path = os.path.join(vic_init_states_dir_path, file)
                 filetime = datetime.fromtimestamp(os.path.getctime(path))
-                if filetime > time_interval:
+                if filetime < time_interval:
                     os.remove(path)
 
         except:
@@ -67,7 +67,7 @@ class Clean:
 
         try:
             rout_init_states_dir_path = os.path.join(self.basin_data_dir,'ro','rout_state_file','') 
-            days_old = 2 #n max of days
+            days_old = 15 #n max of days
 
             time_interval = datetime.now() - timedelta(days_old)
             file_namelist = os.listdir(rout_init_states_dir_path)
@@ -76,7 +76,7 @@ class Clean:
             for file in file_namelist:
                 path = os.path.join(rout_init_states_dir_path, file)
                 filetime = datetime.fromtimestamp(os.path.getctime(path))
-                if filetime > time_interval:
+                if filetime < time_interval:
                     os.remove(path)
 
         except:
@@ -134,7 +134,7 @@ class Clean:
             print("No previous altimetry_extracted folder to delete")
         
         try:
-            web_format_data_path = os.path.join(self.basin_data_dir,'web_format_data')
-            shutil.rmtree(web_format_data_path)
+            final_outputs_path = os.path.join(self.basin_data_dir,'final_outputs')
+            shutil.rmtree(final_outputs_path)
         except:
-            print("No web_format_data folder to delete with previous outputs")
+            print("No final_outputs folder to delete with previous outputs")

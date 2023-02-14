@@ -45,6 +45,9 @@ def clip_ts(*tss, which='left'):
     """
     mint = max([min(ts.index) for ts in tss])
     maxt = min([max(ts.index) for ts in tss])
+    
+    if mint > maxt:
+        raise Exception('No overlapping time period between the time series.')
 
     if which == 'both':
         clipped_tss = [ts.loc[(ts.index>=mint)&(ts.index<=maxt)] for ts in tss]

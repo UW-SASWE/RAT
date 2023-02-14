@@ -9,6 +9,8 @@ import csv
 import time
 import math
 import datetime
+from pathlib import Path
+from functools import partial
 
 from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION
@@ -38,29 +40,37 @@ class VICRunner():
 
         ret_code = run_command(arg, shell=True, executable="/bin/bash")
 
-    def generate_routing_input_state(self, ndays, rout_input_state_file, save_path):
-        if os.path.isfile(rout_input_state_file):
+    def generate_routing_input_state(self, ndays, rout_input_state_file, save_path, use_rout_state):
+        if os.path.isfile(rout_input_state_file) and (use_rout_state):
             print('Routing input state fle exists at '+rout_input_state_file)
-            prev_vic_output = xr.open_mfdataset(rout_input_state_file).load()
-            last_existing_time = prev_vic_output.time[-1]
+            new_vic_output = xr.open_mfdataset(self.vic_result).load()
+            first_existing_time = new_vic_output.time[0]
+            new_vic_output.close()
+
+            #Preprocessing function for merging netcdf files
+            def _remove_coinciding_days(ds, cutoff_time, ndays):
+                file_name = ds.encoding["source"]
+                file_stem = Path(file_name).stem
+                if('ro_init' in file_stem):
+                    return ds.sel(time=slice(cutoff_time - np.timedelta64(ndays,'D') , cutoff_time - np.timedelta64(1,'D')))
+                else:
+                    return ds
+            remove_coinciding_days_func = partial(_remove_coinciding_days, cutoff_time=first_existing_time, ndays=ndays)
             
+            # Merging previous and new vic outputs
             try:
-                prev_new_combine_vic_output = xr.open_mfdataset([rout_input_state_file,self.vic_result],{'time':365})
-                save_vic_output = prev_new_combine_vic_output.sel(time=slice(last_existing_time - np.timedelta64(ndays,'D') , None))
+                save_vic_output = xr.open_mfdataset([rout_input_state_file,self.vic_result],{'time':365}, preprocess=remove_coinciding_days_func)
+                save_vic_output.to_netcdf(save_path)
+                print('Latest Routing input state fle saved at '+save_path)
             except:
                 ## In case routing state file has dates matching with the vic output file. 
                 print('Rout input state has same dates as vic_output_dates')
-                starting_date_routing_file = prev_vic_output.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
-                prev_vic_output.close()
-                return starting_date_routing_file
-            prev_vic_output.close()
         else:
             new_vic_output = xr.open_mfdataset(self.vic_result,{'time':365})
             save_vic_output = new_vic_output[dict(time=slice(-ndays,None))]
             new_vic_output.close()
-        vic_output_start_date = save_vic_output.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
-        save_vic_output.to_netcdf(save_path)
-        return vic_output_start_date
+            save_vic_output.to_netcdf(save_path)
+        
 
     def disagg_results(self, rout_input_state_file):
         log.log(NOTIFICATION, "Started disaggregating VIC results")

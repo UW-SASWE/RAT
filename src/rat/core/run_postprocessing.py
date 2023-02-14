@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 import geopandas as gpd
 import warnings
+import datetime
 
 warnings.filterwarnings("ignore")
 
@@ -125,11 +126,20 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
 
 
 def calc_outflow(inflowpath, dspath, epath, area, savepath):
-    inflow = pd.read_csv(inflowpath, parse_dates=["date"])
-    E = pd.read_csv(epath, parse_dates=['time'])
+    if os.path.isfile(inflowpath):
+        inflow = pd.read_csv(inflowpath, parse_dates=["date"])
+    else:
+        print('Inflow file does not exist and Outflow cannot be calculated.')
+    if os.path.isfile(epath):
+        E = pd.read_csv(epath, parse_dates=['time'])
+    else:
+        print('Evaporation file does not exist and Outflow cannot be calculated.')
 
     if isinstance(dspath, str):
-        df = pd.read_csv(dspath, parse_dates=['date'])
+        if os.path.isfile(dspath):
+            df = pd.read_csv(dspath, parse_dates=['date'])
+        else:
+            print('Storage Change file does not exist and Outflow cannot be calculated.')
     else:
         df = dspath
     
@@ -159,12 +169,16 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
     df.to_csv(savepath, index=False)
 
 
-def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date,
+def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date, rout_init_state_save_file, use_rout_state,
                             evap_datadir, dels_savedir, outflow_savedir, vic_status, routing_status, gee_status):
     # read file defining mapped resrvoirs
     # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
     reservoirs = gpd.read_file(reservoir_shpfile)
     start_date_str = start_date.strftime("%Y-%m-%d")
+    if(use_rout_state):
+        start_date_str_evap = (start_date-datetime.timedelta(days=100)).strftime("%Y-%m-%d")
+    else:
+        start_date_str_evap = start_date_str
     end_date_str = end_date.strftime("%Y-%m-%d")
     # Defining flags
     EVAP_STATUS = 0
@@ -180,17 +194,20 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
         aec_dir = aec_dir_path
 
         for reservoir_no,reservoir in reservoirs.iterrows():
-            # Reading reservoir information
-            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-            sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
-            savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
-            aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
+            try:
+                # Reading reservoir information
+                reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+                sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+                savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
+                aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
 
-            if os.path.isfile(sarea_path):
-                log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
-                calc_dels(aecpath, sarea_path, savepath)
-            else:
-                log.debug(f"{sarea_path} not found; skipping ∆S calculation")
+                if os.path.isfile(sarea_path):
+                    log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
+                    calc_dels(aecpath, sarea_path, savepath)
+                else:
+                    log.debug(f"{sarea_path} not found; skipping ∆S calculation")
+            except:
+                log.exception(f"∆S for {reservoir_name} could not be calculated.")
         DELS_STATUS=1
     else:
         log.debug("Cannot Calculate ∆S because GEE Run Failed.")
@@ -199,21 +216,27 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     # Evaporation
     if(vic_status and gee_status):
         log.debug("Retrieving Evaporation")
-        vic_results_path = os.path.join(basin_data_dir,'vic', "vic_outputs/nc_fluxes."+start_date_str+".nc")
+        if(use_rout_state):
+            vic_results_path = rout_init_state_save_file
+        else:
+            vic_results_path = os.path.join(basin_data_dir,'vic', "vic_outputs/nc_fluxes."+start_date_str+".nc")
         forcings_path = os.path.join(basin_data_dir,'vic', "vic_inputs/*.nc")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
-            # Reading reservoir information
-            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-            sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
-            e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
-            
-            if os.path.isfile(sarea_path):
-                log.debug(f"Calculating Evaporation for {reservoir_name}")
-                # calc_E(e_path, respath, vic_results_path)
-                calc_E(reservoir, start_date_str, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
-            else:
-                log.debug(f"{sarea_path} not found; skipping evaporation calculation")
+            try:
+                # Reading reservoir information
+                reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+                sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+                e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
+                
+                if os.path.isfile(sarea_path):
+                    log.debug(f"Calculating Evaporation for {reservoir_name}")
+                    # calc_E(e_path, respath, vic_results_path)
+                    calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
+                else:
+                    log.debug(f"{sarea_path} not found; skipping evaporation calculation")
+            except:
+                log.exception(f"Evaporation for {reservoir_name} could not be calculated.")
         EVAP_STATUS = 1
     elif((not vic_status) and (not gee_status)):
         log.debug("Cannot Retrieve Evaporation because both VIC and GEE Run Failed.")
@@ -228,16 +251,19 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
         inflow_dir = os.path.join(basin_data_dir,'ro', "rout_inflow")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
-            # Reading reservoir information
-            reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
-            deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
-            inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
-            epath = os.path.join(evap_datadir, reservoir_name + ".csv")
-            a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
+            try:
+                # Reading reservoir information
+                reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+                deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
+                inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
+                epath = os.path.join(evap_datadir, reservoir_name + ".csv")
+                a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
 
-            savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
-            log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
-            calc_outflow(inflowpath, deltaS, epath, a, savepath)
+                savepath = os.path.join(outflow_savedir, reservoir_name + ".csv")
+                log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
+                calc_outflow(inflowpath, deltaS, epath, a, savepath)
+            except:
+                log.exception(f"Outflow for {reservoir_name} could not be calculated")
         OUTFLOW_STATUS = 1
     else:
         log.debug("Cannot Calculate Outflow because either evaporation, ∆S or Inflow is missing.")

@@ -14,7 +14,7 @@ from rat.utils.logging import LOG_NAME, NOTIFICATION
 log = getLogger(LOG_NAME)
 
 class CombinedNC:
-    def __init__(self, start, end, datadir, basingridpath, outputdir):
+    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous):
         """
         Parameters:
             start: Start date in YYYY-MM-DD format
@@ -28,6 +28,7 @@ class CombinedNC:
         self._total_days = (self._end - self._start).days
         self._datadir = datadir
         self._outputpath = outputdir
+        self._use_previous = use_previous
 
         self._rast = rio.open(basingridpath)
         self._ar = self._rast.read(1, masked=True)
@@ -150,19 +151,22 @@ class CombinedNC:
             )
         )
 
-        if os.path.isfile(self._outputpath):
-            log.debug(f"Found existing file at {self._outputpath} -- Updating in-place")
-            # Assuming the existing file structure is same as the one generated now. Basically
-            #   assuming that the previous file was also created by MetSimRunner
-            existing = xr.open_dataset(self._outputpath).load()
-            existing.close()
-            last_existing_time = existing.time[-1]
-            log.debug("Existing data: %s", last_existing_time)
-            existing_to_append = existing.sel(time=slice(ds.time[0] - np.timedelta64(120,'D') , last_existing_time))
-            ds = ds.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , ds.time[-1]))
-            # ds = ds.isel(time=slice(1, None))
-            write_ds = xr.merge([existing_to_append, ds])
-            ds = self._impute_basin_missing_data(write_ds)
+        if self._use_previous:
+            if os.path.isfile(self._outputpath):
+                log.debug(f"Found existing file at {self._outputpath} -- Updating in-place")
+                # Assuming the existing file structure is same as the one generated now. Basically
+                #   assuming that the previous file was also created by MetSimRunner
+                existing = xr.open_dataset(self._outputpath).load()
+                existing.close()
+                last_existing_time = existing.time[-1]
+                log.debug("Existing data: %s", last_existing_time)
+                existing_to_append = existing.sel(time=slice(ds.time[0] - np.timedelta64(120,'D') , last_existing_time))
+                ds = ds.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , ds.time[-1]))
+                # ds = ds.isel(time=slice(1, None))
+                write_ds = xr.merge([existing_to_append, ds])
+                ds = self._impute_basin_missing_data(write_ds)
+            else:
+                raise Exception('Previous combined dataset not found. Please run RAT without state files first.')
         else:
             log.debug(f"Creating new file at {self._outputpath}")
             ds = self._impute_basin_missing_data(ds)
