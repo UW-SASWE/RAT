@@ -64,7 +64,6 @@ import pandas as pd
 from netCDF4 import Dataset
 from datetime import datetime
 from ftplib import FTP
-from tqdm import tqdm
 import glob
 import time
 from numpy import empty
@@ -77,7 +76,6 @@ from scipy import interpolate
 from scipy.cluster.vq import kmeans2
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-from tqdm import tqdm
 
 import configparser
 from datetime import timedelta, datetime
