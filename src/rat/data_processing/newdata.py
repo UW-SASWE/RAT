@@ -9,6 +9,7 @@ import rioxarray as rxr
 import xarray as xr
 from logging import getLogger
 import pandas as pd
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from rat.utils.logging import LOG_NAME, NOTIFICATION
 from rat.utils.utils import create_directory
@@ -490,7 +491,7 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
         print(f"Processing NC file exists: {srcpath} for date {date.strftime('%Y-%m-%d')}")
 
 
-def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_datadir):
+def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_datadir, multiprocessing):
     if not os.path.isdir(temp_datadir):
         os.makedirs(temp_datadir)
 
@@ -499,17 +500,20 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
     raw_datadir_precip = os.path.join(raw_datadir, "precipitation")
     processed_datadir_precip = os.path.join(processed_datadir, "precipitation")
 
-
     # with tqdm(os.listdir(raw_datadir_precip)) as pbar:
     ds = pd.date_range(begin, end)
-    for srcname in os.listdir(raw_datadir_precip):
-        if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
-            srcpath = os.path.join(raw_datadir_precip, srcname)
-            dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
+    results = []
+    with ProcessPoolExecutor(max_workers=multiprocessing) as exec:
+        for srcname in os.listdir(raw_datadir_precip):
+            if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
+                srcpath = os.path.join(raw_datadir_precip, srcname)
+                dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
 
-            # pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
-            process_precip(basin_bounds,srcpath, dstpath, temp_datadir)
-            # pbar.update(1)
+                # pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
+                future = exec.submit(process_precip, basin_bounds, srcpath, dstpath, temp_datadir)
+                results.append(future)
+                # pbar.update(1)
+    _ = [res for res in as_completed(results)]  # trigger processing
 
     #### Process NC files ####
     # required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
@@ -584,7 +588,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         # pbar.update(1)
 
 
-def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, download=True, process=True):
+def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, multiprocessing=1, download=True, process=True):
     raw_datadir = os.path.join(data_dir,"raw",'')
     processed_datadir = os.path.join(basin_data_dir,"pre_processing","processed",'')
     temp_datadir = os.path.join(basin_data_dir,"pre_processing","temp",'')
@@ -631,4 +635,4 @@ def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, endd
 
     #### DATA PROCESSING ####
     if process:
-        process_data(basin_bounds,raw_datadir, processed_datadir, startdate, enddate, temp_datadir)
+        process_data(basin_bounds,raw_datadir, processed_datadir, startdate, enddate, temp_datadir, multiprocessing)
