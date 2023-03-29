@@ -66,7 +66,6 @@ def run_rat(config_fn, operational_latency=None):
                 config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
             except:
                 log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
-                log.info('polo')
                 return None
         # Running RAT if start < end date
         if (config['BASIN']['start'] >= config['BASIN']['end']):
@@ -74,12 +73,16 @@ def run_rat(config_fn, operational_latency=None):
             log.error(f"Start date - {config['BASIN']['start']} is before the end date - {config['BASIN']['end']}")
             return None
         else:
+            # Overwrite config with updated operational parameters
             ryaml_client.dump(config, config_fn.open('w'))
+            # Store deep copy of config as it is mutable
+            config_copy = copy.deepcopy(config)
+            # Run RAT for basin
             no_errors, latest_altimetry_cycle = rat_basin(config, log)
-        # Displaying and storing RAT function outputs
+        # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
         if(latest_altimetry_cycle):
-            config['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
-            ryaml_client.dump(config, config_fn.open('w'))
+            config_copy['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
+            ryaml_client.dump(config_copy, config_fn.open('w'))
         if(no_errors>0):
             log.info('############## RAT run finished for '+config['BASIN']['basin_name']+ 'with '+str(no_errors)+' errors. #################')
         elif(no_errors==0):
