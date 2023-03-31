@@ -34,7 +34,7 @@ Essentially, RAT-3 requires only the boundary polygon of a reservoir(s) in the f
     conda install rat –c pritamd47 –c conda-forge
     ```
 
-!!! tip "Congratulations"
+!!! success_note "Congratulations"
     RAT-3 is successfully installed. You can now use RAT-3 from command line using `rat` command or can do `import rat` in python. It is necessary to initialize RAT ater installation (once) before you can start using it for generating reservoir time-series data.
 
 ## Initialization
@@ -46,7 +46,7 @@ RAT-3 can be initialized using `rat init` command.
 ```
 rat init –d ./rat_project/ –g 
 ```
-!!! warning
+!!! warning_note "Warning"
     Default global-database is 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space initialize without downloading global-database using `rat init -d ./rat_project/`
 
 !!! note
@@ -61,5 +61,3 @@ rat test –d ./rat_project/ –b GUNNISON –s ./rat_project/params/secrets.ini
 !!! note 
     If the above command runs successfully, it means RAT has been installed and initialized successfully. RAT test output data can be found at the path `./rat_project/data/test_output/basins/gunnison/final_outputs`.  
     <br> If the above command fails, RAT has not been installed successfully. Try to reinstall and reinitialize RAT in a new directory.
-
-
