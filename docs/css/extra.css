@@ -1,0 +1,49 @@
+/* docs/css/extra.css */
+body{
+  text-align: justify;
+}
+
+div.admonition.success_note > .admonition-title:before {
+  font-family: "Font Awesome 5 Free";
+  content:  "✔️";
+  margin-right: 10px;
+  display: inline-block;
+  padding-right: 3px;
+  vertical-align: middle;
+  width:12px;
+  color: transparent;  
+  text-shadow: 0 0 0 rgb(1, 117, 94);
+}
+
+div.admonition.success_note > .admonition-title{
+  color: white;
+  background-color: rgba(25,188,155, 0.8);
+}
+
+div.admonition.success_note{
+  background-color: rgb(219,250,244);
+  /* border:1px solid rgb(38, 121, 15,1.0); */
+}
+
+div.admonition.warning_note > .admonition-title:before {
+  font-family: "Font Awesome 5 Free";
+  content:  "⚠︎";
+  font-size: 22px;
+  font-weight:800;
+  margin-right: 2px;
+  display: inline-block;
+  padding-right: 3px;
+  vertical-align: middle;
+  color: transparent;  
+  text-shadow: 0 0 0 rgb(173, 78, 0);
+}
+
+div.admonition.warning_note > .admonition-title{
+  color: white;
+  background-color: rgba(240,178,126, 0.8);
+}
+
+div.admonition.warning_note{
+  background-color: rgb(255,237,204);
+  /* border:1px solid rgb(38, 121, 15,1.0); */
+}
