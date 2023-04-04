@@ -5,13 +5,14 @@ repo_url: https://github.com/UW-SASWE/RAT
 site_url: https://rat-satellitedams.readthedocs.io/
 theme:
     name: readthedocs
+    logo: logos/rat_logo_white_icon.png
     highlightjs: true
     hljs_languages:
         - yaml
         - rust
     include_homepage_in_sidebar: false
     features:
-      - content.code.copy
+      - content.code.copy  
     icon:
       admonition:
         success: fontawesome/solid/check
@@ -49,3 +50,5 @@ nav:
 
 
 extra_css: [css/extra.css]
+extra:
+  homepage: https://depts.washington.edu/saswe/rat/
