@@ -75,6 +75,29 @@ div.admonition.tip_note{
   /* border:1px solid rgb(38, 121, 15,1.0); */
 }
 
+div.admonition.reminder_note > .admonition-title:before {
+  font-family: "Font Awesome 5 Free";
+  content:  "🎗";
+  font-size: 22px;
+  font-weight:800;
+  margin-right: 2px;
+  display: inline-block;
+  padding-right: 3px;
+  vertical-align: middle;
+  color: transparent;  
+  text-shadow: 0 0 0 rgb(206, 25, 5);
+}
+
+div.admonition.reminder_note > .admonition-title{
+  color: white;
+  background-color: rgba(246, 111, 111, 0.823);
+}
+
+div.admonition.reminder_note{
+  background-color: rgba(254, 208, 195, 0.612);
+  /* border:1px solid rgb(38, 121, 15,1.0); */
+}
+
 span.requirement{
   color:rgb(166, 0, 130);
 }
@@ -85,4 +108,8 @@ span.parameter_property{
 
 h6.parameter_heading{
   font-size: 18px;
+}
+h6.parameter_heading>em>code{
+  background-color:rgb(250, 255, 216);
+  color:rgb(250, 0, 33);
 }

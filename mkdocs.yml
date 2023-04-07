@@ -35,7 +35,9 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.superfences
   - attr_list
-  
+
+plugins:
+    - markdownextradata
 nav:
 # Main pages
 - Home:
@@ -52,3 +54,6 @@ nav:
 extra_css: [css/extra.css]
 extra:
   homepage: https://depts.washington.edu/saswe/rat/
+  rat_version:
+    major: 3
+    minor: 0
