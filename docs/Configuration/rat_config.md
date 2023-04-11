@@ -215,7 +215,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 * <h6 class="parameter_heading">*`vic_init_state_date`* :</h6> 
     <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: It is the date (in format `yyyy-mm-dd`) for which you have the initial state VIC parameters available so that `spin_up` is not required. VIC use these soil state parameters to initialize. 
+    <span class="parameter_property">Description </span>: It is the date (in format `yyyy-mm-dd`) for which you have the initial state VIC pARAMETERS available so that `spin_up` is not required. VIC use these soil state parameters to initialize. 
 
     <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
 
@@ -244,7 +244,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 
     <span class="parameter_property">Syntax </span>: If metsim python environment has the path *'/Cheetah/rat_project/models/metsim'*, then
     ```
-    GLOBAL:
+    METSIM:
         metsim_env: /Cheetah/rat_project/models/metsim
     ``` 
     !!! reminder_note "Reminder"
@@ -259,7 +259,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 
     <span class="parameter_property">Syntax </span>: If metsim parameter file has the path *'/Cheetah/rat_project/params/metsim/params.yaml'*, then
     ```
-    GLOBAL:
+    METSIM:
         metsim_param_file: /Cheetah/rat_project/params/metsim/params.yaml
     ```
     !!! tip_note "Tip"
@@ -275,7 +275,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 
     <span class="parameter_property">Syntax </span>: If metsim domain parameter file has the path *'/Cheetah/rat_project/custom_files/metsim_domain.nc'*, then
     ```
-    GLOBAL:
+    METSIM:
         metsim_domain_file: /Cheetah/rat_project/custom_files/metsim_domain.nc
     ```
     !!! note
@@ -290,7 +290,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 
     <span class="parameter_property">Syntax </span>: If historical precipitation file has the path *'/Cheetah/rat_project/custom_files/ historical_precipitation.nc'*, then
     ```
-    GLOBAL:
+    METSIM:
         historical_precipitation: /Cheetah/rat_project/custom_files/historical_precipitation.nc
     ```
 
@@ -305,26 +305,158 @@ RAT config file has 12 major sections that defines several parameters which are 
 
     <span class="parameter_property">Syntax </span>: If vic python environment has the path *'/Cheetah/rat_project/models/vic'*, then
     ```
-    GLOBAL:
+    VIC:
         vic_env: /Cheetah/rat_project/models/vic
     ``` 
     !!! reminder_note "Reminder"
         VIC gets automatically installed at the above mentioned default path, once you use `rat_init` command.  
 
 * <h6 class="parameter_heading">*`vic_param_file`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: Absolute path of the vic's global parameter file required by vic in 'txt' format. Details about the parameter file is available [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/). It can also be the path to sample vic global parameter file as RAT automatically updates it during `rat run` command. For further information, see the tip below.
+    <span class="parameter_property">Description </span>: Absolute path of the vic's global parameter file required by vic in 'txt' format. Details about the parameter file is available [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/). It is used as a sample vic global parameter file as RAT automatically updates it during `rat run` command. For further information, see the tip below.
 
     <span class="parameter_property">Default </span>: *'`project_dir`/params/vic/vic_params.txt'* 
 
     <span class="parameter_property">Syntax </span>: If vic parameter file has the path *'/Cheetah/rat_project/params/vic/vic_params.txt'*, then
     ```
-    GLOBAL:
+    VIC:
         vic_param_file: /Cheetah/rat_project/params/vic/vic_params.txt
     ```
+    !!! note
+        `vic_param_file` is ***optional*** and can be left blank if all the required parameters are defined in `VIC PARAMETERS` section. 
     !!! tip_note "Tip"
         1. RAT {{rat_version.major}}.{{rat_version.minor}} automatically downloads a sample of `vic_param_file` once you use `rat init` command. 
-        2. You do not need to manually update `vic_param_file` as RAT automatically updates it with the known parameters (which usually includes input and output paths, data formats, start and end dates, etc.). If there is any **constant** parameter that you want to update (not necessary), you can do it in the default sample copy.
+        2. You do not need to manually update `vic_param_file` as RAT automatically updates it with the known parameters (which usually includes input and output paths, data formats, start and end dates, etc.). If there is any parameter value that you want to define and don't want RAT to update it, you can do it in the `VIC PARAMETERS` section.
 
+* <h6 class="parameter_heading">*`vic_global_data`* :</h6> 
+    <span class="requirement">Required parameter</span>
 
+    <span class="parameter_property">Description </span>: `True` if vic "global" (relative to basin) soil and domain parameter information is available and needs to be cropped for the basin. `False` otherwise. If False, you should have vic soil and domain parameter files that can be used **"as it is"** by VIC. For more information about vic soil paramater file, click [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/Params/) and for vic domain parameter file, click [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/Domain/).
+
+    <span class="parameter_property">Default </span>: `True`
+
+    <span class="parameter_property">Syntax </span>: If you have vic soil and domain parameter files for the whole continent or the country in which the basin lies, then
+    ```
+    VIC:
+        vic_global_data: True
+    ```
+
+    !!! note
+        1. Default "global" vic soil parameter and domain files for each continent is downloaded along with global-database and was prepared by  [Jacob et al.(2021)](https://doi.org/10.1038/s41597-021-00999-4).
+        2. If `vic_global_data` is **True**, `vic_global_param_dir`,`vic_basin_continent_param_filename` and `vic_basin_continent_domain_filename` are the required parameters.  `vic_soil_param_file` and `vic_domain_file` are ignored.
+        3. If `vic_global_data` is **False**, `vic_soil_param_file` and `vic_domain_file` are required and `vic_global_param_dir`,`vic_basin_continent_param_filename` and `vic_basin_continent_domain_filename` are ignored.
+    
+* <h6 class="parameter_heading">*`vic_global_param_dir`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the directory contining the vic's global soil parameter and domain files required by vic. 
+
+    <span class="parameter_property">Default </span>: *'`project_dir`/global_data/global_vic_params'* 
+
+    <span class="parameter_property">Syntax </span>: If you want to run VIC for a basin in North America and you have the vic soil parameter and domain files for the North America in the directory *'/Cheetah/rat_project/global_data/global_vic_params'*, then
+    ```
+    VIC:
+        vic_global_param_dir: /Cheetah/rat_project/global_data/global_vic_params
+    ```
+
+* <h6 class="parameter_heading">*`vic_basin_continent_param_filename`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Name of the [vic soil parameter file](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/Params/) in 'NetCDF' format which must have parameter information of a larger extent as compared to the basin so that it can be cropped (i.e. global relative to basin). 
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If you want to run VIC for a basin in North America and you have the vic soil parameter file for the North America in `vic_global_param_dir` by the name *'namerica_params.nc'*, then
+    ```
+    VIC:
+        vic_basin_continent_param_filename: namerica_params.nc
+    ```
+
+* <h6 class="parameter_heading">*`vic_basin_continent_domain_filename`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Name of the [vic domain parameter file](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/Domain/) in 'NetCDF' format which must have parameter information of a larger extent as compared to the basin so that it can be cropped (i.e. global relative to basin). 
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If you want to run VIC for a basin in North America and you have the vic domain parameter file for the North America in `vic_global_param_dir` by the name *'namerica_domain.nc'*, then
+    ```
+    VIC:
+        vic_basin_continent_domain_filename: namerica_domain.nc
+    ```
+
+* <h6 class="parameter_heading">*`vic_soil_param_file`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the [vic soil parameter file](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/Params/) in 'NetCDF' format which could be used "as it is" by VIC. `vic_global_data` must be **False** to use this parameter, otherwise ignored.
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If you want to run VIC for a basin whose vic soil parameter file is at the path *'/Cheetah/rat_project/custom_files/basin_vic_soil_params.nc'*, then
+    ```
+    VIC:
+        vic_soil_param_file: /Cheetah/rat_project/custom_files/basin_vic_soil_params.nc
+    ```
+
+* <h6 class="parameter_heading">*`vic_domain_file`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the [vic soil parameter file](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/Params/) in 'NetCDF' format which could be used "as it is" by VIC. `vic_global_data` must be **False** to use this parameter, otherwise ignored.
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If you want to run VIC for a basin whose vic soil parameter file is at the path *'/Cheetah/rat_project/custom_files/basin_vic_domain.nc'*, then
+    ```
+    VIC:
+        vic_domain_file: /Cheetah/rat_project/custom_files/basin_vic_domain.nc
+    ```
+
+### Vic Parameters
+
+This section is ***optional*** and describes the parameters defined by `vic_param_file`. As `vic_param_file` is used as a template and RAT {{rat_version.major}}.{{rat_version.minor}} automatically updates all the parameter values, this section can be used by you to define any parameter's value that you don't want to to get update automatically in `vic_param_file`. To know about the available parameters, click [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/). 
+
+For instance, if you want to update the number of moisture layers (`NLAYER`) used by the VIC model and want to define the name of forcing type for air temperature (`AIR_TEMP`) as *'temp'* to be read from the forcing file:
+    ```
+    VIC PARAMETERS:
+        NLAYER: 2
+        FORCE_TYPE:
+            AIR_TEMP: temp
+    ```
+
+!!! tip_note "Tip"
+    Parameter keywords are **case sensitive** and please refer [this](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/) page for this section to have a look what case you should use for a particular parameter.
+
+### Routing
+* <h6 class="parameter_heading">*`route_model`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the routing model. 
+
+    <span class="parameter_property">Default </span>: *'`project_dir`/models/routing/rout'* 
+
+    <span class="parameter_property">Syntax </span>: If routing model has the path *'/Cheetah/rat_project/models/routing/rout'*, then
+    ```
+    ROUTING:
+        route_model: /Cheetah/rat_project/models/routing/rout
+    ``` 
+    !!! reminder_note "Reminder"
+        Routing model gets automatically installed and compiled at the above mentioned default path, once you use `rat_init` command.  
+
+* <h6 class="parameter_heading">*`route_param_file`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the routing parameter file required by routing in 'txt' format. Details about the parameter file is available [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/). It is used as a sample parameter file as RAT automatically updates it during `rat run` command. For further information, see the tip below.
+
+    <span class="parameter_property">Default </span>: *'`project_dir`/params/routing/route_param.txt'* 
+
+    <span class="parameter_property">Syntax </span>: If routing parameter file has the path *'/Cheetah/rat_project/params/routing/route_param.txt'*, then
+    ```
+    ROUTING:
+        route_param_file: /Cheetah/rat_project/params/routing/route_param.txt
+    ```
+    !!! note
+        `route_param_file` is ***optional*** and can be left blank if all the required parameters are defined in `ROUTING PARAMETERS` section. 
+    !!! tip_note "Tip"
+        1. RAT {{rat_version.major}}.{{rat_version.minor}} automatically downloads a sample of `route_param_file` once you use `rat init` command. 
+        2. You do not need to manually update `route_param_file` as RAT automatically updates it with the known parameters (which usually includes input and output paths, data formats, start and end dates, etc.). If there is any parameter value that you want to define and don't want RAT to update it, you can do it in the `ROUTING PARAMETERS` section.
