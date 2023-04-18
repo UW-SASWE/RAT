@@ -294,7 +294,7 @@ RAT config file has 12 major sections that defines several parameters which are 
         historical_precipitation: /Cheetah/rat_project/custom_files/historical_precipitation.nc
     ```
 
-### Vic
+### VIC
 
 * <h6 class="parameter_heading">*`vic_env`* :</h6> 
     <span class="requirement">Required parameter</span>
@@ -412,7 +412,7 @@ RAT config file has 12 major sections that defines several parameters which are 
         vic_domain_file: /Cheetah/rat_project/custom_files/basin_vic_domain.nc
     ```
 
-### Vic Parameters
+### VIC Parameters
 
 This section is ***optional*** and describes the parameters defined by `vic_param_file`. As `vic_param_file` is used as a template and RAT {{rat_version.major}}.{{rat_version.minor}} automatically updates all the parameter values, this section can be used by you to define any parameter's value that you don't want to to get update automatically in `vic_param_file`. To know about the available parameters, click [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/). 
 
@@ -460,3 +460,97 @@ For instance, if you want to update the number of moisture layers (`NLAYER`) use
     !!! tip_note "Tip"
         1. RAT {{rat_version.major}}.{{rat_version.minor}} automatically downloads a sample of `route_param_file` once you use `rat init` command. 
         2. You do not need to manually update `route_param_file` as RAT automatically updates it with the known parameters (which usually includes input and output paths, data formats, start and end dates, etc.). If there is any parameter value that you want to define and don't want RAT to update it, you can do it in the `ROUTING PARAMETERS` section.
+
+* <h6 class="parameter_heading">*`global_flow_dir_tif_file`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the flow direction raster file in 'geotif' format. The provided raster file must have flow direction information of a larger or equal extent as compared to the basin in WGS84 projection and the resolution of this file must be 0.0625&deg;. This file is used to create another file in a format required by Routing, details of which is available [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#flow-direction-file).
+
+    <span class="parameter_property">Default </span>: *'`project_dir`/global_data/global_drt_flow_file/global_drt_flow_16th.tif'* 
+
+    <span class="parameter_property">Syntax </span>: If routing parameter file has the path *'/Cheetah/rat_project/global_data/global_drt_flow_file/global_drt_flow_16th.tif'*, then
+    ```
+    ROUTING:
+        global_flow_dir_tif_file: /Cheetah/rat_project/global_data/global_drt_flow_file/global_drt_flow_16th.tif
+    ```
+    !!! note
+        1. RAT {{rat_version.major}}.{{rat_version.minor}} requires the resolution of the flow direction file as 1/16<sup>th</sup> or 0.0625&deg;.
+        2. Default flow direction raster 'tif' file with the required resolution of 0.0625&deg; in WGS84 projection is downloaded along with global-database and is provided by [NTSG Group at University of Montana](https://www.umt.edu/numerical-terradynamic-simulation-group/project/drt.php).
+        3. Numbers that represnt flow directions in the default flow direction file is as follows: <br>
+        &nbsp; 1   = east <br>
+        &nbsp; 2   = southeast <br>
+        &nbsp; 4   = south <br>
+        &nbsp; 8   = southwest <br>
+        &nbsp; 16  = west <br>
+        &nbsp; 32  = northwest <br>
+        &nbsp; 64  = north <br>
+        &nbsp; 128 = northeast <br>
+        &nbsp; 255 = no flow
+
+
+* <h6 class="parameter_heading">*`replace_flow_directions`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Dictionary of key value pairs where key represents the flow direction in `global_flow_dir_tif_file` and that flow direction number will then be replaced by the value of that key. 
+
+    <span class="parameter_property">Default </span>: `{ 1 : 3, 4 : 5, 2 : 4, 8 : 6, 16 : 7, 32 : 8, 64 : 1,128 : 2, 255 : 0 }`
+
+    <span class="parameter_property">Syntax </span>: If you want to replace flow directions 2 and 4 by 4 and 5 respectively in `global_flow_dir_tif_file`, then
+    ```
+    ROUTING:
+        replace_flow_directions: { 4 : 5,    # first replace 4 by 5
+                                   2 : 4,    # and then replace 2 by 4.
+                                    }
+    ```
+    or
+    ```
+    ROUTING:
+        replace_flow_directions:  
+            4 : 5    # first replace 4 by 5
+            2 : 4    # and then replace 2 by 4.
+    ```
+    !!! note
+        Flow direction numbers as required by Routing in each grid cell is as follows: <br>
+        &nbsp; 0   = no flow <br>
+        &nbsp; 1   = north <br>
+        &nbsp; 2   = northeast <br>
+        &nbsp; 3   = east <br>
+        &nbsp; 4   = southeast <br>
+        &nbsp; 5   = south <br>
+        &nbsp; 6   = southwest <br>
+        &nbsp; 7   = west <br>
+        &nbsp; 8   = northwest 
+
+    !!! tip_note
+        Replacing of directions takes place sequentially in the order provided. So if you want to replace 2 by 4 and 4 by 5 then first replace 4 by 5 and then replace 2 by 4. If you do the other way round, then there will be no directions with value 4. 
+    
+* <h6 class="parameter_heading">*`station_global_data`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  reservoir information is available in a vector file. It can be "global" (relative to basin) and will be automatically filtered for the basin.`False` if you don't have reservoir information in a vector file. For more information about routing station file, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#station-location-file).
+
+    <span class="parameter_property">Default </span>: `True`
+
+    <span class="parameter_property">Syntax </span>: If you have reservoir information for the whole globe or the country in which the basin lies, then
+    ```
+    ROUTING:
+        station_global_data: True
+    ```
+
+    !!! note
+        1. Default "global" reservoirs and dam data is downloaded along with global-database in the form of shapefiles and uses the [Global Reservoir and Dam (GRanD) database version 1.3](https://www.globaldamwatch.org/grand) 
+        2. If `station_global_data` is **True**, `stations_vector_file` and `stations_vector_file_columns_dict` are the required parameters and `station_latlon_path` is ignored.
+        3. If `station_global_data` is **False**, `station_latlon_path` is required whereas `stations_vector_file` and `stations_vector_file_columns_dict` are ignored.
+
+* <h6 class="parameter_heading">*`stations_vector_file`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: `Absolute path of the reservoir vector file where the geometry is reprented by point location of dams and there must be unique id, name, longitude and latitude column . It can be "global" (relative to basin) and will be automatically filtered for the basin.`False` if you don't have reservoir information in a vector file. For more information about routing station file, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#station-location-file).
+
+    <span class="parameter_property">Default </span>: `True`
+
+    <span class="parameter_property">Syntax </span>: If you have reservoir information for the whole globe or the country in which the basin lies, then
+    ```
+    ROUTING:
+        station_global_data: True
+    ```
