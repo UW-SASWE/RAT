@@ -304,7 +304,7 @@ def download_vwnd(year, outputpath):
                 log.debug("Last modified date is not today. So, updating vwnd: %s", year)
                 return run_command(cmd)
 
-def download_data(begin, end, datadir, secrets):
+def download_data(begin, end, datadir, secrets, IMERG_WORKERS=12):
     """Downloads the data between dates defined by begin and end
 
     Parameters:
@@ -319,11 +319,16 @@ def download_data(begin, end, datadir, secrets):
     required_years = list(set([d.strftime("%Y") for d in required_dates]))
     # Download Precipitation
     log.debug("Downloading Precipitation")
-    for date in required_dates:
-        # determine what kind of data is required
-        data_version = _determine_precip_version(date)
-        outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
-        download_precip(date, data_version, outputpath, secrets)
+
+    results = []
+    with ProcessPoolExecutor(max_workers=IMERG_WORKERS) as exec:
+        for srcname in os.listdir(raw_datadir_precip):
+            data_version = _determine_precip_version(date)
+            outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
+            if not os.path.isdir(outputpath):
+                future = exec.submit(download_precip, date, data_version, outputpath, secrets)
+                results.append(future)
+        _ = [res for res in as_completed(results)]  # trigger processing
 
     # Download other forcing data
     log.debug("Downloading TMax, TMin, UWnd, and VWnd")
