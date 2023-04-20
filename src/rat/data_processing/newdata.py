@@ -319,34 +319,19 @@ def download_data(begin, end, datadir, secrets):
     required_years = list(set([d.strftime("%Y") for d in required_dates]))
     # Download Precipitation
     log.debug("Downloading Precipitation")
-    # with tqdm(required_dates) as pbar:
     for date in required_dates:
         # determine what kind of data is required
         data_version = _determine_precip_version(date)
         outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
-        # pbar.set_description(f"{date.strftime('%Y-%m-%d')} ({data_version})")
         download_precip(date, data_version, outputpath, secrets)
-        # pbar.update(1)
-    
+
     # Download other forcing data
     log.debug("Downloading TMax, TMin, UWnd, and VWnd")
-    # with tqdm(required_years, total=len(required_years)*4) as pbar:
     for year in required_years:
-        # pbar.set_description(f"{year} (TMax)")
         download_tmax(year, os.path.join(datadir, "tmax", year+'.nc'))
-        # pbar.update(1)
-
-        # pbar.set_description(f"{year} (TMin)")
         download_tmin(year, os.path.join(datadir, "tmin", year+'.nc'))
-        # pbar.update(1)
-
-        # pbar.set_description(f"{year} (UWnd)")
         download_uwnd(year, os.path.join(datadir, "uwnd", year+'.nc'))
-        # pbar.update(1)
-
-        # pbar.set_description(f"{year} (VWnd)")
         download_vwnd(year, os.path.join(datadir, "vwnd", year+'.nc'))
-        # pbar.update(1)
 
 def process_precip(basin_bounds,srcpath, dstpath, temp_datadir=None):
     """For any IMERG Precipitation file located at `srcpath` is clipped, scaled and converted to
@@ -523,28 +508,22 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
     raw_datadir_tmax = os.path.join(raw_datadir, "tmax")
     processed_datadir_tmax = os.path.join(processed_datadir, "tmax")
 
-    # with tqdm(required_dates) as pbar:
     for date in required_dates:
         srcpath = os.path.join(raw_datadir_tmax, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_tmax, f"{date.strftime('%Y-%m-%d')}_TMAX.asc")
 
-        # pbar.set_description(f"TMAX: {date.strftime('%Y-%m-%d')}")
         process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
-        # pbar.update(1)
     
     #### Process TMin ####
     log.debug("Processing TMIN")
     raw_datadir_tmin = os.path.join(raw_datadir, "tmin")
     processed_datadir_tmin = os.path.join(processed_datadir, "tmin")
 
-    # with tqdm(required_dates) as pbar:
     for date in required_dates:
         srcpath = os.path.join(raw_datadir_tmin, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_tmin, f"{date.strftime('%Y-%m-%d')}_TMIN.asc")
 
-        # pbar.set_description(f"TMIN: {date.strftime('%Y-%m-%d')}")
         process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
-        # pbar.update(1)
 
     #### Process UWND ####
     log.debug("Processing UWND")
@@ -558,14 +537,11 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         xr.open_dataset(uwnd_f).resample(time='1D').mean().to_netcdf(os.path.join(daily_datadir_uwnd, uwnd_f.split(os.sep)[-1]))
         # xr.open_dataset(vwnd_f).resample(time='1D').mean().to_netcdf(os.path.join(vwnd_outdir, vwnd_f.split(os.sep)[-1]))
 
-    # with tqdm(required_dates) as pbar:
     for date in required_dates:
         srcpath = os.path.join(daily_datadir_uwnd, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_uwnd, f"{date.strftime('%Y-%m-%d')}_UWND.asc")
 
-        # pbar.set_description(f"UWND: {date.strftime('%Y-%m-%d')}")
         process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
-        # pbar.update(1)
 
     #### Process VWND ####
     log.debug("Processing VWND")
@@ -578,14 +554,11 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
     for vwnd_f in vwnd_files:
         xr.open_dataset(vwnd_f).resample(time='1D').mean().to_netcdf(os.path.join(daily_datadir_vwnd, vwnd_f.split(os.sep)[-1]))
 
-    # with tqdm(required_dates) as pbar:
     for date in required_dates:
         srcpath = os.path.join(daily_datadir_vwnd, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_vwnd, f"{date.strftime('%Y-%m-%d')}_VWND.asc")
 
-        # pbar.set_description(f"VWND: {date.strftime('%Y-%m-%d')}")
         process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
-        # pbar.update(1)
 
 
 def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, multiprocessing=1, download=True, process=True):

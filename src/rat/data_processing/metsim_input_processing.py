@@ -64,7 +64,6 @@ class CombinedNC:
         return latitudes, longitudes
 
     def _read(self):
-        # with tqdm(total=len(self.dates)) as pbar:
         for day, date in enumerate(self.dates):
             fileDate = date
             reqDate = fileDate.strftime("%Y-%m-%d")

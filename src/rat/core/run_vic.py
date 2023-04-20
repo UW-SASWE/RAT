@@ -88,7 +88,6 @@ class VICRunner():
         lats_vicfmt = (np.floor(np.abs(fluxes_subset.lat.values)*100)/100)*np.sign(fluxes_subset.lat.values)
         lons_vicfmt = (np.floor(np.abs(fluxes_subset.lon.values)*100)/100)*np.sign(fluxes_subset.lon.values)
 
-        # with tqdm(total=total) as pbar:  # tqdm doesn't work elegantly with logging
         s = time.time()
         for lat in range(len(fluxes_subset.lat)):
             for lon in range(len(fluxes_subset.lon)):
