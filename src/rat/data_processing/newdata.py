@@ -322,7 +322,7 @@ def download_data(begin, end, datadir, secrets, IMERG_WORKERS=12):
 
     results = []
     with ProcessPoolExecutor(max_workers=IMERG_WORKERS) as exec:
-        for srcname in os.listdir(raw_datadir_precip):
+        for date in required_dates:
             data_version = _determine_precip_version(date)
             outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
             if not os.path.isdir(outputpath):
