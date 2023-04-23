@@ -17,7 +17,7 @@ This will clone the RAT project in the directory.
 3. Install `RAT` requirements into the `rat_dev` environment, optionally using mamba (recommended). 
 ```
 conda activate rat_dev;
-conda install mamba; 
+conda install -c conda-forge mamba; 
 mamba env update --file 'environment.yml'
 ``` 
 This will install the requirements of `RAT` in the environment.
