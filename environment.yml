@@ -1,4 +1,3 @@
-name: rat_env
 channels:
   - conda-forge
   - defaults
