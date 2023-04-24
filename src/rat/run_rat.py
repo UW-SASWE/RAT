@@ -9,6 +9,7 @@ import ruamel_yaml as ryaml
 from pathlib import Path 
 import datetime
 import copy
+from dask.distributed import Client, LocalCluster
 
 from rat.utils.logging import init_logger,close_logger
 import rat.ee_utils.ee_config as ee_configuration
@@ -39,7 +40,12 @@ def run_rat(config_fn, operational_latency=None):
         logger_name='run_rat',
         for_basin=False
     )
-     
+
+    cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'])
+    client = Client(cluster)
+
+    log.debug(f"Started client with {config['GLOBAL']['multiprocessing']} workers. Dashboard link: {client.dashboard_link}")
+
     # Trying the ee credentials given by user
     try:
         log.info("Checking earth engine credentials")

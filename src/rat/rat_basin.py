@@ -278,7 +278,6 @@ def rat_basin(config, rat_logger):
                 startdate= data_download_start,
                 enddate= config['BASIN']['end'],
                 secrets_file= config['CONFIDENTIAL']['secrets'],
-                multiprocessing=config['GLOBAL']['multiprocessing'],
                 download= True,
                 process= True
             )
