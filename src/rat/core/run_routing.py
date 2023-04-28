@@ -1,8 +1,10 @@
 from http.server import executable
 import pandas as pd
+import dask.dataframe as dd
 import rasterio as rio
 import os
 import datetime
+from pathlib import Path
 
 from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION
@@ -93,44 +95,49 @@ class RoutingRunner():
             log.debug("Deleting %s", f)
             os.remove(f)
 
-    def generate_inflow(self):
-        # TODO Temp implementation. Later change it so that it operates on a disctionary of stations and generated outputs
-        log.log(NOTIFICATION, "Starting inflow generation")
-        log.debug(f"Looking at directory: {self.result_dir}")
-        files = [os.path.join(self.result_dir, f) for f in os.listdir(self.result_dir) if f.endswith('.day')]
-        
-        if not os.path.isdir(self.inflow_dir):
-            log.error("Directory does not exist: %s", self.inflow_dir)
+def read_rat_out(fn, model=None):
+    fn = Path(fn)
 
-        
-        for f in files:
-            outpath= os.path.join(self.inflow_dir, f.split(os.sep)[-1]).replace('.day', '.csv')
-            log.debug("Converting %s, writing to %s", f, outpath)
-            ## Appending data if files exists otherwise creating new
-            if os.path.isfile(outpath):
-                existing_data = pd.read_csv(outpath, parse_dates=['date'])
-                new_data = self._convert_streamflow(f)
-                # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
-                complement = pd.concat([existing_data, new_data], ignore_index=True)
-                # Remove all duplicates:
-                complement.drop_duplicates(subset=['date'],inplace=True, keep='first')
-                complement.sort_values(by='date', inplace=True)
-                complement.to_csv(outpath, index=False)
-            else:
-                self._convert_streamflow(f).to_csv(outpath, index=False)
+    if fn.suffix == '.day':
+        df = pd.read_csv(fn, sep='\s+', header=None, names=['year', 'month', 'day', 'streamflow'])
+        df['date'] = pd.to_datetime(df[['year', 'month', 'day']])
+        df.drop(['year', 'month', 'day'], axis=1, inplace=True)
+        df['streamflow'] = df['streamflow'] * 0.028316847 # convert cfs to cms
+    elif fn.suffix == '.csv':
+        df = pd.read_csv(fn, parse_dates=['date'])
 
+    if model:
+        df['model'] = model
+        df = df.set_index(['model', 'date'])
+    else:
+        df = df.set_index('date')
 
-    def _convert_streamflow(self, df_path) -> pd.DataFrame:
-        
-        df = pd.read_csv(
-            df_path, 
-            sep=r"\s+", 
-            names=['year', 'month', 'day', 'streamflow'],
-            parse_dates=[['year', 'month', 'day']]
-        ).rename({"year_month_day": "date"}, axis=1)
-        
-        df['streamflow'] = df['streamflow'] * 0.028316847 # Imperial unit to SI units
+    return df
 
-        log.log(NOTIFICATION, "Converting streamflow: %s - %s", df_path, df.tail())
+def generate_inflow(src_dir, dst_dir):
+    src_dir = Path(src_dir)
+    dst_dir = Path(dst_dir)
+    # TODO Temp implementation. Later change it so that it operates on a disctionary of stations and generated outputs
+    log.log(NOTIFICATION, "Starting inflow generation")
+    log.debug(f"Looking at directory: {src_dir}")
+    files = [src_dir / f for f in src_dir.glob('*.day')]
+    
+    if not dst_dir.exists():
+        log.error("Directory does not exist: %s", dst_dir)
 
-        return df
+    
+    for f in files:
+        outpath = (dst_dir / f.name).with_suffix('.csv')
+        log.debug("Converting %s, writing to %s", f, outpath)
+        ## Appending data if files exists otherwise creating new
+        if outpath.exists():
+            existing_data = dd.read_csv(outpath, parse_dates=['date'])
+            new_data = read_rat_out(f)
+            # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
+            complement = dd.concat([existing_data, new_data], ignore_index=True)
+            # Remove all duplicates:
+            complement.drop_duplicates(subset=['date'],inplace=True, keep='first')
+            complement.sort_values(by='date', inplace=True)
+            complement.reset_index().to_csv(outpath, index=False)
+        else:
+            read_rat_out(f).reset_index().to_csv(outpath, index=False)
