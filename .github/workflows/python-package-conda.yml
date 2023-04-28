@@ -2,7 +2,7 @@ name: Python Package using Conda
 
 on:
   release:
-    types: [published, prereleased, released]
+    types: [published, prereleased, released, push]
 
     
 jobs:
