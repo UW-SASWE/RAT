@@ -12,6 +12,5 @@ jobs:
       with:
         subDir: './'
         AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
-        platforms: 'all'
+        platforms: 'noarch'
         override: true
-        dry_run: true
