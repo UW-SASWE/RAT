@@ -8,9 +8,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: publish-to-conda
-      uses: MichaelsJP/conda-package-publish-action@v1.0.0
+      uses: paskino/conda-package-publish-action@master
       with:
-        subDir: './'
+        subDir: 'RAT'
+        channels: 'pritamd47'
         AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
-        platforms: 'all'
-        override: true
+        publish: true
+        test_all: false
+        convert_win: false
+        convert_osx: false
