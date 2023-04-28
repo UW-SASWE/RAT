@@ -1,10 +1,7 @@
 name: Python Package using Conda
 
-on:
-  release:
-    types: [published, prereleased, released, push]
+on: [push, release]
 
-    
 jobs:
   publish:
     runs-on: ubuntu-latest
