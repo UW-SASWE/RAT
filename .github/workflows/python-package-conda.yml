@@ -7,9 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: publish-to-conda
-        uses: m0nhawk/conda-package-publish-action@master
+      - name: Publish to Conda
+        # uses: Riccorl/conda-publish-action@ee3e070caad49b7368bdf6c9337928dc758635dc
+        uses: Riccorl/conda-publish-action@v1.5
         with:
-          subDir: '.'
-          AnacondaUsername: ${{ secrets.ANACONDA_PASSWORD }}
-          AnacondaPassword: '${{ secrets.ANACONDA_USERNAME }}'
+          # Sub-directory with conda recipe
+          subdir: . # optional, default is .
+          # Anaconda access token
+          anacondatoken: ${{ secrets.ANACONDA_TOKEN }}# optional
+          # Platforms to publish [osx/linux/win]
+          platforms: linux # optional, default is win osx linux
