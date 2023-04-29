@@ -6,20 +6,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: publish-to-conda
-      uses: paskino/conda-package-publish-action@master
-      with:
-        subDir: 'RAT'
-        channels: 'pritamd47'
-        AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
-        publish: true
-        test_all: false
-        convert_win: false
-        convert_osx: false
-  publish2:
-    runs-on: ubuntu-latest
-    steps:
       - uses: actions/checkout@master
       - name: publish-to-conda
         uses: m0nhawk/conda-package-publish-action@master
