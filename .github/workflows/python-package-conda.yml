@@ -16,4 +16,4 @@ jobs:
           # Anaconda access token
           anacondatoken: ${{ secrets.ANACONDA_TOKEN }}# optional
           # Platforms to publish [osx/linux/win]
-          platforms: linux # optional, default is win osx linux
+          platforms: noarch # optional, default is win osx linux
