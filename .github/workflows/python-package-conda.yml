@@ -12,4 +12,4 @@ jobs:
         with:
           subDir: '.'
           AnacondaUsername: ${{ secrets.ANACONDA_PASSWORD }}
-          AnacondaPassword: ${{ secrets.ANACONDA_USERNAME }}
+          AnacondaPassword: '${{ secrets.ANACONDA_USERNAME }}'
