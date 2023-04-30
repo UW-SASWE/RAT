@@ -1,5 +1,5 @@
 {% set name = "rat" %}
-{% set version = "3.0.0.alpha.2" %}
+{% set version = "3.0.0.alpha.3" %}
 
 package:
   name: {{ name|lower }}
