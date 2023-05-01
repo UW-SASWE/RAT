@@ -74,7 +74,7 @@ class VICRunner():
         log.log(NOTIFICATION, "Started disaggregating VIC results")
         fluxes = xr.open_dataset(rout_input_state_file).load()
 
-        fluxes_subset = fluxes[['OUT_PREC', 'OUT_EVAP', 'OUT_RUNOFF', 'OUT_BASEFLOW', 'OUT_WDEW', 'OUT_SOIL_LIQ', 'OUT_SOIL_MOIST']]
+        fluxes_subset = fluxes[['OUT_PREC', 'OUT_EVAP', 'OUT_RUNOFF', 'OUT_BASEFLOW']]
 
         nonnans = fluxes_subset.OUT_PREC.isel(time=0).values.flatten()
         nonnans = nonnans[~np.isnan(nonnans)]
@@ -95,7 +95,7 @@ class VICRunner():
                     fname = os.path.join(self.rout_input, f"fluxes_{lats_vicfmt[lat]:.2f}_{lons_vicfmt[lon]:.2f}")
                     # pbar.set_description(f"{fname}")
 
-                    da = fluxes_subset.isel(lat=lat, lon=lon, nlayer=0).to_dataframe().reset_index()
+                    da = fluxes_subset.isel(lat=lat, lon=lon).to_dataframe().reset_index()
 
                     da.to_csv(fname, sep=' ', header=False, index=False, float_format="%.5f", quotechar="", quoting=csv.QUOTE_NONE, date_format="%Y %m %d", escapechar=" ")
                         # pbar.update(1)

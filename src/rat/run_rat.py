@@ -41,10 +41,11 @@ def run_rat(config_fn, operational_latency=None):
         for_basin=False
     )
 
-    cluster = LocalCluster(name='rat', n_workers=config['GLOBAL']['multiprocessing'], threads_per_worker=1)
-    dask_client = Client(cluster)
-    log.info(f"Started dask client with {config['GLOBAL']['multiprocessing']} workers. Dashboard available at {dask_client.dashboard_link}")
-     
+    cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'], 'threads_per_worker=1)
+    client = Client(cluster)
+
+    log.debug(f"Started client with {config['GLOBAL']['multiprocessing']} workers. Dashboard link: {client.dashboard_link}")
+
     # Trying the ee credentials given by user
     try:
         log.info("Checking earth engine credentials")

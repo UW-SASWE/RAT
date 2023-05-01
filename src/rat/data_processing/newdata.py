@@ -10,6 +10,9 @@ import xarray as xr
 from logging import getLogger
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
+from dask.distributed import Semaphore
+import dask
 
 from rat.utils.logging import LOG_NAME, NOTIFICATION
 from rat.utils.utils import create_directory
@@ -87,7 +90,6 @@ def _get_cmd_precip_download(outputpath,link,version,secrets):
             '--no-proxy'
         ]
     return cmd
-
 
 def download_precip(date, version, outputpath, secrets, interpolate=True):
     """
@@ -319,21 +321,35 @@ def download_data(begin, end, datadir, secrets):
     required_years = list(set([d.strftime("%Y") for d in required_dates]))
     # Download Precipitation
     log.debug("Downloading Precipitation")
+
+    sem = Semaphore(max_leases=4, name="IMERG-Downloader")
+    def download_precip_with_semaphore(date, version, outputpath, secrets, sem):
+        with sem:
+            result = download_precip(date, version, outputpath, secrets)
+            return result
+    
+    futures = []
     for date in required_dates:
-        # determine what kind of data is required
         data_version = _determine_precip_version(date)
         outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
-        download_precip(date, data_version, outputpath, secrets)
+        if not os.path.isfile(outputpath):
+            future = dask.delayed(download_precip_with_semaphore)(date, data_version, outputpath, secrets, sem)
+            futures.append(future)
+
+    results = dask.compute(*futures) # downloading precipitation files first
+    futures = []
 
     # Download other forcing data
     log.debug("Downloading TMax, TMin, UWnd, and VWnd")
     for year in required_years:
-        download_tmax(year, os.path.join(datadir, "tmax", year+'.nc'))
-        download_tmin(year, os.path.join(datadir, "tmin", year+'.nc'))
-        download_uwnd(year, os.path.join(datadir, "uwnd", year+'.nc'))
-        download_vwnd(year, os.path.join(datadir, "vwnd", year+'.nc'))
+        futures.append(dask.delayed(download_tmax)(year, os.path.join(datadir, "tmax", year+'.nc')))
+        futures.append(dask.delayed(download_tmin)(year, os.path.join(datadir, "tmin", year+'.nc')))
+        futures.append(dask.delayed(download_uwnd)(year, os.path.join(datadir, "uwnd", year+'.nc')))
+        futures.append(dask.delayed(download_vwnd)(year, os.path.join(datadir, "vwnd", year+'.nc')))
+    
+    results = dask.compute(*futures)
 
-def process_precip(basin_bounds,srcpath, dstpath, temp_datadir=None):
+def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=None, itry=0):
     """For any IMERG Precipitation file located at `srcpath` is clipped, scaled and converted to
     ASCII grid file and saved at `dstpath`. All of this is done in a temporarily created directory
     which can be controlled by the `datadir` path
@@ -364,7 +380,24 @@ def process_precip(basin_bounds,srcpath, dstpath, temp_datadir=None):
                 f'{srcpath}',
                 clipped_temp_file
             ]
-            run_command(cmd)
+            try:
+                run_command(cmd)
+            except subprocess.CalledProcessError as e:
+                src_fn = Path(srcpath)
+                date = pd.to_datetime(src_fn.stem.split('_')[0])
+                log.error(f"subprocess.CalledProcessError in {date}: ", e)
+                
+                # delete old precipitation file and redownload. retry once
+                if itry <= 1:
+                    src_fn = Path(srcpath)
+                    src_fn.unlink(missing_ok=True)
+
+                    version = _determine_precip_version(date)
+
+                    download_precip(date, version, srcpath, secrets)
+                    run_command(cmd)
+                else:
+                    raise e
 
             # Scale down (EARLY)
             scaled_temp_file = os.path.join(tempdir, 'scaled.tif')
@@ -396,7 +429,7 @@ def process_precip(basin_bounds,srcpath, dstpath, temp_datadir=None):
         print(f"Processing Precipitation file exist: {srcpath}")
 
 
-def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
+def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, itry=0):
     """For TMax, TMin, UWnd and VWnd, the processing steps are same, and can be performed using
     this function.
 
@@ -438,8 +471,8 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
             converted_tif_temp_file, 
             warped_temp_file]
             # runs and return non-zero code, so don't use run_command
-            cmd = " ".join(cmd)
-            subprocess.run(cmd,shell=True,stdout=subprocess.DEVNULL)
+            cmd = " ".join(cmd) 
+            subprocess.run(cmd, shell=True,stdout=subprocess.DEVNULL)
             
             
             # Change resolution
@@ -462,7 +495,6 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
                 warped_temp_file, 
                 scaled_temp_file]
 
-                
             run_command(cmd)
 
             # Convert GeoTiff to AAI
@@ -475,8 +507,7 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None):
     else:
         print(f"Processing NC file exists: {srcpath} for date {date.strftime('%Y-%m-%d')}")
 
-
-def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_datadir, multiprocessing):
+def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secrets, temp_datadir):
     if not os.path.isdir(temp_datadir):
         os.makedirs(temp_datadir)
 
@@ -487,18 +518,17 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
 
     # with tqdm(os.listdir(raw_datadir_precip)) as pbar:
     ds = pd.date_range(begin, end)
-    results = []
-    with ProcessPoolExecutor(max_workers=multiprocessing) as exec:
-        for srcname in os.listdir(raw_datadir_precip):
-            if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
-                srcpath = os.path.join(raw_datadir_precip, srcname)
-                dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
 
-                # pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
-                future = exec.submit(process_precip, basin_bounds, srcpath, dstpath, temp_datadir)
-                results.append(future)
-                # pbar.update(1)
-    _ = [res for res in as_completed(results)]  # trigger processing
+    futures = []
+    
+    for srcname in os.listdir(raw_datadir_precip):
+        if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
+            srcpath = os.path.join(raw_datadir_precip, srcname)
+            dstpath = os.path.join(processed_datadir_precip, srcname.replace("tif", "asc"))
+
+            # pbar.set_description(f"Precipitation: {srcname.split('_')[0]}")
+            future = dask.delayed(process_precip)(basin_bounds, srcpath, dstpath, secrets, temp_datadir)
+            futures.append(future)
 
     #### Process NC files ####
     # required_dates = [begin+timedelta(days=n) for n in range((end-begin).days)]
@@ -512,7 +542,8 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         srcpath = os.path.join(raw_datadir_tmax, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_tmax, f"{date.strftime('%Y-%m-%d')}_TMAX.asc")
 
-        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        futures.append(future)
     
     #### Process TMin ####
     log.debug("Processing TMIN")
@@ -523,7 +554,10 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         srcpath = os.path.join(raw_datadir_tmin, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_tmin, f"{date.strftime('%Y-%m-%d')}_TMIN.asc")
 
-        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        futures.append(future)
+    
+    results = dask.compute(*futures)
 
     #### Process UWND ####
     log.debug("Processing UWND")
@@ -541,7 +575,8 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         srcpath = os.path.join(daily_datadir_uwnd, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_uwnd, f"{date.strftime('%Y-%m-%d')}_UWND.asc")
 
-        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        futures.append(future)
 
     #### Process VWND ####
     log.debug("Processing VWND")
@@ -558,10 +593,12 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, temp_d
         srcpath = os.path.join(daily_datadir_vwnd, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_vwnd, f"{date.strftime('%Y-%m-%d')}_VWND.asc")
 
-        process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        futures.append(future)
+    results = dask.compute(*futures)
 
 
-def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, multiprocessing=1, download=True, process=True):
+def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, download=True, process=True):
     raw_datadir = os.path.join(data_dir,"raw",'')
     processed_datadir = os.path.join(basin_data_dir,"pre_processing","processed",'')
     temp_datadir = os.path.join(basin_data_dir,"pre_processing","temp",'')
@@ -608,4 +645,4 @@ def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, endd
 
     #### DATA PROCESSING ####
     if process:
-        process_data(basin_bounds,raw_datadir, processed_datadir, startdate, enddate, temp_datadir, multiprocessing)
+        process_data(basin_bounds,raw_datadir, processed_datadir, startdate, enddate, secrets, temp_datadir)
