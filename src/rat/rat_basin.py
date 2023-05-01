@@ -23,7 +23,7 @@ from rat.utils.vic_param_reader import VICParameterFile
 from rat.core.run_vic import VICRunner
 
 from rat.utils.route_param_reader import RouteParameterFile
-from rat.core.run_routing import RoutingRunner, generate_inflow
+from rat.core.run_routing import RoutingRunner, generate_inflow, run_routing
 
 from rat.core.run_altimetry import run_altimetry
 
@@ -497,28 +497,16 @@ def rat_basin(config, rat_logger):
                     rout_input_state_start_date = config['BASIN']['start']
                 ### Extracted routing start date ###
                 #------------- Routing Begins and Pre processing for Mass Balance --------------#
-                with RouteParameterFile(
+                output_paths, basin_station_xy_path, ret_codes = run_routing(
                     config = config,
-                    basin_name = basin_name,
                     start = rout_input_state_start_date,
                     end = config['BASIN']['end'],
                     basin_flow_direction_file = basin_flow_dir_file,
+                    rout_input_path_prefix = rout_input_path_prefix,
                     clean=False,
-                    rout_input_path_prefix = rout_input_path_prefix
-                    ) as r:
-                    route = RoutingRunner(    
-                        project_dir = config['GLOBAL']['project_dir'], 
-                        result_dir = r.params['output_dir'], 
-                        inflow_dir = rout_inflow_dir, 
-                        model_path = config['ROUTING']['route_model'],
-                        param_path = r.route_param_path, 
-                        fdr_path = r.params['flow_direction_file'], 
-                        station_path_latlon = basin_station_latlon_file,
-                        station_xy = r.params['station']
-                    )
-                    route.create_station_file()
-                    route.run_routing()
-                    basin_station_xy_path = route.station_path_xy
+                    inflow_dir = rout_inflow_dir,
+                    station_path_latlon = basin_station_latlon_file,
+                )
                 ROUTING_STATUS=1
             else:
                 rat_logger.info("VIC Run Failed. Skipping Step-8: Runnning Routing and generating Inflow")
@@ -536,7 +524,7 @@ def rat_basin(config, rat_logger):
             #-------------  Inflow pre-processing for Mass Balance begins--------------#
             ###### Converting routing model's outputs to .csv file
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
-            dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs','inflow')
+            dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro', 'rout_inflow')
             dst_dir.mkdir(parents=True, exist_ok=True)
             generate_inflow(routing_output_dir, dst_dir)
         except:
