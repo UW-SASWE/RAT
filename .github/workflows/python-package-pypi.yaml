@@ -23,16 +23,19 @@ jobs:
         # from refs/tags/v1.2.3 get 1.2.3
         VERSION=$(echo $GITHUB_REF | sed 's#.*/##')
         PLACEHOLDER='version = \"develop\"'
-        VERSION_FILE='setup.py'
+        VERSION_FILE1='setup.py'
+        VERSION_FILE2='setup.py'
 
         echo "VERSION=$VERSION"
         echo "PLACEHOLDER=$PLACEHOLDER"
-        echo "VERSION_FILE=$VERSION_FILE"
+        echo "VERSION_FILE1=$VERSION_FILE1"
+        echo "VERSION_FILE2=$VERSION_FILE2"
 
         # ensure the placeholder is there. If grep doesn't find the placeholder
         # it exits with exit code 1 and github actions aborts the build. 
         grep "$PLACEHOLDER" "$VERSION_FILE"
-        sed -i "s/$PLACEHOLDER/version = \"${VERSION}\"/g" "$VERSION_FILE"
+        sed -i "s/$PLACEHOLDER/version = \"${VERSION}\"/g" "$VERSION_FILE1"
+        sed -i "s/$PLACEHOLDER/version = \"${VERSION}\"/g" "$VERSION_FILE2"
       shell: bash
     - name: Build a binary wheel and a source tarball
       run: >-
