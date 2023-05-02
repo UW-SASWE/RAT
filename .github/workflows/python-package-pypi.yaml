@@ -18,9 +18,13 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: >-
         python -m build --sdist --wheel --outdir dist/ .
-    - name: Upload artifact
+    - name: Upload artifact to GA
       uses: actions/upload-artifact@v3
       with:
         name: dist
         path: dist/
         if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
+    - name: Upload distribution to (test) PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.TESTPYPI_TOKEN }}
