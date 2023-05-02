@@ -21,7 +21,7 @@ jobs:
       id: tag
       run: |
         # from refs/tags/v1.2.3 get 1.2.3
-        VERSION=$(echo $GITHUB_REF | sed 's#.*/v##')
+        VERSION=$(echo $GITHUB_REF | sed 's#.*/##')
         PLACEHOLDER='version = \"develop\"'
         VERSION_FILE='setup.py'
 
