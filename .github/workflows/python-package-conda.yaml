@@ -7,11 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Build and publish Conda packages to Anaconda.org (w dependencies on giuliorossetti)
-      uses: GiulioRossetti/conda-package-publish-action@cdlib_a
+    - name: publish-to-conda
+      uses: fcakyon/conda-publish-action@v1.3
       with:
-        subDir: .
-        AnacondaToken: ${{ SECRETS.ANACONDA_TOKEN }}
-        platforms: linux-64
-        override: true
-        dry_run: false
+        subdir: '.'
+        anacondatoken: ${{ secrets.ANACONDA_TOKEN }}
+        platforms: 'linux'
