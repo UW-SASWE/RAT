@@ -24,7 +24,7 @@ jobs:
         VERSION=$(echo $GITHUB_REF | sed 's#.*/##')
         PLACEHOLDER='version = \"develop\"'
         VERSION_FILE1='setup.py'
-        VERSION_FILE2='setup.py'
+        VERSION_FILE2='pyproject.toml'
 
         echo "VERSION=$VERSION"
         echo "PLACEHOLDER=$PLACEHOLDER"
