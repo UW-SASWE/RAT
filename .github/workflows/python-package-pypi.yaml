@@ -1,4 +1,4 @@
-name: publish-to-pypiname: Publish Python 🐍 distributions 📦 to PyPI
+name: publish-to-pypi
 
 on: [push, release]
 
