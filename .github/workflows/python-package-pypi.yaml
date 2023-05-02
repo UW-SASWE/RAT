@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: artifact
+          name: dist
           path: dist
       - name: Upload to artifact PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
