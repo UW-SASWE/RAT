@@ -1,10 +1,6 @@
 name: publish-to-pypi
 
 on:
-  push:
-    branches:
-      - main
-      - publish-on-release
   release:
     types: [ created ]
 
