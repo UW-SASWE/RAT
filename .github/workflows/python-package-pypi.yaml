@@ -23,4 +23,4 @@ jobs:
       with:
         name: dist
         path: dist/
-            if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
+          if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
