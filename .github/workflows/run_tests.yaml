@@ -28,7 +28,7 @@ jobs:
     
   test:
     name: Test package
-    requires: [build]
+    needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
