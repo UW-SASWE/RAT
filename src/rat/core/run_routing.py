@@ -14,6 +14,7 @@ from rat.utils.logging import LOG_NAME, NOTIFICATION
 from rat.utils.run_command import run_command
 
 log = getLogger(LOG_NAME)
+log.setLevel('DEBUG')
 
 class RoutingRunner():
     # TODO Clean up UH files
