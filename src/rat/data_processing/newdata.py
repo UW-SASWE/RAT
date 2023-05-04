@@ -388,11 +388,13 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
     which can be controlled by the `datadir` path
     """
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
-        raise Exception(f"ERROR: {temp_datadir} directory doesn't exist")
+        log.warning(f"ERROR: {temp_datadir} directory doesn't exist")
+        STATUS='FAILED'
+        return date, 'Precipitaion', STATUS
     
     if not(os.path.exists(dstpath)):
         log.debug("Processing Precipitation file: %s", srcpath)
-
+        STATUS = 'STARTED'
         with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
             clipped_temp_file = os.path.join(tempdir, 'clipped.tif')
             cmd = [
@@ -415,13 +417,13 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
             ]
             try:
                 run_command(cmd)
+                
             except subprocess.CalledProcessError as e:
                 src_fn = Path(srcpath)
                 date = pd.to_datetime(src_fn.stem.split('_')[0])
                 log.error(f"subprocess.CalledProcessError in {date}: ", e)
-                
                 # delete old precipitation file and redownload. retry once
-                if itry <= 1:
+                try:
                     src_fn = Path(srcpath)
                     src_fn.unlink(missing_ok=True)
 
@@ -429,8 +431,10 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
 
                     download_precip(date, version, srcpath, secrets)
                     run_command(cmd)
-                else:
-                    raise e
+                except:
+                    log.warning('Processing failed. Downloaded file might be corrupted.')
+                    STATUS='FAILED'
+                    return date, 'Precipitaion', STATUS
 
             # Scale down (EARLY)
             scaled_temp_file = os.path.join(tempdir, 'scaled.tif')
@@ -458,11 +462,13 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
 
             # Move to destination
             shutil.move(aai_temp_file, dstpath)
+            STATUS = 'SUCCESS'
     else:
+        STATUS = 'SKIPPED'
         log.debug(f"Processing Precipitation file exist: {srcpath}")
+    return date, 'Precipitaion', STATUS
 
-
-def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, itry=0):
+def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, var='---'):
     """For TMax, TMin, UWnd and VWnd, the processing steps are same, and can be performed using
     this function.
 
@@ -473,10 +479,13 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, itry=0):
         temp_datadir: directory where the temporary data will be stored
     """
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
-        raise Exception(f"ERROR: {temp_datadir} directory doesn't exist")
+        log.warning(f"ERROR: {temp_datadir} directory doesn't exist")
+        STATUS='FAILED'
+        return date, var, STATUS
+
     if not(os.path.exists(dstpath)):
         log.debug("Processing NC file: %s for date %s", srcpath, date.strftime('%Y-%m-%d'))
-
+        STATUS = 'STARTED'
         with tempfile.TemporaryDirectory(dir=temp_datadir) as tempdir:
             # Convert from NC to Tif
             band = date.strftime("%-j")   # required band number is defined by `day of year`
@@ -537,8 +546,11 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, itry=0):
 
             # Move file to destination
             shutil.move(aai_temp_file, dstpath)
+            STATUS='SUCCESS' 
     else:
+        STATUS='SKIPPED'
         log.debug(f"Processing NC file exists: {srcpath} for date {date.strftime('%Y-%m-%d')}")
+    return date, var, STATUS
 
 def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secrets, temp_datadir):
     if not os.path.isdir(temp_datadir):
@@ -553,6 +565,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
     ds = pd.date_range(begin, end)
 
     futures = []
+    processed_statuses = []
 
     for srcname in os.listdir(raw_datadir_precip):
         if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
@@ -575,7 +588,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
         srcpath = os.path.join(raw_datadir_tmax, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_tmax, f"{date.strftime('%Y-%m-%d')}_TMAX.asc")
 
-        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir, "tmax")
         futures.append(future)
 
     #### Process TMin ####
@@ -587,7 +600,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
         srcpath = os.path.join(raw_datadir_tmin, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_tmin, f"{date.strftime('%Y-%m-%d')}_TMIN.asc")
 
-        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir, "tmin")
         futures.append(future)
 
     #### Process UWND ####
@@ -606,7 +619,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
         srcpath = os.path.join(daily_datadir_uwnd, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_uwnd, f"{date.strftime('%Y-%m-%d')}_UWND.asc")
 
-        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir, "uwnd")
         futures.append(future)
 
     #### Process VWND ####
@@ -624,10 +637,13 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
         srcpath = os.path.join(daily_datadir_vwnd, date.strftime('%Y')+'.nc')
         dstpath = os.path.join(processed_datadir_vwnd, f"{date.strftime('%Y-%m-%d')}_VWND.asc")
 
-        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
+        future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir, "vwnd")
         futures.append(future)
-    results = dask.compute(*futures)
 
+    processed_statuses = dask.compute(*futures)
+    processed_statuses = pd.DataFrame(processed_statuses, columns=['Date','Variable','Status'])
+    processed_statuses.sort_values(by=["Date","Variable"], inplace=True)
+    log.debug("Files processed statuses:\n%s", processed_statuses.to_string(index=False, col_space=25))
 
 def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, enddate, secrets_file, download=True, process=True):
     raw_datadir = os.path.join(data_dir,"raw",'')
