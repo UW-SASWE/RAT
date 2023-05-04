@@ -6,7 +6,6 @@ import datetime
 from pathlib import Path
 import dask
 from tempfile import TemporaryDirectory
-from pathlib import Path
 import subprocess
 
 from logging import getLogger
@@ -36,7 +35,7 @@ class RoutingRunner():
         log.debug("Station file (X-Y): %s", self.station_path_xy)
 
         self.fdr = self._read_fdr(fdr_path)
-        if isinstance(station_path_latlon, pd.DataFrame) or isinstance(station_path_latlon, pd.Series):
+        if isinstance(station_path_latlon, pd.DataFrame):
             self.stations = self._read_stations(station_path_latlon)
             self.station_file_creation = True
         elif isinstance(station_path_latlon, str):
@@ -96,7 +95,7 @@ class RoutingRunner():
         else: # else change directory to project directory
             args = f'{self.model_path} {self.param_path}'
             log.debug("Running: %s", " ".join(args))
-            ret_code = subprocess.run(args.split(), capture_output=True, shell=True, cwd=self.project_dir)
+            ret_code = subprocess.run(args.split(), capture_output=True, shell=True, cwd=self.project_dir, executable="/bin/bash")
 
         # clean up
         log.debug("Cleaning up routing files")

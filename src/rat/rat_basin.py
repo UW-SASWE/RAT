@@ -40,14 +40,13 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 # Step-5: Preparation of VIC Parameter Files
 # Step-6: Running of VIC and preparation of Routing input
 # Step-7: Preparation of Routing Parameter Files
-# Step-8: Runnning Routing
-# Step-9: Generating Inflow
-# Step-10: Preparation of parameter files for Surface Area Calculation
-# Step-11: TMS-OS Surface Area Calculation from GEE 
-# Step-12: Elevation extraction from Altimeter
-# Step-13: Generating Area Elevation Curves for reservoirs
-# Step-14: Calculation of Outflow, Evaporation and Storage change
-# Step-15: Conversion of output data to final format as time series
+# Step-8: Runnning Routing model
+# Step-9: Preparation of parameter files for Surface Area Calculation
+# Step-10: TMS-OS Surface Area Calculation from GEE 
+# Step-11: Elevation extraction from Altimeter
+# Step-12: Generating Area Elevation Curves for reservoirs
+# Step-13: Calculation of Inflow, Outflow, Evaporation and Storage change
+# Step-14: Conversion of output data to final format as time series
 
 #TODO: Converting steps to separate modules to make RAT more robust and generalized
 #module-1 step-1,2 data_preparation_vic
@@ -222,6 +221,9 @@ def rat_basin(config, rat_logger):
             basin_station_latlon_file = config['ROUTING']['station_latlon_path']
         # Creating routing inflow directory
         rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'ro', 'rout_inflow',''), True)
+        routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
+        inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         #----------- Paths Necessary for running of Routing  -----------#
 
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
@@ -485,7 +487,7 @@ def rat_basin(config, rat_logger):
     if(8 in steps):
         try:
             if(VIC_STATUS):
-                rat_logger.info("Starting Step-8: Runnning Routing and generating Inflow")
+                rat_logger.info("Starting Step-8: Runnning Routing model")
                 ### Extracting routing start date ###
                 if(config['BASIN']['spin_up']):
                     rout_input_state_start_date = config['BASIN']['start']
@@ -520,24 +522,7 @@ def rat_basin(config, rat_logger):
     ######### Step-9
     if(9 in steps):
         try:
-            rat_logger.info("Starting Step-9: Generating Inflow files")
-            #-------------  Inflow pre-processing for Mass Balance begins--------------#
-            ###### Converting routing model's outputs to .csv file
-            routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
-            dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro', 'rout_inflow')
-            dst_dir.mkdir(parents=True, exist_ok=True)
-            generate_inflow(routing_output_dir, dst_dir)
-        except:
-            no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-9: Generating Inflow files")
-        else:
-            rat_logger.info("Finished Step-9: Generating Inflow files")
-            #------------- Inflow pre-processing for Mass Balance ends--------------#
-
-    ######### Step-10
-    if(10 in steps):
-        try:
-            rat_logger.info("Starting Step-10: Preparation of parameter files for Surface Area Calculation")
+            rat_logger.info("Starting Step-9: Preparation of parameter files for Surface Area Calculation")
             #------------- Selection of Reservoirs within the basin begins--------------#
             ###### Preparing basin's reservoir shapefile and it's associated column dictionary for calculating surface area #####
             ### Creating Basin Reservoir Shapefile, if not exists ###
@@ -548,16 +533,16 @@ def rat_basin(config, rat_logger):
             ###### Prepared basin's reservoir shapefile and it's associated column dictionary #####
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-10: Preparation of parameter files for Surface Area Calculation")
+            rat_logger.exception("Error Executing Step-9: Preparation of parameter files for Surface Area Calculation")
         else:
-            rat_logger.info("Finished Step-10: Preparation of parameter files for Surface Area Calculation")
+            rat_logger.info("Finished Step-9: Preparation of parameter files for Surface Area Calculation")
             #------------- Selection of Reservoirs within the basin ends--------------#
 
-    ######### Step-11
-    if(11 in steps):
+    ######### Step-10
+    if(10 in steps):
         try:
             from rat.core.run_sarea import run_sarea
-            rat_logger.info("Starting Step-11: TMS-OS Surface Area Calculation from GEE")
+            rat_logger.info("Starting Step-10: TMS-OS Surface Area Calculation from GEE")
             ##----------- Remote Sensing to estimate surface area begins -----------##
             if (not os.path.exists(basin_reservoir_shpfile_path)):
                 if (not config['ROUTING']['station_global_data']):
@@ -570,15 +555,15 @@ def rat_basin(config, rat_logger):
             GEE_STATUS = 1
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-11: TMS-OS Surface Area Calculation from GEE")
+            rat_logger.exception("Error Executing Step-10: TMS-OS Surface Area Calculation from GEE")
         else:
-            rat_logger.info("Finished Step-11: TMS-OS Surface Area Calculation from GEE")                                                                        
+            rat_logger.info("Finished Step-10: TMS-OS Surface Area Calculation from GEE")                                                                        
             ##----------- Remote Sensing to estimate surface area ends -----------##
     
-    ######### Step-12
-    if(12 in steps):
+    ######### Step-11
+    if(11 in steps):
         try:
-            rat_logger.info("Starting Step-12: Elevation extraction from Altimeter")
+            rat_logger.info("Starting Step-11: Elevation extraction from Altimeter")
             ##----------- Altimeter height extraction begins -----------##
             # Altimeter
             latest_altimetry_cycle = run_altimetry(config, 'ALTIMETER', basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, 
@@ -586,45 +571,47 @@ def rat_basin(config, rat_logger):
             ALTIMETER_STATUS = 1
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-12: Elevation extraction from Altimeter")
+            rat_logger.exception("Error Executing Step-11: Elevation extraction from Altimeter")
         else:
-            rat_logger.info("Finished Step-12: Elevation extraction from Altimeter")                                                                        
+            rat_logger.info("Finished Step-11: Elevation extraction from Altimeter")                                                                        
             ##----------- Altimeter height extraction ends -----------##
 
-    ######### Step-13
-    if(13 in steps):
+    ######### Step-12
+    if(12 in steps):
         try:
             from rat.ee_utils.ee_aec_file_creator import aec_file_creator
-            rat_logger.info("Starting Step-13: Generating Area Elevation Curves for reservoirs")
+            rat_logger.info("Starting Step-12: Generating Area Elevation Curves for reservoirs")
             ##--------------------------------Area Elevation Curves Extraction begins ------------------- ##
             ## Creating AEC files if not present for post-processing dels calculation
             aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path)
         except:
-            rat_logger.exception("Finished Step-13: Generating Area Elevation Curves for reservoirs")
+            rat_logger.exception("Finished Step-12: Generating Area Elevation Curves for reservoirs")
         else:
-            rat_logger.info("Finished Step-13: Generating Area Elevation Curves for reservoirs")
+            rat_logger.info("Finished Step-12: Generating Area Elevation Curves for reservoirs")
             ##--------------------------------Area Elevation Curves Extraction ends ------------------- ##
 
-    ######### Step-14
-    if(14 in steps):
+    ######### Step-13
+    if(13 in steps):
         try:
-            rat_logger.info("Starting Step-14: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation and Storage change")
             
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
+            # Generate inflow files from RAT routing outputs
+            generate_inflow(routing_output_dir, inflow_dst_dir)
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
 
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-14: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation and Storage change")
         else:
-            rat_logger.info("Finished Step-14: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
             ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
     
-    ######### Step-15
-    if(15 in steps):
+    ######### Step-14
+    if(14 in steps):
         try:
-            rat_logger.info("Starting Step-15: Creating final outputs in a timeseries format and cleaning up.")
+            rat_logger.info("Starting Step-14: Creating final outputs in a timeseries format and cleaning up.")
 
             ##---------- Convert all time-series to final output csv format and clean up----------## 
             ## Surface Area
@@ -687,9 +674,9 @@ def rat_basin(config, rat_logger):
                 cleaner.clean_altimetry()
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-15: Creating final outputs in a timeseries format and cleaning up.")
+            rat_logger.exception("Error Executing Step-14: Creating final outputs in a timeseries format and cleaning up.")
         else:
-            rat_logger.info("Finished Step-15: Creating final outputs in a timeseries format and cleaning up.")
+            rat_logger.info("Finished Step-14: Creating final outputs in a timeseries format and cleaning up.")
             ##----------Converted all time-series to final output csv format and cleaned up----------## 
 
     close_logger()
