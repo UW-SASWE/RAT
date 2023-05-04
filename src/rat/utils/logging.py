@@ -11,7 +11,7 @@ from rat.utils.utils import create_directory
 
 # -------------------------------------------------------------------- #
 LOG_NAME = 'rat-logger'
-
+LOG_LEVEL = 'DEBUG'
 NOTIFICATION = 25    # Setting level above INFO, below WARNING
 logging.addLevelName(NOTIFICATION, "NOTIFICATION")
 NOTIFICATION_FOMATTER = logging.Formatter(

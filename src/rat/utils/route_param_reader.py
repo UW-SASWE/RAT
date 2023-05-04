@@ -5,9 +5,10 @@ import yaml
 import shutil
 from pathlib import Path
 from rat.utils.utils import create_directory
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, NOTIFICATION, LOG_LEVEL
 
 log = getLogger(LOG_NAME)
+log.setLevel(LOG_LEVEL)
 
 class RouteParameterFile:
     def __init__(self, config, basin_name, start, end, route_param_path=None, basin_flow_direction_file=None, clean=False, runname=None, rout_input_path_prefix=None,

@@ -10,11 +10,11 @@ import subprocess
 
 from logging import getLogger
 from rat.utils.route_param_reader import RouteParameterFile
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 from rat.utils.run_command import run_command
 
 log = getLogger(LOG_NAME)
-log.setLevel('DEBUG')
+log.setLevel(LOG_LEVEL)
 
 class RoutingRunner():
     # TODO Clean up UH files

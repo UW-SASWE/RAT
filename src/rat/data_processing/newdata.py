@@ -14,11 +14,12 @@ from pathlib import Path
 from dask.distributed import Semaphore
 import dask
 
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 from rat.utils.utils import create_directory
 import configparser
 
 log = getLogger(LOG_NAME)
+log.setLevel(LOG_LEVEL)
 
 def run_command(cmd,shell_bool=False):
     """Safely runs a command, and returns the returncode silently in case of no error. Otherwise,
