@@ -220,7 +220,6 @@ def rat_basin(config, rat_logger):
         else:
             basin_station_latlon_file = config['ROUTING']['station_latlon_path']
         # Creating routing inflow directory
-        rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'ro', 'rout_inflow',''), True)
         routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
         inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         inflow_dst_dir.mkdir(parents=True, exist_ok=True)
