@@ -13,6 +13,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from dask.distributed import Semaphore
 import dask
+import pandas as pd
 
 from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 from rat.utils.utils import create_directory
@@ -98,9 +99,19 @@ def download_precip(date, version, outputpath, secrets, interpolate=True):
         date: datetime object that defines the date for which data is required
         version: which version of data to download - IMERG-LATE or IMERG-EARLY
         outputpath: path where the data should be downloaded
+    Returns:
+        STATUS: Can have the following values:
+            STARTED: Download has started
+            SUCCESS: Download was successful
+            FAILED: Download failed
+            INTERPOLATION_STARTED: Download failed, but interpolation was started
+            INTERPOLATED: Download failed, but interpolation was successful
+            INTERPOLATION_FAILED: Download failed, and interpolation failed
+            NOT_FOUND: Download link not found. Data can be interpolated if `interpolate` is set to True
     =======
     TODO: Add ability to select either CHIRPS or IMERG data
     """
+    STATUS = "STARTED"
     if not(os.path.exists(outputpath)):
         link,version_ = _determine_precip_link_and_version(date)
         response = requests.head(link,auth=(secrets["imerg"]["username"], secrets["imerg"]["pwd"]))
@@ -109,10 +120,12 @@ def download_precip(date, version, outputpath, secrets, interpolate=True):
         # Define the command (different for FINAL, same for EARLY and LATE)
             cmd = _get_cmd_precip_download(outputpath,link,version,secrets)
             log.debug("Downloading precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
-            return run_command(cmd)
+            exit_code = run_command(cmd)
+            STATUS = "SUCCESS" if exit_code == 0 else "FAILED"
         else:
             if(interpolate):
-                print('Link for 1day file does not exist. Trying to interpolate data using previous and next date.')
+                STATUS="INTERPOLATION_STARTED"
+                log.debug('Link for 1day file does not exist. Trying to interpolate data using previous and next date.')
                 pre_date = date - timedelta(days=1)
                 pre_link, pre_version = _determine_precip_link_and_version(pre_date)
                 pre_response = requests.head(pre_link,auth=(secrets["imerg"]["username"], secrets["imerg"]["pwd"]))
@@ -124,12 +137,14 @@ def download_precip(date, version, outputpath, secrets, interpolate=True):
                     pre_outputpath = ('').join(outputpath.split('.')[:-1])+'_pretemp.tif'
                     pre_cmd = _get_cmd_precip_download(pre_outputpath,pre_link,pre_version,secrets)
                     log.debug("Downloading pre-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
-                    run_command(pre_cmd)
+                    exit_code1 = run_command(pre_cmd)
 
                     post_outputpath = ('').join(outputpath.split('.')[:-1])+'_posttemp.tif'
                     post_cmd = _get_cmd_precip_download(post_outputpath,post_link,post_version,secrets)
                     log.debug("Downloading post-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
-                    run_command(post_cmd)
+                    exit_code2 = run_command(post_cmd)
+
+                    STATUS = "INTERPOLATED" if (exit_code1 == 0) & (exit_code2 == 0) else "INTERPOLATION_FAILED"
 
                     ## taking mean of pre and post date
                     pre_precip = rxr.open_rasterio(pre_outputpath)
@@ -142,23 +157,29 @@ def download_precip(date, version, outputpath, secrets, interpolate=True):
                         os.remove(pre_outputpath)
                     if os.path.isfile(post_outputpath):
                         os.remove(post_outputpath)
-                    print(f"Precipitation file interpolated using previous and next date : {date.strftime('%Y-%m-%d')}")
+                    log.debug(f"Precipitation file interpolated using previous and next date : {date.strftime('%Y-%m-%d')}")
 
                 elif (pre_response.status_code==200):
                     pre_cmd = _get_cmd_precip_download(outputpath,pre_link,pre_version,secrets)
                     log.debug("Being Replaced by pre-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
-                    run_command(pre_cmd)
+                    exit_code = run_command(pre_cmd)
+                    STATUS = "INTERPOLATED" if exit_code == 0 else "INTERPOLATION_FAILED"
                 
                 elif (post_response.status_code==200):
                     post_cmd = _get_cmd_precip_download(outputpath,post_link,post_version,secrets)
                     log.debug("Being Replaced by post-precipitation 1-day file: %s (%s)", date.strftime('%Y-%m-%d'), version)
-                    run_command(post_cmd)
+                    exit_code = run_command(post_cmd)
+                    STATUS = "INTERPOLATED" if exit_code == 0 else "INTERPOLATION_FAILED"
                 else:
-                    print(f"Precipitation file cannnot be interpolated from pre/post date. Skipping downloading: {date.strftime('%Y-%m-%d')}")
+                    log.warning(f"Precipitation file cannnot be interpolated from pre/post date. Skipping downloading: {date.strftime('%Y-%m-%d')}")
+                    STATUS = "INTERPOLATION_FAILED"
             else:
-                print(f"Precipitation download link not found. Skipping downloading: {date.strftime('%Y-%m-%d')}")
+                log.warning(f"Precipitation download link not found. Skipping downloading: {date.strftime('%Y-%m-%d')}")
+                STATUS = "NOT_FOUND"
     else:
-        print(f"Precipitation file already exits: {date.strftime('%Y-%m-%d')}")
+        log.debug(f"Precipitation file already exits: {date.strftime('%Y-%m-%d')}")
+
+    return STATUS
 
 def download_tmax(year, outputpath):
     """
@@ -323,11 +344,16 @@ def download_data(begin, end, datadir, secrets):
     # Download Precipitation
     log.debug("Downloading Precipitation")
 
+    precip_statuses = {
+        "Date": [],
+        "Status": []
+    }
+
     sem = Semaphore(max_leases=4, name="IMERG-Downloader")
     def download_precip_with_semaphore(date, version, outputpath, secrets, sem):
         with sem:
-            result = download_precip(date, version, outputpath, secrets)
-            return result
+            STATUS = download_precip(date, version, outputpath, secrets)
+            return date, STATUS
     
     futures = []
     for date in required_dates:
@@ -338,6 +364,12 @@ def download_data(begin, end, datadir, secrets):
             futures.append(future)
 
     results = dask.compute(*futures) # downloading precipitation files first
+    precip_statuses["Date"] = [r[0] for r in results]
+    precip_statuses["Status"] = [r[1] for r in results]
+    precip_statuses = pd.DataFrame(precip_statuses)
+    precip_statuses.sort_values(by="Date", inplace=True)
+    log.debug("Precipitation download statuses:\n%s", precip_statuses.to_string(index=False, col_space=25))
+
     futures = []
 
     # Download other forcing data
@@ -427,7 +459,7 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
             # Move to destination
             shutil.move(aai_temp_file, dstpath)
     else:
-        print(f"Processing Precipitation file exist: {srcpath}")
+        log.debug(f"Processing Precipitation file exist: {srcpath}")
 
 
 def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, itry=0):
@@ -506,7 +538,7 @@ def process_nc(basin_bounds,date, srcpath, dstpath, temp_datadir=None, itry=0):
             # Move file to destination
             shutil.move(aai_temp_file, dstpath)
     else:
-        print(f"Processing NC file exists: {srcpath} for date {date.strftime('%Y-%m-%d')}")
+        log.debug(f"Processing NC file exists: {srcpath} for date {date.strftime('%Y-%m-%d')}")
 
 def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secrets, temp_datadir):
     if not os.path.isdir(temp_datadir):
@@ -521,7 +553,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
     ds = pd.date_range(begin, end)
 
     futures = []
-    
+
     for srcname in os.listdir(raw_datadir_precip):
         if datetime.strptime(srcname.split(os.sep)[-1].split("_")[0], "%Y-%m-%d") in ds:
             srcpath = os.path.join(raw_datadir_precip, srcname)
@@ -545,7 +577,7 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
 
         future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
         futures.append(future)
-    
+
     #### Process TMin ####
     log.debug("Processing TMIN")
     raw_datadir_tmin = os.path.join(raw_datadir, "tmin")
@@ -557,8 +589,6 @@ def process_data(basin_bounds,raw_datadir, processed_datadir, begin, end, secret
 
         future = dask.delayed(process_nc)(basin_bounds,date, srcpath, dstpath, temp_datadir)
         futures.append(future)
-    
-    results = dask.compute(*futures)
 
     #### Process UWND ####
     log.debug("Processing UWND")
