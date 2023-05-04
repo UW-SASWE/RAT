@@ -248,7 +248,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     # Outflow
     if((routing_status) and (EVAP_STATUS) and (DELS_STATUS)):
         log.debug("Calculating Outflow")
-        inflow_dir = os.path.join(basin_data_dir,'ro', "rout_inflow")
+        inflow_dir = os.path.join(basin_data_dir, "rat_outputs", "inflow")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
             try:
