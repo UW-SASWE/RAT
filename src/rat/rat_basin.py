@@ -212,6 +212,11 @@ def rat_basin(config, rat_logger):
         rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
         # Creating routing parameter directory
         rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
+        # Creating routing inflow directory
+        routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+        routing_output_dir.mkdir(parents=True, exist_ok=True)
+        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
+        inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         # Defining path and name for basin flow direction file
         basin_flow_dir_file = os.path.join(rout_param_dir,'fl.asc')
         # Defining Basin station latlon file path
@@ -219,10 +224,6 @@ def rat_basin(config, rat_logger):
             basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
         else:
             basin_station_latlon_file = config['ROUTING']['station_latlon_path']
-        # Creating routing inflow directory
-        routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
-        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
-        inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         #----------- Paths Necessary for running of Routing  -----------#
 
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
@@ -505,7 +506,7 @@ def rat_basin(config, rat_logger):
                     basin_flow_direction_file = basin_flow_dir_file,
                     rout_input_path_prefix = rout_input_path_prefix,
                     clean=False,
-                    inflow_dir = rout_inflow_dir,
+                    inflow_dir = inflow_dst_dir,
                     station_path_latlon = basin_station_latlon_file,
                 )
                 ROUTING_STATUS=1
@@ -622,7 +623,7 @@ def rat_basin(config, rat_logger):
             
             ## Inflow
             if(ROUTING_STATUS):
-                convert_inflow(rout_inflow_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_output_path)
+                convert_inflow(inflow_dst_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_output_path)
                 rat_logger.info("Converted Inflow to the Output Format.")
             else:
                 rat_logger.info("Could not convert Inflow to the Output Format as Routing run failed.")
