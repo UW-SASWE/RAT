@@ -5,6 +5,7 @@ import datetime
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+from pathlib import Path
 
 from rat.utils.utils import create_directory
 from rat.utils.logging import init_logger,close_logger,NOTIFICATION
@@ -22,7 +23,7 @@ from rat.utils.vic_param_reader import VICParameterFile
 from rat.core.run_vic import VICRunner
 
 from rat.utils.route_param_reader import RouteParameterFile
-from rat.core.run_routing import RoutingRunner
+from rat.core.run_routing import RoutingRunner, generate_inflow, run_routing
 
 from rat.core.run_altimetry import run_altimetry
 
@@ -39,12 +40,12 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 # Step-5: Preparation of VIC Parameter Files
 # Step-6: Running of VIC and preparation of Routing input
 # Step-7: Preparation of Routing Parameter Files
-# Step-8: Runnning Routing and generating Inflow
+# Step-8: Runnning Routing model
 # Step-9: Preparation of parameter files for Surface Area Calculation
 # Step-10: TMS-OS Surface Area Calculation from GEE 
 # Step-11: Elevation extraction from Altimeter
 # Step-12: Generating Area Elevation Curves for reservoirs
-# Step-13: Calculation of Outflow, Evaporation and Storage change
+# Step-13: Calculation of Inflow, Outflow, Evaporation and Storage change
 # Step-14: Conversion of output data to final format as time series
 
 #TODO: Converting steps to separate modules to make RAT more robust and generalized
@@ -211,6 +212,11 @@ def rat_basin(config, rat_logger):
         rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
         # Creating routing parameter directory
         rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
+        # Creating routing inflow directory
+        routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+        routing_output_dir.mkdir(parents=True, exist_ok=True)
+        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
+        inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         # Defining path and name for basin flow direction file
         basin_flow_dir_file = os.path.join(rout_param_dir,'fl.asc')
         # Defining Basin station latlon file path
@@ -219,8 +225,6 @@ def rat_basin(config, rat_logger):
         else:
             basin_station_latlon_file = config['ROUTING']['station_latlon_path']
             basin_station_geojson_file = os.path.join(rout_param_dir,'station.geojson')
-        # Creating routing inflow directory
-        rout_inflow_dir = create_directory(os.path.join(basin_data_dir,'ro', 'rout_inflow',''), True)
         #----------- Paths Necessary for running of Routing  -----------#
 
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
@@ -487,7 +491,7 @@ def rat_basin(config, rat_logger):
     if(8 in steps):
         try:
             if(VIC_STATUS):
-                rat_logger.info("Starting Step-8: Runnning Routing and generating Inflow")
+                rat_logger.info("Starting Step-8: Runnning Routing model")
                 ### Extracting routing start date ###
                 if(config['BASIN']['spin_up']):
                     rout_input_state_start_date = config['BASIN']['start']
@@ -499,29 +503,16 @@ def rat_basin(config, rat_logger):
                     rout_input_state_start_date = config['BASIN']['start']
                 ### Extracted routing start date ###
                 #------------- Routing Begins and Pre processing for Mass Balance --------------#
-                with RouteParameterFile(
+                output_paths, basin_station_xy_path, ret_codes = run_routing(
                     config = config,
-                    basin_name = basin_name,
                     start = rout_input_state_start_date,
                     end = config['BASIN']['end'],
                     basin_flow_direction_file = basin_flow_dir_file,
+                    rout_input_path_prefix = rout_input_path_prefix,
                     clean=False,
-                    rout_input_path_prefix = rout_input_path_prefix
-                    ) as r:
-                    route = RoutingRunner(    
-                        project_dir = config['GLOBAL']['project_dir'], 
-                        result_dir = r.params['output_dir'], 
-                        inflow_dir = rout_inflow_dir, 
-                        model_path = config['ROUTING']['route_model'],
-                        param_path = r.route_param_path, 
-                        fdr_path = r.params['flow_direction_file'], 
-                        station_path_latlon = basin_station_latlon_file,
-                        station_xy = r.params['station']
-                    )
-                    route.create_station_file()
-                    route.run_routing()
-                    route.generate_inflow()
-                    basin_station_xy_path = route.station_path_xy
+                    inflow_dir = inflow_dst_dir,
+                    station_path_latlon = basin_station_latlon_file,
+                )
                 ROUTING_STATUS=1
             else:
                 rat_logger.info("VIC Run Failed. Skipping Step-8: Runnning Routing and generating Inflow")
@@ -529,8 +520,8 @@ def rat_basin(config, rat_logger):
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-8: Runnning Routing and generating Inflow")
         else:
-            rat_logger.info("Finished Step-8: Runnning Routing and generating Inflow")
-            #------------- Routing Ends and Inflow pre-processed for Mass Balance --------------#
+            rat_logger.info("Finished Step-8: Runnning Routing model")
+            #------------- Routing Ends --------------#
 
     ######### Step-9
     if(9 in steps):
@@ -609,6 +600,8 @@ def rat_basin(config, rat_logger):
             rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation and Storage change")
             
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
+            # Generate inflow files from RAT routing outputs
+            generate_inflow(routing_output_dir, inflow_dst_dir)
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
 
@@ -634,7 +627,7 @@ def rat_basin(config, rat_logger):
             
             ## Inflow
             if(ROUTING_STATUS):
-                convert_inflow(rout_inflow_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_output_path)
+                convert_inflow(inflow_dst_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_output_path)
                 rat_logger.info("Converted Inflow to the Output Format.")
             else:
                 rat_logger.info("Could not convert Inflow to the Output Format as Routing run failed.")

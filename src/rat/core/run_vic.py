@@ -11,13 +11,13 @@ from pathlib import Path
 from functools import partial
 
 from logging import getLogger
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 from rat.utils.utils import create_directory
 from rat.utils.run_command import run_command
 from rat.utils.vic_param_reader import VICParameterFile
 
 log = getLogger(LOG_NAME)
-
+log.setLevel(LOG_LEVEL)
 
 class VICRunner():
     def __init__(self, vic_env, param_file, vic_result_file, rout_input_dir, conda_hook = None) -> None:

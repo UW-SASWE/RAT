@@ -3,11 +3,11 @@ import datetime
 from logging import getLogger
 import os
 
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 from rat.utils.utils import create_directory
 
 log = getLogger(LOG_NAME)
-
+log.setLevel(LOG_LEVEL)
 
 class MSParameterFile:
     def __init__(self, start, end, init_param, out_dir, forcings=None, state=None, domain=None, workspace=None, runname=None):

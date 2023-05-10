@@ -41,8 +41,9 @@ def run_rat(config_fn, operational_latency=None):
         for_basin=False
     )
 
-    cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'])
+    cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'], threads_per_worker=1)
     client = Client(cluster)
+    client.forward_logging(logger_name='rat-logger', level='DEBUG')
 
     log.debug(f"Started client with {config['GLOBAL']['multiprocessing']} workers. Dashboard link: {client.dashboard_link}")
 

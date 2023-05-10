@@ -4,10 +4,11 @@ from logging import getLogger
 
 import yaml
 
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, NOTIFICATION, LOG_LEVEL
 from rat.utils.utils import create_directory
 
 log = getLogger(LOG_NAME)
+log.setLevel(LOG_LEVEL)
 
 class VICParameterFile:
     def __init__(self, config, basin_name, startdate=None, enddate=None, vic_output_path=None, vic_section='VIC',
