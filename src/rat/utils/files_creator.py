@@ -104,10 +104,12 @@ def create_basin_station_latlon_csv(region_name, basin_name, global_station_file
                         column_dict['lat_column'],
                         'geometry']]
     if(geojson_file):
+        ## Creates a geojson file of stations with columns 'DAM_NAME', 'regionname', 'basinname' and 'filename', used by frontend.
         basins_station_spatialjoin['regionname'] = str(region_name)
         basins_station_spatialjoin['basinname'] = str(basin_name)
         basins_station_spatialjoin['filename'] = basins_station_spatialjoin[column_dict['id_column']].astype(str)+'_'+ \
                                         basins_station_spatialjoin[column_dict['name_column']].str.replace(' ','_')
+        basins_station_spatialjoin.rename(columns={column_dict['name_column']: "DAM_NAME"})
         geojson_save_path = os.path.join(os.path.dirname(savepath),basin_name+'_station.geojson')
         basins_station_spatialjoin.to_file(geojson_save_path, driver= "GeoJSON")
 
@@ -122,6 +124,31 @@ def create_basin_station_latlon_csv(region_name, basin_name, global_station_file
     basins_station_lat_lon['lon'] = basins_station_lat_lon[column_dict['lon_column']]
     basins_station_lat_lon['lat'] = basins_station_lat_lon[column_dict['lat_column']]
     basins_station_lat_lon[['run','name','lon','lat']].to_csv(savepath,index=False)
+
+def create_basin_station_geojson(region_name, basin_name, station_csv_file, savepath):
+    '''
+    Creates a geojson shape file for the stations(reservoirs) for a particular basin with the following columns:
+        DAM_NAME: the name of the station
+        basinname: the name of the basin in which the station is located
+        regionname: the name of the region in which the basin of that station is located
+        filename: the name which will be used to save a station's output data like inflow, outflow etc.
+    '''
+    # Reading the station csv file
+    basin_station_df =  pd.read_csv(station_csv_file)
+    # Converting pandas df to geopandas dataframe
+    basin_station_gdf= gpd.GeoDataFrame(
+        basin_station_df, geometry=gpd.points_from_xy(basin_station_df.lon, basin_station_df.lat))
+    # Removing unwanted columns
+    basin_station_gdf = basin_station_gdf.drop(columns='run')
+    # Adding the desired columns
+    basin_station_gdf['regionname'] = str(region_name)
+    basin_station_gdf['basinname'] = str(basin_name)
+    basin_station_gdf['filename'] = basin_station_gdf['name']
+    # Setting crs of the geopandas dataframe
+    basin_station_gdf = basin_station_gdf.set_crs('epsg:4326')
+    # Saving the geopandas datframe as geojson file
+    geojson_save_path = os.path.join(os.path.dirname(savepath),basin_name+'_station.geojson')
+    basin_station_gdf.to_file(geojson_save_path, driver= "GeoJSON")
 
 def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_dict,station_xy_file,routing_station_global_data,savepath):
     reservoirs = gpd.read_file(reservoir_shpfile)
