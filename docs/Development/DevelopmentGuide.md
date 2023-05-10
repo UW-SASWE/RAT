@@ -17,7 +17,7 @@ mkdir secrets
 
 Next, we will clone RAT from github into the `models` directory.
 ```
-git clone https://github.com/UW-SASWE/RAT.git models/
+git clone https://github.com/UW-SASWE/RAT.git models/RAT
 ```
 
 3. Create the conda environment, and install RAT using conda develop.

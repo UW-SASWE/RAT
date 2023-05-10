@@ -9,7 +9,7 @@ from pathlib import Path
 
 from rat.utils.utils import create_directory
 from rat.utils.logging import init_logger,close_logger,NOTIFICATION
-from rat.utils.files_creator import create_basingridfile, create_basin_domain_nc_file ,create_vic_domain_param_file, create_basin_grid_flow_asc
+from rat.utils.files_creator import create_basingridfile, create_basin_domain_nc_file ,create_vic_domain_param_file, create_basin_grid_flow_asc, create_basin_station_geojson
 from rat.utils.files_creator import create_basin_station_latlon_csv, create_basin_reservoir_shpfile
 from rat.utils.clean import Clean
 
@@ -224,6 +224,7 @@ def rat_basin(config, rat_logger):
             basin_station_latlon_file = os.path.join(rout_param_dir,'basin_station_latlon.csv')
         else:
             basin_station_latlon_file = config['ROUTING']['station_latlon_path']
+            basin_station_geojson_file = os.path.join(rout_param_dir,'station.geojson')
         #----------- Paths Necessary for running of Routing  -----------#
 
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
@@ -471,11 +472,14 @@ def rat_basin(config, rat_logger):
                 if not os.path.exists(basin_flow_dir_file):
                     create_basin_grid_flow_asc(config['ROUTING']['global_flow_dir_tif_file'], basingridfile_path, basin_flow_dir_file[:-4],
                                                                     config['ROUTING'].get('replace_flow_directions'))
-            ### Basin Station File
+            ### Basin Station CSV File and Geojson File (for front-end purposes)
             if (config['ROUTING']['station_global_data']):
                 if not os.path.exists(basin_station_latlon_file):
                     create_basin_station_latlon_csv(region_name,basin_name, config['ROUTING']['stations_vector_file'], basin_data, 
                                                         config['ROUTING']['stations_vector_file_columns_dict'], basin_station_latlon_file)
+            else:
+                if(config['ROUTING'].get('station_latlon_path')):
+                    create_basin_station_geojson(region_name,basin_name,config['ROUTING']['station_latlon_path'],basin_station_geojson_file)
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-7: Preparation of Routing Parameter Files")
