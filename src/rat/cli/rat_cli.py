@@ -6,7 +6,8 @@ import shutil
 import requests, zipfile, io
 import yaml
 import ruamel_yaml as ryaml
-
+import datetime
+from copy import copy
 
 def init_func(args):
     print("Initializing RAT using: ", args)
@@ -122,6 +123,52 @@ def init_func(args):
         n_cores=n_cores,
         secrets=secrets_fp
     )
+
+def cron_func(args):
+    lag = int(args.lag)
+    config_path = Path(args.param)
+    assert config_path.exists(), f"Config file {config_path} does not exist"
+
+    y = ryaml.YAML()
+    config = y.load(config_path.open('r'))
+
+    print(f"Updating config file {config_path} with lag {lag} days")
+    
+    previous_end = config['BASIN']['end']
+    new_end = datetime.datetime.now().date() - datetime.timedelta(days=lag)
+
+    if args.update_date:
+        print(f"Existing dates:")
+        print(f"Start date: {config['BASIN']['start']}")
+        print(f"End date: {config['BASIN']['end']}")
+
+        # update values in config file
+        config['BASIN']['start'] = previous_end
+        config['BASIN']['end'] = new_end
+
+        print("**********")
+        print(f"Updated dates:")
+        print(f"Start date: {config['BASIN']['start']}")
+        print(f"End date: {config['BASIN']['end']}")
+
+
+    # update vic_init_state_date if exists
+    vic_init_fn = Path(config['GLOBAL']['data_dir']).joinpath(
+        config['BASIN']['region_name'], 
+        'basins', 
+        config['BASIN']['basin_name'],
+        'vic',
+        'vic_init_states',
+        f"state_.{previous_end.strftime('%Y%m%d')}_00000.nc").resolve()
+    if vic_init_fn.exists():
+        print(f"VIC init file {vic_init_fn} exists. Updating vic_init_state_date")
+        config['BASIN']['vic_init_state_date'] = copy(previous_end)
+    else:
+        print(f"VIC init state file {vic_init_fn} does not exist. Not updating vic_init_state_date")
+
+    # write yaml file
+    with open(config_path, 'w') as dst:
+        y.dump(config, dst)
 
 def test_func(args):
     from rat.cli.rat_test_config import DOWNLOAD_LINK, PATHS, PARAMS
@@ -290,7 +337,37 @@ def main():
     )
     
     run_parser.set_defaults(func=run_func)
-    
+
+    # Options for cron command
+    cron_parser = command_parsers.add_parser('cron', help='Update RAT Configuration file for cron job')
+
+    cron_parser.add_argument(
+        '-p', '--param',
+        help='RAT Parameter file',
+        action='store',
+        dest='param',
+        required=True
+    )
+
+    cron_parser.add_argument(
+        '-l', '--lag',
+        help='RAT Operational Lag in days',
+        action='store',
+        dest='lag',
+        required=True
+    )
+
+    cron_parser.add_argument(
+        '-u', '--update_date',
+        help='Start and End days will be updated as follows: new_start_date = old_end_date, end_date = today - lag',
+        action='store_true',
+        dest='update_date',
+        required=False,
+        default=False
+    )
+
+    cron_parser.set_defaults(func=cron_func)
+
     # Test command
     test_parser = command_parsers.add_parser('test', help='Test RAT')
 
