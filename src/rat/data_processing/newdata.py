@@ -387,6 +387,8 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
     ASCII grid file and saved at `dstpath`. All of this is done in a temporarily created directory
     which can be controlled by the `datadir` path
     """
+    src_fn = Path(srcpath)
+    date = pd.to_datetime(src_fn.stem.split('_')[0])
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
         log.warning(f"ERROR: {temp_datadir} directory doesn't exist")
         STATUS='FAILED'
@@ -419,8 +421,6 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
                 run_command(cmd)
                 
             except subprocess.CalledProcessError as e:
-                src_fn = Path(srcpath)
-                date = pd.to_datetime(src_fn.stem.split('_')[0])
                 log.error(f"subprocess.CalledProcessError in {date}: ", e)
                 # delete old precipitation file and redownload. retry once
                 try:
