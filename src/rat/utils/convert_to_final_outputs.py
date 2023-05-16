@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+from pathlib import Path
 from rat.utils.utils import create_directory
 
 def convert_sarea(sarea_dir, website_v_dir):
@@ -122,6 +123,19 @@ def convert_altimeter(altimeter_ts_dir, website_v_dir):
 
             print(f"Converting [Heights]: {res_name}")
             df.to_csv(savepath, index=False)
+
+def copy_aec_files(src_dir, dst_dir):
+    src_dir = Path(src_dir)
+    dst_dir = Path(dst_dir)
+
+    for src_path in src_dir.glob('*.csv'):
+        aec = pd.read_csv(src_path)
+        aec.rename({
+            'Elevation': 'elevation',
+            'CumArea': 'area'
+        }, axis=1, inplace=True)
+        aec.to_csv(dst_dir / src_path.name, index=False)
+
 
 def convert_v2_frontend(basin_data_dir, res_name, inflow_src, sarea_src, dels_src, outflow_src):
     """Converts the files according to the newer version of the frontend (v2).

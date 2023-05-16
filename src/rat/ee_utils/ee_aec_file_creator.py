@@ -86,4 +86,5 @@ def aec_file_creator(reservoir_shpfile, shpfile_column_dict, aec_dir_path):
         aec_df.to_csv(os.path.join(aec_dir_path,reservoir_name+'.csv'),index=False)
         print(f"AEC file created succesfully for {reservoir_name}")
   print("AEC file exists for all reservoirs in this basin")
+  return 1
 
