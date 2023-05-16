@@ -108,12 +108,6 @@ class Clean:
             shutil.rmtree(rat_outputs_path)
         except:
             print("No previous rat_outputs folder to delete")
-        
-        try:
-            rat_inflow_path = os.path.join(self.basin_data_dir,'rat_outputs','inflow')
-            shutil.rmtree(rat_inflow_path)
-        except:
-            print("No previous rout_inflow folder to delete")
 
         try:
             gee_sarea_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos')
