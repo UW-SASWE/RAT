@@ -73,7 +73,7 @@ jobs:
         shell: bash -l {0}
         run: |
           mamba install conda-build
-          conda build conda
+          conda build dev-meta.yaml
       - name: Install
         shell: bash -l {0}
         run: |
