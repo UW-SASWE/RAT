@@ -1,0 +1,86 @@
+name: test
+
+on: [push]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    - name: Install pypa/build
+      run: >-
+        python -m pip install build --user
+    - name: Extract tag name
+      id: tag
+      run: |
+        # from refs/tags/v1.2.3 get 1.2.3
+        VERSION='3.0.0.temp'
+        PLACEHOLDER='version = \"develop\"'
+        VERSION_FILE1='setup.py'
+        VERSION_FILE2='pyproject.toml'
+
+        echo "VERSION=$VERSION"
+        echo "PLACEHOLDER=$PLACEHOLDER"
+        echo "VERSION_FILE1=$VERSION_FILE1"
+        echo "VERSION_FILE2=$VERSION_FILE2"
+
+        # ensure the placeholder is there. If grep doesn't find the placeholder
+        # it exits with exit code 1 and github actions aborts the build. 
+        grep "$PLACEHOLDER" "$VERSION_FILE1"
+        grep "$PLACEHOLDER" "$VERSION_FILE2"
+        sed -i "s/$PLACEHOLDER/version = \"${VERSION}\"/g" "$VERSION_FILE1"
+        sed -i "s/$PLACEHOLDER/version = \"${VERSION}\"/g" "$VERSION_FILE2"
+      shell: bash
+    - name: Build a binary wheel and a source tarball
+      run: >-
+        python -m build --sdist --wheel --outdir dist/ .
+    - name: Upload artifact to GA
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        retention-days: 5
+        if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`    
+    
+  install_and_test:
+    name: Install package and test
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup environment with miniconda/mamba
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          mamba-version: "*"
+          channels: conda-forge, defaults
+          channel-priority: true
+          activate-environment: rat
+          environment-file: environment.yaml
+      - name: Build
+        shell: bash -l {0}
+        run: |
+          mamba install conda-build
+          conda build conda
+      - name: Install
+        shell: bash -l {0}
+        run: |
+          mamba install -c file://${CONDA_PREFIX}/conda-bld/ rat
+      - name: Test RAT
+        shell: bash -l {0}
+        run: |
+          mkdir ~/rat_test
+          rat init -d ~/rat_test
+          rat test -d ~/rat_test
