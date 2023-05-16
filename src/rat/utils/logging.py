@@ -11,8 +11,7 @@ from rat.utils.utils import create_directory
 
 # -------------------------------------------------------------------- #
 LOG_NAME = 'rat-logger'
-FORMATTER = logging.Formatter('%(levelname)s:%(funcName)s>> %(message)s')
-
+LOG_LEVEL = 'DEBUG'
 NOTIFICATION = 25    # Setting level above INFO, below WARNING
 logging.addLevelName(NOTIFICATION, "NOTIFICATION")
 NOTIFICATION_FOMATTER = logging.Formatter(
@@ -45,6 +44,25 @@ class NotificationHandler(logging.Handler):
         subprocess.run(['/houston2/pritam/rat_mekong_v3/.condaenv/bin/ntfy', '-b', 'telegram', 'send', self.format(record)])
 # -------------------------------------------------------------------- #
 
+class Formatter(logging.Formatter):
+    def __init__(self, fmt="%(asctime)s %(levelname)s:%(funcName)s>> %(message)s", datefmt="%Y-%m-%d %H:%M:%S"):
+        super().__init__(fmt, datefmt=datefmt, style='%')
+
+    def format(self, record):
+        original_fmt = self._style._fmt
+
+        if hasattr(record, 'worker'):
+            self._style._fmt = '%(asctime)s %(levelname)s [worker %(worker)s]:%(funcName)s>> %(message)s'
+
+        # Call the original formatter class to do the grunt work
+        result = logging.Formatter.format(self, record)
+
+        # Restore the original format configured by the user
+        self._style._fmt = original_fmt
+
+        return result
+
+FORMATTER = Formatter()
 
 def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False, logger_name=LOG_NAME, for_basin=True):
     ''' Setup the logger '''

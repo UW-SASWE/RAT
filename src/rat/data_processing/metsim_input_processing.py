@@ -9,9 +9,10 @@ import xarray as xr
 import os
 import pandas as pd
 
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 
 log = getLogger(LOG_NAME)
+log.setLevel(LOG_LEVEL)
 
 class CombinedNC:
     def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous):

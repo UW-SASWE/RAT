@@ -11,13 +11,13 @@ from pathlib import Path
 from functools import partial
 
 from logging import getLogger
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 from rat.utils.utils import create_directory
 from rat.utils.run_command import run_command
 from rat.utils.vic_param_reader import VICParameterFile
 
 log = getLogger(LOG_NAME)
-
+log.setLevel(LOG_LEVEL)
 
 class VICRunner():
     def __init__(self, vic_env, param_file, vic_result_file, rout_input_dir, conda_hook = None) -> None:
@@ -74,7 +74,7 @@ class VICRunner():
         log.log(NOTIFICATION, "Started disaggregating VIC results")
         fluxes = xr.open_dataset(rout_input_state_file).load()
 
-        fluxes_subset = fluxes[['OUT_PREC', 'OUT_EVAP', 'OUT_RUNOFF', 'OUT_BASEFLOW', 'OUT_WDEW', 'OUT_SOIL_LIQ', 'OUT_SOIL_MOIST']]
+        fluxes_subset = fluxes[['OUT_PREC', 'OUT_EVAP', 'OUT_RUNOFF', 'OUT_BASEFLOW']]
 
         nonnans = fluxes_subset.OUT_PREC.isel(time=0).values.flatten()
         nonnans = nonnans[~np.isnan(nonnans)]
@@ -95,7 +95,7 @@ class VICRunner():
                     fname = os.path.join(self.rout_input, f"fluxes_{lats_vicfmt[lat]:.2f}_{lons_vicfmt[lon]:.2f}")
                     # pbar.set_description(f"{fname}")
 
-                    da = fluxes_subset.isel(lat=lat, lon=lon, nlayer=0).to_dataframe().reset_index()
+                    da = fluxes_subset.isel(lat=lat, lon=lon).to_dataframe().reset_index()
 
                     da.to_csv(fname, sep=' ', header=False, index=False, float_format="%.5f", quotechar="", quoting=csv.QUOTE_NONE, date_format="%Y %m %d", escapechar=" ")
                         # pbar.update(1)
