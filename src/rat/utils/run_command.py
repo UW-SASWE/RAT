@@ -21,7 +21,7 @@ def run_command(args, metsim=False, **kwargs):
 
     if exitcode == 0:
         log.debug("Finished running command successfully: EXIT CODE %s", exitcode)
-    elif (exitcode == 1 and metsim==True):
+    elif (exitcode == 0 and metsim==True):
         log.debug("Finished running metsim successfully: EXIT CODE %s", exitcode)
     else:
         log.error("ERROR Occurred with exit code: %s", exitcode)
