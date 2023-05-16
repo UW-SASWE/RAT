@@ -1,4 +1,4 @@
-![Reservoir Assessment Tool](docs/logos/Rat%20Logo_black_360p.png)
+![Reservoir Assessment Tool](docs/logos/Rat_Logo_black_github.png)
 # Reservoir Assessment Tool 3.0
 [![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest)
 
