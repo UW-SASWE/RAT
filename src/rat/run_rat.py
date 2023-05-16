@@ -91,7 +91,7 @@ def run_rat(config_fn, operational_latency=None):
             config_copy['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
             ryaml_client.dump(config_copy, config_fn.open('w'))
         if(no_errors>0):
-            log.info('############## RAT run finished for '+config['BASIN']['basin_name']+ 'with '+str(no_errors)+' errors. #################')
+            log.info('############## RAT run finished for '+config['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
         elif(no_errors==0):
             log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
         else:
@@ -151,7 +151,7 @@ def run_rat(config_fn, operational_latency=None):
                 basins_metadata['ALTIMETER','last_cycle_number'].where(basins_metadata['BASIN','basin_name']!= basin, latest_altimetry_cycle, inplace=True)
                 basins_metadata.to_csv(config_copy['GLOBAL']['basins_metadata'], index=False)
             if(no_errors>0):
-                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ 'with '+str(no_errors)+' errors. #################')
+                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
             elif(no_errors==0):
                 log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
             else:
