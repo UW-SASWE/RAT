@@ -19,7 +19,7 @@ jobs:
       id: tag
       run: |
         # from refs/tags/v1.2.3 get 1.2.3
-        VERSION='.dev0'
+        VERSION='3.0.0.dev0'
         PLACEHOLDER='version = \"develop\"'
         VERSION_FILE1='setup.py'
         VERSION_FILE2='pyproject.toml'
