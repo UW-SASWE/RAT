@@ -5,6 +5,7 @@ import datetime
 import geopandas as gpd
 import numpy as np
 import xarray as xr
+import shutil
 from pathlib import Path
 
 from rat.utils.utils import create_directory
@@ -604,6 +605,7 @@ def rat_basin(config, rat_logger):
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
             # Generate inflow files from RAT routing outputs
             generate_inflow(routing_output_dir, inflow_dst_dir)
+            # Copying AEC files to RAT output directory
             copy_aec_files(aec_dir_path, aec_savedir)
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
@@ -664,7 +666,7 @@ def rat_basin(config, rat_logger):
             
             ## AEC
             if(AEC_STATUS):
-                convert_aec(aec_dir_path, final_output_path)
+                shutil.copytree(aec_savedir, final_output_path)
                 rat_logger.info("Converted Area Elevation Curve to the Output Format.")
             
             # Clearing out memory space as per user input 
