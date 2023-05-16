@@ -68,7 +68,7 @@ jobs:
           channels: conda-forge, defaults
           channel-priority: true
           activate-environment: rat
-          environment-file: environment.yaml
+          environment-file: environment.yml
       - name: Build
         shell: bash -l {0}
         run: |
