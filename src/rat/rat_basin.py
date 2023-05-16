@@ -29,7 +29,7 @@ from rat.core.run_altimetry import run_altimetry
 
 from rat.core.run_postprocessing import run_postprocessing
 
-from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter
+from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files
 
 # Step-(-1): Reading Configuration settings to run RAT
 # Step-0: Creating required directory structure for RAT
@@ -161,6 +161,7 @@ def rat_basin(config, rat_logger):
         DELS_STATUS = 0
         EVAP_STATUS = 0
         OUTFLOW_STATUS = 0
+        AEC_STATUS = 0
     except:
         no_errors = -1
         rat_logger.exception("Error in Configuration parameters defined to run RAT.")
@@ -258,6 +259,7 @@ def rat_basin(config, rat_logger):
         evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
+        aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
         final_output_path = create_directory(os.path.join(basin_data_dir,'final_outputs',''),True)
         ## End of defining paths for storing post-processed data and webformat data
         #----------- Paths Necessary for running of Post-Processing-----------#
@@ -587,7 +589,7 @@ def rat_basin(config, rat_logger):
             rat_logger.info("Starting Step-12: Generating Area Elevation Curves for reservoirs")
             ##--------------------------------Area Elevation Curves Extraction begins ------------------- ##
             ## Creating AEC files if not present for post-processing dels calculation
-            aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path)
+            AEC_STATUS = aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path)
         except:
             rat_logger.exception("Finished Step-12: Generating Area Elevation Curves for reservoirs")
         else:
@@ -602,9 +604,9 @@ def rat_basin(config, rat_logger):
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
             # Generate inflow files from RAT routing outputs
             generate_inflow(routing_output_dir, inflow_dst_dir)
+            copy_aec_files(aec_dir_path, aec_savedir)
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
-
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation and Storage change")
@@ -659,6 +661,11 @@ def rat_basin(config, rat_logger):
                 rat_logger.info("Converted Extracted Height from Altimeter to the Output Format.")
             else:
                 rat_logger.info("Could not convert Extracted Height from Altimeter to the Output Format as Altimeter Run failed.")
+            
+            ## AEC
+            if(AEC_STATUS):
+                convert_aec(aec_dir_path, final_output_path)
+                rat_logger.info("Converted Area Elevation Curve to the Output Format.")
             
             # Clearing out memory space as per user input 
             if(config['CLEAN_UP'].get('clean_metsim')):
