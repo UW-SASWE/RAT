@@ -389,7 +389,6 @@ def process_precip(basin_bounds, srcpath, dstpath, secrets=None, temp_datadir=No
     """
     src_fn = Path(srcpath)
     date = pd.to_datetime(src_fn.stem.split('_')[0])
-    
     if temp_datadir is not None and not os.path.isdir(temp_datadir):
         log.warning(f"ERROR: {temp_datadir} directory doesn't exist")
         STATUS='FAILED'
