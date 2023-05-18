@@ -144,6 +144,7 @@ def create_basin_station_geojson(region_name, basin_name, station_csv_file, save
     basin_station_gdf['regionname'] = str(region_name)
     basin_station_gdf['basinname'] = str(basin_name)
     basin_station_gdf['filename'] = basin_station_gdf['name']
+    basin_station_gdf['DAM_NAME'] = basin_station_gdf['name'].str.replace('_',' ')
     # Setting crs of the geopandas dataframe
     basin_station_gdf = basin_station_gdf.set_crs('epsg:4326')
     # Saving the geopandas datframe as geojson file
