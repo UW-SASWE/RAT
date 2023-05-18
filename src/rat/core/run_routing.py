@@ -125,32 +125,34 @@ def read_rat_out(fn, model=None):
 
     return df
 
-def generate_inflow(src_dir, dst_dir):
-    src_dir = Path(src_dir)
+def generate_inflow(name, src, dst_dir):
+    """Convert routing ouputs as rat output format
+
+    Args:
+        srcs (Path): List of VIC routing output files (.day)
+        dst_dir (Path): Directory to write the output files
+    """
     dst_dir = Path(dst_dir)
-    # TODO Temp implementation. Later change it so that it operates on a disctionary of stations and generated outputs
+
     log.log(NOTIFICATION, "Starting inflow generation")
-    log.debug(f"Looking at directory: {src_dir}")
-    files = [src_dir / f for f in src_dir.glob('*.day')]
     
     if not dst_dir.exists():
         log.error("Directory does not exist: %s", dst_dir)
 
-    for f in files:
-        outpath = (dst_dir / f.name).with_suffix('.csv')
-        log.debug("Converting %s, writing to %s", f, outpath)
-        ## Appending data if files exists otherwise creating new
-        if outpath.exists():
-            existing_data = pd.read_csv(outpath, parse_dates=['date'])
-            new_data = read_rat_out(f).reset_index()
-            # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
-            complement = pd.concat([existing_data, new_data], ignore_index=True)
-            # Remove all duplicates:
-            complement.drop_duplicates(subset=['date'], inplace=True, keep='first')
-            complement.sort_values(by='date', inplace=True)
-            complement.to_csv(outpath, index=False)
-        else:
-            read_rat_out(f).reset_index().to_csv(outpath, index=False)
+    outpath = dst_dir / f"{name}.csv"
+    log.debug("Converting %s, writing to %s", src, outpath)
+    ## Appending data if files exists otherwise creating new
+    if outpath.exists():
+        existing_data = pd.read_csv(outpath, parse_dates=['date'])
+        new_data = read_rat_out(src).reset_index()
+        # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
+        complement = pd.concat([existing_data, new_data], ignore_index=True)
+        # Remove all duplicates:
+        complement.drop_duplicates(subset=['date'], inplace=True, keep='first')
+        complement.sort_values(by='date', inplace=True)
+        complement.to_csv(outpath, index=False)
+    else:
+        read_rat_out(src).reset_index().to_csv(outpath, index=False)
 
 @dask.delayed(pure=True)
 def run_for_station(station_name, config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, clean=False):
@@ -176,12 +178,8 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
     input_files_glob = input_files_dst / Path(rout_input_path_prefix).stem
     
     # output files
-    output_files_src = route_dir / 'ou'
     output_files_dst = route_workspace_dir / 'ou'
-    if output_files_dst.is_symlink():
-        log.warn("Symlink already exists at %s, deleting it", output_files_dst)
-        output_files_dst.unlink()
-    output_files_dst.symlink_to(output_files_src, target_is_directory=True)
+    output_files_dst.mkdir(parents=True, exist_ok=True)
 
     # flow direction file
     flow_direction_file_src = Path(basin_flow_direction_file)

@@ -212,6 +212,9 @@ def rat_basin(config, rat_logger):
         rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
         # Creating routing parameter directory
         rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
+        # routing workspace directory
+        routing_wkspc_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','wkspc')
+        routing_wkspc_dir.mkdir(parents=True, exist_ok=True)
         # Creating routing inflow directory
         routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
         routing_output_dir.mkdir(parents=True, exist_ok=True)
@@ -601,7 +604,11 @@ def rat_basin(config, rat_logger):
             
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
             # Generate inflow files from RAT routing outputs
-            generate_inflow(routing_output_dir, inflow_dst_dir)
+            for src_dir in list(routing_wkspc_dir.glob('*')):
+                if src_dir.is_dir():
+                    routing_output_fn = src_dir / 'ou' / f"{str(src_dir.name)[:5] if len(str(src_dir.name)) > 5 else str(src_dir.name)}.day"
+                    generate_inflow(src_dir.name, routing_output_fn, inflow_dst_dir)
+
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
 
