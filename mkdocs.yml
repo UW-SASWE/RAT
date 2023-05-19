@@ -5,7 +5,7 @@ repo_url: https://github.com/UW-SASWE/RAT
 site_url: https://rat-satellitedams.readthedocs.io/
 theme:
     name: readthedocs
-    logo: logos/rat_logo_white_icon.png
+    logo: logos/RAT_Logo_white.png
     highlightjs: true
     hljs_languages:
         - yaml
