@@ -27,7 +27,7 @@ def init_func(args):
     if args.global_data is True:
         global_data = "Y"
     else:
-        global_data = str(input(f"Do you want to download global data? (y/N) : ")).capitalize()
+        global_data = "N"
     global_data_dir = project_dir.joinpath("global_data")
 
     secrets_fp = None

@@ -1,0 +1,50 @@
+{% set name = "rat" %}
+{% set version = "3.0.0dev0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: dist/{{ name }}-{{ version }}.tar.gz
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv
+  number: 0
+  entry_points:
+    - rat = rat.cli.rat_cli:main
+
+requirements:
+  host:
+    - git
+    - python >=3.6
+    - pip
+  run:
+    - python >=3.6
+    - pandas
+    - numpy
+    - xarray =2022.3.0
+    - geopandas
+    - rasterio
+    - rioxarray
+    - earthengine-api
+    - pyyaml
+    - ruamel_yaml
+    - netcdf4
+    - dask
+    - requests
+
+test:
+  requires:
+    - pytest
+
+about:
+  home: https://pypi.org/project/rat/
+  summary: Resevoir Monitoring using Satellite Remote Sensing
+  license: GPL-3.0
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - Pritam28877
