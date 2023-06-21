@@ -606,8 +606,9 @@ def rat_basin(config, rat_logger):
             # Generate inflow files from RAT routing outputs
             for src_dir in list(routing_wkspc_dir.glob('*')):
                 if src_dir.is_dir():
-                    routing_output_fn = src_dir / 'ou' / f"{str(src_dir.name)[:5] if len(str(src_dir.name)) > 5 else str(src_dir.name)}.day"
-                    generate_inflow(src_dir.name, routing_output_fn, inflow_dst_dir)
+                    routing_output_fn = list((src_dir / 'ou').glob('*.day'))
+                    if len(routing_output_fn) > 0:
+                        generate_inflow(src_dir.name, routing_output_fn[0], inflow_dst_dir)
 
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
