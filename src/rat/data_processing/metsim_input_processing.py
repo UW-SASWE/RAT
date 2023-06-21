@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 import os
 import pandas as pd
+import shutil
 
 from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 
@@ -15,7 +16,7 @@ log = getLogger(LOG_NAME)
 log.setLevel(LOG_LEVEL)
 
 class CombinedNC:
-    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous):
+    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous, climatological_data=None, z_lim=3):
         """
         Parameters:
             start: Start date in YYYY-MM-DD format
@@ -46,7 +47,68 @@ class CombinedNC:
 
         self._read()
         self._write()
+        # If climatological data is passed, then run the climatological data correction
+        if climatological_data:
+            self._climatological_data = climatological_data
+            self._z_lim = z_lim
+            log.debug(f"Running climatological corection of satellite precipitation")
+            self.satellite_precip_correction()
+    
+    def satellite_precip_correction(self):
+        # UPDATE (2023-06-02): Seems like this function isn't able to filter out some very high precipitation values (Jan 6, Jan 7 2022).
+        # from https://github.com/pritamd47/2022_05_04-extreme_precip/blob/1baa1319513abbecfb89f7a7269a1214b50cdca0/notebooks/Extreme-Precip.ipynb
+        daily_precip = xr.open_dataset(self._climatological_data)
+        log_precip = daily_precip.copy()
+        # Take the natural log to convert to normal from log-normal distribution
+        log_precip['tp'] = np.log(log_precip['tp'], where=log_precip['tp']>0)
 
+        weekly_log_precip_mean = log_precip.groupby(log_precip['time'].dt.isocalendar().week).mean()
+        weekly_log_precip_std = log_precip.groupby(log_precip['time'].dt.isocalendar().week).std()
+        
+        forcings = xr.open_dataset(self._outputpath)
+        forcings_precip = forcings[['precip']]
+
+        log_forcings_precip = forcings_precip.copy()
+        log_forcings_precip['precip'] = np.log(forcings_precip['precip'], where=forcings_precip['precip']>0)
+        
+        # Align both the datasets, so that the final z-scores, means and std devs can be calculated and compared easily.
+        weekly_log_precip_mean_sampled = weekly_log_precip_mean.sel(longitude=log_forcings_precip.lon, latitude=log_forcings_precip.lat, method='nearest')
+        weekly_log_precip_std_sampled = weekly_log_precip_std.sel(longitude=log_forcings_precip.lon, latitude=log_forcings_precip.lat, method='nearest')
+
+        log_forcings_precip['weekly_mean_precip'] = weekly_log_precip_mean_sampled['tp']
+        log_forcings_precip['weekly_std_precip'] = weekly_log_precip_std_sampled['tp']
+
+        # build daily clim precip
+        times = []
+        clim_precip_mean = []
+        clim_precip_std = []
+
+        for t in log_forcings_precip.time:
+            time = pd.to_datetime(t.values)
+            times.append(time)
+            # clim_precip_std.append(log_forcings_precip['weekly_std_precip'].sel(week=time.weekofyear))
+            clim_precip_mean.append(log_forcings_precip['weekly_mean_precip'].sel(week=time.weekofyear).values)
+            clim_precip_std.append(log_forcings_precip['weekly_std_precip'].sel(week=time.weekofyear).values)
+
+        mean = xr.DataArray(np.array(clim_precip_mean), coords=({'time': times, 'lon': log_forcings_precip.lon, 'lat': log_forcings_precip.lat}), dims=["time", "lat", "lon"])
+        std = xr.DataArray(np.array(clim_precip_std), coords=({'time': times, 'lon': log_forcings_precip.lon, 'lat': log_forcings_precip.lat}), dims=["time", "lat", "lon"])
+
+        log_forcings_precip['climatological_precip_mean'] = mean
+        log_forcings_precip['climatological_precip_std'] = std
+        
+        # calculate z-scores
+        z_scores = (log_forcings_precip['precip'] - log_forcings_precip['climatological_precip_mean'])/log_forcings_precip['climatological_precip_std']
+        
+        high_precip = log_forcings_precip['climatological_precip_mean']
+        precip_extremes_handled = np.where((z_scores.data>self._z_lim)|(z_scores.data<-self._z_lim), high_precip.data, log_forcings_precip['precip'].data)
+        log_forcings_precip['precip'].data = precip_extremes_handled
+        forcings['precip'].data = np.exp(log_forcings_precip['precip'].data)  # Convert to precipitation 
+        forcings.attrs['precip_filtering'] = f">{self._z_lim}sigma | <-{self._z_lim}sigma"
+
+        forcings.to_netcdf(self._outputpath.replace(".nc", "_precip_handled.nc"))
+        forcings.close()
+        daily_precip.close()
+        shutil.move(self._outputpath.replace(".nc", "_precip_handled.nc"), self._outputpath)
 
     def _get_lat_long_1d(self):
         x_res, y_res = self._rast.res
