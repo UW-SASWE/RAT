@@ -600,7 +600,7 @@ def rat_basin(config, rat_logger):
     ######### Step-13
     if(13 in steps):
         try:
-            rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
             
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
             # Generate inflow files from RAT routing outputs
@@ -611,9 +611,9 @@ def rat_basin(config, rat_logger):
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
         else:
-            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
             ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
     
     ######### Step-14
