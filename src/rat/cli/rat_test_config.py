@@ -1,7 +1,7 @@
 from datetime import datetime
 
 DOWNLOAD_LINK = {
-    'test_data': "https://www.dropbox.com/s/huen14qwzphya61/test_data.zip?dl=1"
+    'test_data': "https://www.dropbox.com/scl/fi/f1pnyz9mo178kweh3agtf/test_data.zip?dl=1&rlkey=qxvsfrhc2li55dh4yj4a03bq2"
 }
 
 PATHS = {
@@ -39,10 +39,6 @@ PATHS = {
             'reservoir_vector_file': 'data/test_data/gunnison/gunnison_reservoirs/gunnison_reservoirs_named.geojson',
         },
 
-        'ALTIMETER': {
-            'altimeter_tracks': 'global_data/global_altimetry/j3_tracks.geojson',
-            'geoid_grid': 'global_data/global_altimetry/geoidegm2008grid.mat'
-        },
     },
     'NUECES':{
         'GLOBAL': {
@@ -77,11 +73,7 @@ PATHS = {
         'GEE': {
             'reservoir_vector_file': 'data/test_data/Nueces/reservoirs/basin_reservoirs.shp',
         },
-
-        'ALTIMETER': {
-            'altimeter_tracks': 'global_data/global_altimetry/j3_tracks.geojson',
-            'geoid_grid': 'global_data/global_altimetry/geoidegm2008grid.mat'
-        },
+        
         }
 }
 
@@ -147,5 +139,16 @@ PARAMS = {
         'ROUTING': {
             'station_global_data': False
         }
+    }
+}
+
+TEST_PATHS = {
+    'GUNNISON':{
+        'expected_outputs': 'data/test_data/gunnison/expected_outputs',
+        'rat_produced_outputs': 'data/test_output/colorado/basins/gunnison/final_outputs'
+    },
+    'NUECES':{
+        'expected_outputs': 'data/test_data/Nueces/expected_outputs',
+        'rat_produced_outputs': 'data/test_output/Texas/basins/Nueces/final_outputs'
     }
 }

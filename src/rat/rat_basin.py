@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 import shutil
 from pathlib import Path
+import warnings
 
 from rat.utils.utils import create_directory
 from rat.utils.logging import init_logger,close_logger,NOTIFICATION
@@ -171,7 +172,7 @@ def rat_basin(config, rat_logger):
         rat_logger.info("Read Configuration settings to run RAT.")
         ##--------------------- Read and initialised global parameters ----------------------##
 
-    rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']}")
+    rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']} which might include spin-up.")
 
     ######### Step-0 Mandatory Step
     try:
@@ -534,8 +535,7 @@ def rat_basin(config, rat_logger):
             ###### Preparing basin's reservoir shapefile and it's associated column dictionary for calculating surface area #####
             ### Creating Basin Reservoir Shapefile, if not exists ###
             if not os.path.exists(basin_reservoir_shpfile_path):
-                if os.path.exists(basin_station_xy_path):
-                    create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_station_xy_path,
+                    create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_data,
                                                                                 config['ROUTING']['station_global_data'], basin_reservoir_shpfile_path)
             ###### Prepared basin's reservoir shapefile and it's associated column dictionary #####
         except:
@@ -600,20 +600,27 @@ def rat_basin(config, rat_logger):
     ######### Step-13
     if(13 in steps):
         try:
-            rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.info("Starting Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
             
             ##---------- Mass-balance Approach begins and then post-processing ----------## 
             # Generate inflow files from RAT routing outputs
-            generate_inflow(routing_output_dir, inflow_dst_dir)
+            try:
+                generate_inflow(routing_output_dir, inflow_dst_dir)
+            except:
+                log.warning("Inflow could not be calculated. Moving forward to calculate storage change and evaporation.", exc_info=True)
             # Copying AEC files to RAT output directory
-            copy_aec_files(aec_dir_path, aec_savedir)
+            try:
+                copy_aec_files(aec_dir_path, aec_savedir)
+            except:
+                log.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
+            #Generating evaporation, storage change and outflow.    
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
         except:
             no_errors = no_errors+1
-            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
         else:
-            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation and Storage change")
+            rat_logger.info("Finished Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
             ##---------- Mass-balance Approach ends and then post-processed outputs to obtain timeseries  -----------------##
     
     ######### Step-14
@@ -666,8 +673,19 @@ def rat_basin(config, rat_logger):
             
             ## AEC
             if(AEC_STATUS):
-                shutil.copytree(aec_savedir, final_output_path)
-                rat_logger.info("Converted Area Elevation Curve to the Output Format.")
+                aec_final_output_path = Path(final_output_path,'aec')
+                try:
+                    shutil.copytree(aec_savedir, aec_final_output_path)
+                except:
+                    try:
+                        shutil.rmtree(aec_final_output_path)
+                        shutil.copytree(aec_savedir, aec_final_output_path)
+                    except:
+                        rat_logger.warning("No AEC curves to convert into Output Format.")
+                    else:
+                        rat_logger.info("Converted Area Elevation Curve to the Output Format.")
+                else:
+                    rat_logger.info("Converted Area Elevation Curve to the Output Format.")
             
             # Clearing out memory space as per user input 
             if(config['CLEAN_UP'].get('clean_metsim')):
