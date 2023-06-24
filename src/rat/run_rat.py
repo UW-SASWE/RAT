@@ -41,6 +41,7 @@ def run_rat(config_fn, operational_latency=None):
         for_basin=False
     )
 
+    log.debug("Initiating Dask Client ... ")
     cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'], threads_per_worker=1)
     client = Client(cluster)
     client.forward_logging(logger_name='rat-logger', level='DEBUG')
@@ -157,8 +158,19 @@ def run_rat(config_fn, operational_latency=None):
             else:
                 log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
 
-    # Clsoing logger
+    # Closing logger
     close_logger('rat_run')
+    # Closing Dask workers
+    try:
+        client.close()
+        client.retire_workers()
+    except:
+        print("####################### Finished executing RAT! ##########################")
+        print("Please ignore any below error related to distributed.worker or closed stream.")
+        print("####################### Finished executing RAT! ##########################")
+        print('\n\n')
+    # cluster.close()
+    
 
 def main():
     parser = argparse.ArgumentParser(description='Run RAT')
