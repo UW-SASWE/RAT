@@ -98,9 +98,9 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
 
     else:
         # print(f"[!] {len(points_within)} Grid cells inside reservoir found, averaging their values")
-        data = reqvars.sel(lat=points_within.y, lon=points_within.x, method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
+        data = reqvars.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
 
-        P = forcings.sel(lat=points_within.y, lon=points_within.x, method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
+        P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
 
     data['area'] = sarea_interpolated['area']
     data['P'] = P
