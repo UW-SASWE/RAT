@@ -390,7 +390,7 @@ def main():
         dest='global_data_dir',
         required=False
     )
-    run_parser.add_argument(
+    configure_parser.add_argument(
         '-nc', '--n_cores',
         help='Number of cores to use for executing RAT',
         action='store',
