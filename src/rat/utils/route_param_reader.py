@@ -88,7 +88,7 @@ class RouteParameterFile:
             # Or storing it in route basin params dir and replace it from next cycle
             else:
                 self.route_param_path = create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],
-                                                            'basins',self.basin_name,'rout_basin_params'),True)
+                                                            'basins',self.basin_name,'ro','pars'),True)
                 self.route_param_path = os.path.relpath(os.path.join(self.route_param_path,'route_param.txt'),self.project_dir)
         
         ## flow direction file
