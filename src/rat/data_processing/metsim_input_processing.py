@@ -99,7 +99,7 @@ class CombinedNC:
             # pbar.update(1)
 
     # Imputes missing data by interpolation in the order of dimensions time, lon, lat.
-    def _impute_basin_missing_data(combined_data):
+    def _impute_basin_missing_data(self, combined_data):
         combine_nomiss_data = combined_data
         try:
             #Interpolation using time dimension - if unsuccesful values will still be NaN
