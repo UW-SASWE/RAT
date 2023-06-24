@@ -184,7 +184,11 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
     output_files_dst.symlink_to(output_files_src, target_is_directory=True)
 
     # flow direction file
-    flow_direction_file_src = Path(basin_flow_direction_file)
+    if(config['ROUTING PARAMETERS'].get('flow_direction_file')):
+        flow_direction_file_src = Path(config['ROUTING PARAMETERS'].get('flow_direction_file'))
+    else:
+        flow_direction_file_src = Path(basin_flow_direction_file)
+    assert flow_direction_file_src.exists()
     flow_direction_file_dst = route_workspace_dir / 'fl.asc'
     if flow_direction_file_dst.is_symlink():
         log.warn("Symlink already exists at %s, deleting it", flow_direction_file_dst)
@@ -192,7 +196,7 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
     flow_direction_file_dst.symlink_to(flow_direction_file_src)
 
     # uh file
-    uh_file_src = Path(config['GLOBAL']['project_dir']) / 'params' / 'routing' / 'uh.txt'
+    uh_file_src = Path(config['ROUTING PARAMETERS']['uh'])
     assert uh_file_src.exists()
     uh_file_dst = route_workspace_dir / 'uh.txt'
     if uh_file_dst.is_symlink():
