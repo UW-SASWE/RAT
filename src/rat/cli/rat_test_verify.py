@@ -59,11 +59,9 @@ class Verify_Tests:
 
                 # check if file exists; if not, put the file_name in incorrect list
                 if(not var_true_file_path.is_file()):
-                    print('A', var_true_file_path)
                     incorrect_file_names.append(file_name)
                     continue
                 if(not var_estimated_file_path.is_file()):
-                    print('B')
                     incorrect_file_names.append(file_name)
                     continue
                 
