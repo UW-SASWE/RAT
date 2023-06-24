@@ -232,10 +232,12 @@ def configure_func(args):
     params_fp = Path(args.param).resolve()
     assert params_fp.is_file(), f"{params_fp} does not exist - please pass a valid rat parameter file from 'params' in project directory."
 
+    global_data_dir = None
     if args.global_data_dir is not None:
         global_data_dir = Path(args.global_data_dir).resolve()
         assert global_data_dir.exists(), f"Global database {global_data_dir} does not exist"
 
+    n_cores = None
     if args.n_cores is not None:
         n_cores = int(args.n_cores)
 
@@ -310,8 +312,11 @@ def update_param_file(
                 config_template[k1][k2] = str(project_dir.joinpath(v2))
 
     # update the number of cores
-    config_template['GLOBAL']['multiprocessing'] = n_cores
-
+    if n_cores is not None:
+        config_template['GLOBAL']['multiprocessing'] = n_cores
+    else:
+        config_template['GLOBAL']['multiprocessing'] = 1
+        
     # if secrets were provided, update the config file
     if secrets is not None:
         config_template['CONFIDENTIAL']['secrets'] = str(secrets)
