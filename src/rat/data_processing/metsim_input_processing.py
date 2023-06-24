@@ -98,16 +98,20 @@ class CombinedNC:
             self.winds[day, :, :] = wind
             # pbar.update(1)
 
-    def _impute_basin_missing_data(self, combined_data):
-        combine_nomiss_data = combined_data.where(combined_data['extent']==1,-9999)
+    # Imputes missing data by interpolation in the order of dimensions time, lon, lat.
+    def _impute_basin_missing_data(combined_data):
+        combine_nomiss_data = combined_data
         try:
-            combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="time", method="linear", fill_value="extrapolate")
+            #Interpolation using time dimension - if unsuccesful values will still be NaN
+            combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="time", method="linear", fill_value="extrapolate", limit = 30)
+            #Interpolation using lon dimension - if unsuccesful values will still be NaN
+            combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="lon", method="linear", fill_value="extrapolate")
+            #Interpolation using lat dimension - if unsuccesful values will still be NaN
+            combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="lat", method="linear", fill_value="extrapolate", use_coordinate=False)
         except:
-            try:
-                combine_nomiss_data = combine_nomiss_data.interpolate_na(dim="lon", method="linear", fill_value="extrapolate")
-            except:
-                print("No inter or extra polation can be done.")
-        combine_nomiss_data = combine_nomiss_data.where(combine_nomiss_data!=-9999,combined_data)
+            print("No inter or extra polation is possible.")
+        #Restoring original values outside basin extent. This ensures that ocean tiles remain to be NaN/-9999
+        combine_nomiss_data = combine_nomiss_data.where(combined_data['extent']==1,combined_data)
         return combine_nomiss_data
 
     def _write(self):
