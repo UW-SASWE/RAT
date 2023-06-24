@@ -66,7 +66,7 @@ def init_func(args):
     #### Model installation
     # install metsim
     metsim_path = models_dir.joinpath('metsim')
-    cmd = f"conda create -p {metsim_path} -c conda-forge metsim -y".split(" ")
+    cmd = f"conda create -p {metsim_path} -c conda-forge metsim pandas=1.5 -y".split(" ")
     print(f"Installing Metsim: {' '.join(cmd)}")
     try:
         subprocess.run(cmd)
