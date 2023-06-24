@@ -151,22 +151,27 @@ def create_basin_station_geojson(region_name, basin_name, station_csv_file, save
     geojson_save_path = os.path.join(os.path.dirname(savepath),basin_name+'_station.geojson')
     basin_station_gdf.to_file(geojson_save_path, driver= "GeoJSON")
 
-def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_dict,station_xy_file,routing_station_global_data,savepath):
+def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_dict,basin_gpd_df,routing_station_global_data,savepath):
     reservoirs = gpd.read_file(reservoir_shpfile)
-    stations_df = pd.read_csv(station_xy_file,sep='\t',header=None,names=['run','name','x','y','area']).dropna().reset_index(drop=True)
+    basin_data_crs_changed = basin_gpd_df.to_crs(reservoirs.crs)
+    #stations_df = pd.read_csv(station_xy_file,sep='\t',header=None,names=['run','name','x','y','area']).dropna().reset_index(drop=True)
     reservoirs_gdf_column_dict = reservoir_shpfile_column_dict
 
     if routing_station_global_data:
-        reservoirs['uniq_id'] = reservoirs[reservoirs_gdf_column_dict['id_column']].astype(str)+'_'+ \
-                            reservoirs[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
-        stations_df = stations_df.rename(columns={'name':'uniq_id'})                                            
-        reservoirs_gdf = reservoirs.merge(stations_df['uniq_id'], how='inner', on='uniq_id')
+        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, "inner")[[
+                        reservoirs_gdf_column_dict['id_column'],
+                        reservoirs_gdf_column_dict['dam_name_column'],
+                        reservoirs_gdf_column_dict['area_column'],
+                        'geometry']]
+        reservoirs_spatialjoin['uniq_id'] = reservoirs_spatialjoin[reservoirs_gdf_column_dict['id_column']].astype(str)+'_'+ \
+                            reservoirs_spatialjoin[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
     else:
-        stations_df = stations_df.rename(columns={'name':reservoirs_gdf_column_dict['dam_name_column']})
-        reservoirs_gdf = reservoirs.merge(stations_df[reservoirs_gdf_column_dict['dam_name_column']], 
-                                        how='inner', on=reservoirs_gdf_column_dict['dam_name_column'])
+        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, "inner")[[
+                        reservoirs_gdf_column_dict['dam_name_column'],
+                        reservoirs_gdf_column_dict['area_column'],
+                        'geometry']]
     
-    if(reservoirs_gdf.empty):
+    if(reservoirs_spatialjoin.empty):
         raise Exception('Reservoir names in reservoir shapefile are not matching with the station names in the station file used for routing.')
-    reservoirs_gdf.to_file(savepath, index=False)
+    reservoirs_spatialjoin.to_file(savepath, index=False)
 
