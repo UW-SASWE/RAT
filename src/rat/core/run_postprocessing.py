@@ -9,10 +9,11 @@ import datetime
 warnings.filterwarnings("ignore")
 
 from logging import getLogger
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME,LOG_LEVEL1_NAME,NOTIFICATION
 from rat.utils.science import penman
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
+log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
 
 def calc_dels(aecpath, sareapath, savepath):
@@ -129,17 +130,17 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
     if os.path.isfile(inflowpath):
         inflow = pd.read_csv(inflowpath, parse_dates=["date"])
     else:
-        print('Inflow file does not exist and Outflow cannot be calculated.')
+        raise Exception('Inflow file does not exist. Outflow cannot be calculated.')
     if os.path.isfile(epath):
         E = pd.read_csv(epath, parse_dates=['time'])
     else:
-        print('Evaporation file does not exist and Outflow cannot be calculated.')
+        raise Exception('Evaporation file does not exist. Outflow cannot be calculated.')
 
     if isinstance(dspath, str):
         if os.path.isfile(dspath):
             df = pd.read_csv(dspath, parse_dates=['date'])
         else:
-            print('Storage Change file does not exist and Outflow cannot be calculated.')
+            raise Exception('Storage Change file does not exist. Outflow cannot be calculated.')
     else:
         df = dspath
     
@@ -188,9 +189,11 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     # SArea
     sarea_raw_dir = os.path.join(basin_data_dir,'gee', "gee_sarea_tmsos")
 
+    ## No of failed files (no_failed_files) is tracked and used to print a warning message in log level 1 file.
     # DelS
     if(gee_status):
         log.debug("Calculating ∆S")
+        no_failed_files = 0
         aec_dir = aec_dir_path
 
         for reservoir_no,reservoir in reservoirs.iterrows():
@@ -205,10 +208,13 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                     log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
                     calc_dels(aecpath, sarea_path, savepath)
                 else:
-                    log.debug(f"{sarea_path} not found; skipping ∆S calculation")
+                    raise Exception("Surface area file not found; skipping ∆S calculation")
             except:
                 log.exception(f"∆S for {reservoir_name} could not be calculated.")
+                no_failed_files += 1 
         DELS_STATUS=1
+        if no_failed_files:
+            log_level1.warning(f"∆S was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     else:
         log.debug("Cannot Calculate ∆S because GEE Run Failed.")
         
@@ -216,6 +222,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     # Evaporation
     if(vic_status and gee_status):
         log.debug("Retrieving Evaporation")
+        no_failed_files = 0
         if(use_rout_state):
             vic_results_path = rout_init_state_save_file
         else:
@@ -234,10 +241,13 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                     # calc_E(e_path, respath, vic_results_path)
                     calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
                 else:
-                    log.debug(f"{sarea_path} not found; skipping evaporation calculation")
+                    raise Exception("Surface area file not found; skipping evaporation calculation")          
             except:
                 log.exception(f"Evaporation for {reservoir_name} could not be calculated.")
+                no_failed_files +=1
         EVAP_STATUS = 1
+        if no_failed_files:
+            log_level1.warning(f"Evapotration was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     elif((not vic_status) and (not gee_status)):
         log.debug("Cannot Retrieve Evaporation because both VIC and GEE Run Failed.")
     elif(vic_status):
@@ -248,6 +258,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     # Outflow
     if((routing_status) and (EVAP_STATUS) and (DELS_STATUS)):
         log.debug("Calculating Outflow")
+        no_failed_files = 0
         inflow_dir = os.path.join(basin_data_dir, "rat_outputs", "inflow")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
@@ -264,7 +275,10 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 calc_outflow(inflowpath, deltaS, epath, a, savepath)
             except:
                 log.exception(f"Outflow for {reservoir_name} could not be calculated")
+                no_failed_files+=1
         OUTFLOW_STATUS = 1
+        if no_failed_files:
+            log_level1.warning(f"Outflow was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     else:
         log.debug("Cannot Calculate Outflow because either evaporation, ∆S or Inflow is missing.")
     
