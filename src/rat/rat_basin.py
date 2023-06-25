@@ -507,7 +507,7 @@ def rat_basin(config, rat_logger):
                     rout_input_state_start_date = config['BASIN']['start']
                 ### Extracted routing start date ###
                 #------------- Routing Begins and Pre processing for Mass Balance --------------#
-                output_paths, basin_station_xy_path, ret_codes = run_routing(
+                output_paths, basin_station_xy_path, routing_statuses = run_routing(
                     config = config,
                     start = rout_input_state_start_date,
                     end = config['BASIN']['end'],
@@ -518,6 +518,7 @@ def rat_basin(config, rat_logger):
                     station_path_latlon = basin_station_latlon_file,
                 )
                 ROUTING_STATUS=1
+                
             else:
                 rat_logger.info("VIC Run Failed. Skipping Step-8: Runnning Routing and generating Inflow")
         except:
@@ -555,7 +556,7 @@ def rat_basin(config, rat_logger):
                 if (not config['ROUTING']['station_global_data']):
                     basin_reservoir_shpfile_path = config['GEE']['reservoir_vector_file']
                 else: 
-                    raise Exception('There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
+                    raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             # Get Sarea
             run_sarea(config['BASIN']['start'].strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
                                                                                     basin_reservoir_shpfile_path, reservoirs_gdf_column_dict)
