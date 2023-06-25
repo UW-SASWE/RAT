@@ -15,4 +15,5 @@ dependencies:
   - scikit-learn
   - ruamel_yaml
   - yaml
+  - gdown
   - conda-build
