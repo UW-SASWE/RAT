@@ -1,8 +1,15 @@
-DOWNLOAD_LINKS = {
+DOWNLOAD_LINKS_DROPBOX = {
     'route_model': "https://www.dropbox.com/s/9jwep2g5pyj8sni/routing.zip?dl=1",
     'params': "https://www.dropbox.com/s/obb5bd24eb8u12h/params.zip?dl=1",
     'global_data': "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1",
     'global_vic_params': "https://www.dropbox.com/s/jsg2wu62qi2ltwz/global_vic_params.zip?dl=1",
+}
+
+DOWNLOAD_LINKS_GOOGLE = {
+    'route_model': "https://drive.google.com/uc?id=1dkUOSNZL33Vk7YBRhkquK3uWZB--WBY6",
+    'params': "https://drive.google.com/uc?id=1IfzP3M7FgeD-c2ZPVyAQm3UjZZewuLFW",
+    'global_data': "https://drive.google.com/uc?id=1WZ44rS-woViLHlIreK1DBPRXX50PiQI_",
+    'global_vic_params': "https://drive.google.com/uc?id=16P95eu2yG0i77ac_NrmTSVutNtVXWNeA",
 }
 
 SUFFIXES_GLOBAL = {

@@ -3,15 +3,37 @@ import os
 from pathlib import Path
 import subprocess
 import shutil
+from rat.cli.rat_test_config import DOWNLOAD_LINK_DROPBOX
 import requests, zipfile, io
 import yaml
 import ruamel_yaml as ryaml
+import gdown
 
+def gdrive_download(url, output, extract_dir,quiet=False):
+    """Downloads file from google drive.
+
+    parameters:
+        url (str): Google drive url of the file to be downloaded.
+        output (str): Complete path of the output file with file name.
+        extract_dir (Path): Complete path of the directory in which output file needs to be extracted.
+        quiet (bool): If True, files are downloaded quietly, otherwise status is shown during downloading. Defaults to False.
+
+    """
+    #Downloading file
+    z = gdown.download(url, output, quiet=quiet)
+    # Extracting file
+    with zipfile.ZipFile(z,"r") as zip_ref:
+        zip_ref.extractall(extract_dir)
+    # Removing downloaded zip file, so using pathlib
+    Path(z).unlink(missing_ok=True)
+    # Removing macosx directory with contents. That's why shutil
+    macos = extract_dir.joinpath('__MACOSX')
+    shutil.rmtree(macos, ignore_errors=True)
 
 def init_func(args):
     print("Initializing RAT using: ", args)
+    ##Resolving parameters/arguments read
 
-    #### Directory creation
     print("Creating directories ...")
     ## Resolving Project Directory
     if args.project_dir is None:
@@ -33,6 +55,11 @@ def init_func(args):
         # and parent directory is specified
         if args.global_data_dir is not None:
             global_data_parent_dir = Path(args.global_data_dir).resolve()
+            try:
+                global_data_parent_dir.mkdir(exist_ok=True)
+            except Exception as e:
+                print(f"Failed creating directory to save global data in: {e}")
+                raise e
         # and parent directory is not specified
         else:
             global_data_parent_dir = project_dir
@@ -47,12 +74,15 @@ def init_func(args):
         else:
             global_data_dir = None
 
-
     secrets_fp = None
     if args.secrets is not None:
         secrets_fp = Path(args.secrets).resolve()
         assert secrets_fp.exists(), f"Secrets file {secrets_fp} does not exist"
-        
+
+    if args.drive is not None:
+        drive = str(args.drive)
+    else:
+        drive = 'google' # Default is google drive
 
     # create additional directories
     data_dir = project_dir.joinpath('data')
@@ -70,6 +100,7 @@ def init_func(args):
     print(f"Installing Metsim: {' '.join(cmd)}")
     try:
         subprocess.run(cmd)
+        print("Installed Metsim successfully for RAT!")
     except:
         print("Failed to install Metsim.")
     
@@ -79,20 +110,27 @@ def init_func(args):
     print(f"Installing VIC: {' '.join(cmd)}")
     try:
         subprocess.run(cmd)
+        print("Installed VIC successfully for RAT!")
     except:
         print("Failed to install VIC.")
     
     # import download links
-    from rat.cli.rat_init_config import DOWNLOAD_LINKS
+    from rat.cli.rat_init_config import DOWNLOAD_LINKS_DROPBOX, DOWNLOAD_LINKS_GOOGLE
 
     # download route
     print(f"Downloading source code of routing model...")
     try:
-        route_model_src_dl_path = DOWNLOAD_LINKS["route_model"]
-        r = requests.get(route_model_src_dl_path)
-        z = zipfile.ZipFile(io.BytesIO(r.content))
-        z.extractall(models_dir)
+        if drive=='dropbox':
+            route_model_src_dl_url = DOWNLOAD_LINKS_DROPBOX["route_model"]
+            r = requests.get(route_model_src_dl_url)
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            z.extractall(models_dir)
+        elif drive=='google':
+            route_model_src_dl_url = DOWNLOAD_LINKS_GOOGLE["route_model"]
+            route_model_src_path = str(models_dir.joinpath("routing.zip"))
+            gdrive_download(route_model_src_dl_url,route_model_src_path,models_dir)
         route_model = models_dir.joinpath("routing")
+        print("Downloaded routing source code successfully for RAT!")
     except:
         print("Failed to download routing model.")
     
@@ -101,43 +139,64 @@ def init_func(args):
     print(f"Installing VIC-Route using make in directory: {route_model}")
     try:
         subprocess.run(cmd, cwd=route_model)
+        print("Installed Routing successfully for RAT!")
     except:
         print("Failed to install routing model.")
 
     #### download params
     print("Downloading parameter files for RAT...")
     try:
-        params_template_dl_path = DOWNLOAD_LINKS["params"]
-        r = requests.get(params_template_dl_path)
-        z = zipfile.ZipFile(io.BytesIO(r.content))
-        z.extractall(project_dir)
+        if drive=='dropbox':
+            params_template_dl_url = DOWNLOAD_LINKS_DROPBOX["params"]
+            r = requests.get(params_template_dl_url)
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            z.extractall(project_dir)
+        elif drive=='google':
+            params_template_dl_url = DOWNLOAD_LINKS_GOOGLE["params"]
+            params_template_path=str(project_dir.joinpath("params.zip"))
+            gdrive_download(params_template_dl_url,params_template_path,project_dir)
+        print("Downloaded parameter files successfully for RAT!")
     except:
         print("Failed to download parameter files for RAT.")
 
     #### download global data
     print("Downloading global database for RAT...")
     try:
-        global_data_dl_path = DOWNLOAD_LINKS["global_data"]
-        global_vic_params_dl_path = DOWNLOAD_LINKS["global_vic_params"]
-        
         if global_data == 'Y':
-            r = requests.get(global_data_dl_path)
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            z.extractall(global_data_parent_dir)  # saved as the `global_data` value naturally in project dir or in a user specified directory
+            if drive=='dropbox':
+                global_data_dl_url = DOWNLOAD_LINKS_DROPBOX["global_data"]
+                global_vic_params_dl_url = DOWNLOAD_LINKS_DROPBOX["global_vic_params"]
 
-            # extract inner zips
+                r = requests.get(global_data_dl_url)
+                z = zipfile.ZipFile(io.BytesIO(r.content))
+                z.extractall(global_data_parent_dir)  # saved as the `global_data` value naturally in project dir or in a user specified directory
+
+                # download and extract vic params in the global data dir
+                r = requests.get(global_vic_params_dl_url)
+                z = zipfile.ZipFile(io.BytesIO(r.content))
+                z.extractall(global_data_dir)
+
+            elif drive=='google':
+
+                global_data_dl_url = DOWNLOAD_LINKS_GOOGLE["global_data"]
+                global_data_path = str(global_data_parent_dir.joinpath('global_data.zip'))
+                gdrive_download(global_data_dl_url, global_data_path, global_data_parent_dir) # saved as the `global_data` value naturally in project dir or in a user specified directory
+
+                global_vic_params_dl_url = DOWNLOAD_LINKS_GOOGLE["global_vic_params"]
+                global_vic_params_path = str(global_data_dir.joinpath('global_vic_params.zip'))
+                gdrive_download(global_vic_params_dl_url, global_vic_params_path, global_data_dir)
+            
+            print("Downloaded global database successfully for RAT!")
+            print("Extracting global database for RAT ...")
+            # extract inner zips (global_data)
             [zipfile.ZipFile(inner_z, 'r').extractall(global_data_dir) for inner_z in global_data_dir.glob("*.zip")]
 
-            # download and extract vic params in the global data dir
-            r = requests.get(global_vic_params_dl_path)
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            z.extractall(global_data_dir)
-
-            # extract inner inner zips (vic params)
+            # extract inner inner zips (global vic params)
             [zipfile.ZipFile(inner_z, 'r').extractall(global_data_dir.joinpath('global_vic_params')) for inner_z in global_data_dir.joinpath('global_vic_params').glob("*.zip")]
 
             # cleanup
             [p.unlink() for p in global_data_dir.glob("**/*.zip")]
+            print("Extracted global database successfully for RAT!")
     except:
         print("Failed to download global database for RAT.")
 
@@ -151,6 +210,7 @@ def init_func(args):
     try:
         from multiprocessing import cpu_count
         n_cores = cpu_count()
+        print("Determined maximum number of cores to run RAT!")
     except Exception as e:
         print(f"Failed to determine number of cores: {e}")
         print("Leaving GLOBAL:Multiprocessing empty in config file. Please update manually if needed.")
@@ -163,9 +223,10 @@ def init_func(args):
         n_cores=n_cores,
         secrets=secrets_fp
     )
+    print("Finished initializing RAT! You can use rat_config.yml, in params inside project directory, to run RAT.")
 
 def test_func(args):
-    from rat.cli.rat_test_config import DOWNLOAD_LINK, PATHS, PARAMS, TEST_PATHS
+    from rat.cli.rat_test_config import DOWNLOAD_LINK_DROPBOX, DOWNLOAD_LINK_GOOGLE, PATHS, PARAMS, TEST_PATHS
     from rat.cli.rat_test_verify import Verify_Tests
 
     test_basin_options = PARAMS.keys()
@@ -180,15 +241,25 @@ def test_func(args):
     secrets_fp = Path(args.secrets).resolve()
     assert secrets_fp.exists(), f"{secrets_fp} does not exist - rat requires secrets.ini file to be passed. Please refer to documentation for more details."
 
+    if args.drive is not None:
+        drive = str(args.drive)
+    else:
+        drive = 'google' # Default is google drive
+
     # Download test data
     data_dir = project_dir / 'data'
     assert data_dir.exists(), f"{data_dir} does not exist - rat has not been initialized properly."
 
-    print("Downloading test data.")
-    test_data_link = DOWNLOAD_LINK['test_data']
-    r = requests.get(test_data_link)
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall(data_dir)
+    print("Downloading test data...")
+    if drive == 'dropbox':
+        test_data_url = DOWNLOAD_LINK_DROPBOX['test_data']
+        r = requests.get(test_data_url)
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        z.extractall(data_dir)
+    elif drive == 'google':
+        test_data_url = DOWNLOAD_LINK_GOOGLE['test_data']
+        test_data_path = str(data_dir.joinpath('test_data.zip'))
+        gdrive_download(test_data_url,test_data_path,data_dir)
     print("Test data downloaded successfully.")
 
     n_cores = 4
@@ -368,6 +439,13 @@ def main():
         dest='secrets',
         required=False
     )
+    init_parser.add_argument(
+        '-dr', '--drive', 
+        help='Specify drive (google/dropbox) to download RAT params and global database.', 
+        action='store',
+        dest='drive',
+        required=False
+    )
 
     init_parser.set_defaults(func=init_func)
 
@@ -457,6 +535,14 @@ def main():
         action='store',
         dest='secrets',
         required=True
+    )
+
+    test_parser.add_argument(
+        '-dr', '--drive', 
+        help='Specify drive (google/dropbox) to download RAT test data.', 
+        action='store',
+        dest='drive',
+        required=False
     )
     
     test_parser.set_defaults(func=test_func)

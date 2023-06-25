@@ -1,7 +1,10 @@
 from datetime import datetime
 
-DOWNLOAD_LINK = {
+DOWNLOAD_LINK_DROPBOX = {
     'test_data': "https://www.dropbox.com/scl/fi/f1pnyz9mo178kweh3agtf/test_data.zip?dl=1&rlkey=qxvsfrhc2li55dh4yj4a03bq2"
+}
+DOWNLOAD_LINK_GOOGLE = {
+    'test_data': "https://drive.google.com/uc?id=1F5Z6f4rX7nBSXXo7XYGK_XC0i5-G6zBF"
 }
 
 PATHS = {
