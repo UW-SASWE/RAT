@@ -122,6 +122,9 @@ class RouteParameterFile:
         # if uh is passed as parameter (override the value from rat_config)
         if self.uh:
             self.params['uh'] = self.uh
+        # if basin_flow_direction file is passed as parameter (override the value from rat_config)
+        if self.basin_flow_direction_file:
+            self.params['flow_direction_file'] = self.basin_flow_direction_file
     
     # TODO create _load_from_param
 

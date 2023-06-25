@@ -11,7 +11,7 @@ import datetime
 import copy
 from dask.distributed import Client, LocalCluster
 
-from rat.utils.logging import init_logger,close_logger
+from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
 import rat.ee_utils.ee_config as ee_configuration
 from rat.rat_basin import rat_basin
 
@@ -37,7 +37,7 @@ def run_rat(config_fn, operational_latency=None):
         # notify=True,
         notify=False,
         log_level='DEBUG',
-        logger_name='run_rat',
+        logger_name=LOG_LEVEL1_NAME,
         for_basin=False
     )
 

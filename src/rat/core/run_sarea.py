@@ -2,7 +2,7 @@ import os
 import geopandas as gpd
 
 from logging import getLogger
-from rat.utils.logging import LOG_NAME, NOTIFICATION
+from rat.utils.logging import LOG_NAME, NOTIFICATION, LOG_LEVEL1_NAME
 
 from rat.core.sarea.sarea_cli_s2 import sarea_s2
 from rat.core.sarea.sarea_cli_l8 import sarea_l8
@@ -11,19 +11,28 @@ from rat.core.sarea.sarea_cli_sar import sarea_s1
 from rat.core.sarea.TMS import TMS
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
+log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
 
 def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_dict):
     reservoirs_polygon = gpd.read_file(reservoirs_shpfile)
+    no_failed_files = 0
     
     for reservoir_no,reservoir in reservoirs_polygon.iterrows():
-        # Reading reservoir information
-        reservoir_name = str(reservoir[shpfile_column_dict['unique_identifier']])
-        reservoir_area = float(reservoir[shpfile_column_dict['area_column']])
-        reservoir_polygon = reservoir.geometry
-        run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir)
-
-
+        try:
+            # Reading reservoir information
+            reservoir_name = str(reservoir[shpfile_column_dict['unique_identifier']]).replace(" ","_")
+            reservoir_area = float(reservoir[shpfile_column_dict['area_column']])
+            reservoir_polygon = reservoir.geometry
+            log.info(f"Calculating surface area for {reservoir_name}.")
+            run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir)
+            log.info(f"Calculated surface area for {reservoir_name} successfully.")
+        except:
+            log.exception(f"Surface area calculation failed for {reservoir_name}.")
+            no_failed_files += 1
+    if no_failed_files:
+        log_level1.warning(f"Surface area was not calculated for {no_failed_files} reservoirs.")
+        
 def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir):
 
     # Obtain surface areas
