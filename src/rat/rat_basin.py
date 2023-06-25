@@ -215,7 +215,9 @@ def rat_basin(config, rat_logger):
         rout_input_path_prefix = os.path.join(rout_input_path,'fluxes_')
         # Creating routing parameter directory
         rout_param_dir = create_directory(os.path.join(basin_data_dir,'ro','pars',''), True)
-        # Creating routing inflow directory
+        # Creating routing and its inflow directory
+        rout_dir = Path(config['GLOBAL']['data_dir']) / f'{config["BASIN"]["region_name"]}' / 'basins' / f'{config["BASIN"]["basin_name"]}' / 'ro'
+        rout_dir.mkdir(parents=True, exist_ok=True)
         routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
         routing_output_dir.mkdir(parents=True, exist_ok=True)
         inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
@@ -516,6 +518,8 @@ def rat_basin(config, rat_logger):
                     clean=False,
                     inflow_dir = inflow_dst_dir,
                     station_path_latlon = basin_station_latlon_file,
+                    route_dir=rout_dir,
+                    route_output_dir=routing_output_dir
                 )
                 ROUTING_STATUS=1
                 

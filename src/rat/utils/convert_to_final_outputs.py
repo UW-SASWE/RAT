@@ -23,20 +23,20 @@ def convert_sarea(sarea_dir, website_v_dir):
         df.to_csv(savepath, index=False)
 
 
-def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  website_v_dir):
+def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  final_out_dir):
     # Inflow
     reservoirs = gpd.read_file(reservoir_shpfile)
-    reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str).str[:5]
+    reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
 
-    inflow_paths = [os.path.join(inflow_dir, f) for f in os.listdir(inflow_dir) if f.endswith(".csv")]
-    inflow_web_dir = create_directory(os.path.join(website_v_dir,'inflow' ),True)
+    inflow_paths = list(Path(inflow_dir).glob('*.csv'))
+    final_out_inflow_dir = Path(final_out_dir) / 'inflow'
+    final_out_inflow_dir.mkdir(exist_ok=True)
 
     for inflow_path in inflow_paths:
         res_name = os.path.splitext(os.path.split(inflow_path)[-1])[0]
 
         if res_name in reservoirs['Inflow_filename'].tolist():
-            savename = reservoirs[reservoirs['Inflow_filename'] == res_name][reservoir_shpfile_column_dict['unique_identifier']].values[0]
-            savepath = os.path.join(inflow_web_dir ,f"{savename}.csv")
+            savepath = final_out_inflow_dir / inflow_path.name
 
             df = pd.read_csv(inflow_path, parse_dates=['date'])
             df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d

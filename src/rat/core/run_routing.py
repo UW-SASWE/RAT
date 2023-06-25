@@ -7,6 +7,7 @@ from pathlib import Path
 import dask
 from tempfile import TemporaryDirectory
 import subprocess
+import shutil
 
 from logging import getLogger
 from rat.utils.route_param_reader import RouteParameterFile
@@ -154,20 +155,19 @@ def generate_inflow(src_dir, dst_dir):
             else:
                 read_rat_out(f).reset_index().to_csv(outpath, index=False)
         except:
-            log.exception(f"Inflow could not be calculated for {f.name}.")
+            log.exception(f"Inflow could not be calculated for {f.stem}.")
             no_failed_files += 1
     if no_failed_files:
         log_level1.warning(f"Inflow was not calculated for {no_failed_files} reservoirs. Please check Level-2 log file for more details.")
 
 @dask.delayed(pure=True)
-def run_for_station(station_name, config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, clean=False):
+def run_for_station(station_name, config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, route_workspace_dir, clean=False):
     if isinstance(station_path_latlon, pd.Series):
         station_path_latlon = station_path_latlon.to_frame().T
     log.debug("Running routing for station: %s", station_name)
-
-    route_dir = Path(config['GLOBAL']['data_dir']) / f'{config["BASIN"]["region_name"]}' / 'basins' / f'{config["BASIN"]["basin_name"]}' / 'ro'
+    
     # create workspace directory
-    route_workspace_dir = route_dir / 'wkspc' / f'{station_name}' 
+    route_workspace_dir = route_workspace_dir / f'{station_name}' 
     route_workspace_dir.mkdir(parents=True, exist_ok=True)
 
     # creating symlinks
@@ -183,12 +183,8 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
     input_files_glob = input_files_dst / Path(rout_input_path_prefix).stem
     
     # output files
-    output_files_src = route_dir / 'ou'
     output_files_dst = route_workspace_dir / 'ou'
-    if output_files_dst.is_symlink():
-        log.warn("Symlink already exists at %s, deleting it", output_files_dst)
-        output_files_dst.unlink()
-    output_files_dst.symlink_to(output_files_src, target_is_directory=True)
+    output_files_dst.mkdir(parents=True, exist_ok=True)
 
     # flow direction file
     if(config['ROUTING PARAMETERS'].get('flow_direction_file')):
@@ -248,15 +244,25 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
         output_path = Path(r.params['output_dir']) / f"{station_name}.day"
     return output_path, basin_station_xy_path, ret_code, station_name
 
-def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, clean=False):
+def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, route_dir, route_output_dir, clean=False):
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
     
-    stations = pd.read_csv(station_path_latlon)
+    # Getting station names from lat-lon csv or station_xy depending on their existence.
+    if station_path_latlon.exists():
+        stations = pd.read_csv(station_path_latlon)
+    else:
+        station_xy_file = config['ROUTING PARAMETERS'].get('station_file')
+        assert Path(station_xy_file).exists()
+        stations = pd.read_csv(station_xy_file, sep='\t', names=['run','name','x','y','area']).dropna()
+
+    # create workspace directory
+    route_workspace_dir = route_dir / 'wkspc' 
+    route_workspace_dir.mkdir(parents=True, exist_ok=True)
     
     futures = []
     for i, station in stations.iterrows():
-        future = run_for_station(station['name'], config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station, clean)
+        future = run_for_station(station['name'], config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station, route_workspace_dir, clean)
         futures.append(future)
     routing_results = dask.compute(*futures)
 
@@ -270,10 +276,35 @@ def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_p
     routing_statuses.sort_values(by="station_name", inplace=True)
     routing_statuses['routing_status'] = routing_statuses['routing_status'].astype('int')
     log.info("Routing execution statuses:\n%s", routing_statuses.to_string(index=False, col_space=25))
-    
+
+    # Gathering all the outputs of routing in route_output_dir
+    route_workspace_dir = route_dir / 'wkspc' 
+    gathering_ro_ou(route_workspace_dir,route_output_dir)
+
     # Tracking number of stations (no_failed_files) for which routing has failed to execute.
     no_failed_files = len(routing_statuses[routing_statuses["routing_status"]!=0])
     if no_failed_files:
         log_level1.warning(f"Routing failed to execute successfully for {no_failed_files} reservoirs. Please check Level-2 log file for more details. This will result in no inflow generation.")
              
     return output_paths, station_xy_path, routing_statuses
+
+# Gathers all the workspace routing outputs into single output directory and save them by their complete station name.
+def gathering_ro_ou(wkspc_dir, gathered_ro_ou_dir):
+    '''Gathers all the workspace routing outputs into single output directory and save them by their complete station name.
+    
+    Parameters:
+    wkspc_sir (Path):Path of the routing workspace directory
+    gathered_ro_ou_dir (Path): Path of the overall routing output directory where all routing outputs will be gathered.
+    '''
+    assert wkspc_dir.exists()
+    gathered_ro_ou_dir.mkdir(parents=True, exist_ok=True)
+    # for all files with this pattern in wkspc dir
+    for f in list(wkspc_dir.glob('**/ou/*.day')):
+        try:
+            # grab station name
+            station_name = f.parent.parent.name
+            #copy it by station name to gathered_ro_ou_dir
+            copy_dst = gathered_ro_ou_dir/ f"{station_name}.day"
+            shutil.copyfile(f, copy_dst)
+        except:
+            log.exception(f"Routing output for {station_name} could not be transferred to overall routing output directory.")
