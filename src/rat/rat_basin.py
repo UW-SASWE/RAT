@@ -321,6 +321,7 @@ def rat_basin(config, rat_logger):
                 basingridpath= basingridfile_path,
                 outputdir= combined_datapath,
                 use_previous= use_state,
+                climatological_data=config['METSIM'].get('historical_precipitation')
             )
             #----------- Process Data End and combined data created -----------#
 
