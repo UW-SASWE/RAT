@@ -10,11 +10,12 @@ import subprocess
 
 from logging import getLogger
 from rat.utils.route_param_reader import RouteParameterFile
-from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
+from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION, LOG_LEVEL1_NAME
 from rat.utils.run_command import run_command
 
 log = getLogger(LOG_NAME)
 log.setLevel(LOG_LEVEL)
+log_level1 = getLogger(LOG_LEVEL1_NAME)
 
 class RoutingRunner():
     # TODO Clean up UH files
@@ -135,22 +136,28 @@ def generate_inflow(src_dir, dst_dir):
     
     if not dst_dir.exists():
         log.error("Directory does not exist: %s", dst_dir)
-
-    for f in files:
-        outpath = (dst_dir / f.name).with_suffix('.csv')
-        log.debug("Converting %s, writing to %s", f, outpath)
-        ## Appending data if files exists otherwise creating new
-        if outpath.exists():
-            existing_data = pd.read_csv(outpath, parse_dates=['date'])
-            new_data = read_rat_out(f).reset_index()
-            # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
-            complement = pd.concat([existing_data, new_data], ignore_index=True)
-            # Remove all duplicates:
-            complement.drop_duplicates(subset=['date'], inplace=True, keep='first')
-            complement.sort_values(by='date', inplace=True)
-            complement.to_csv(outpath, index=False)
-        else:
-            read_rat_out(f).reset_index().to_csv(outpath, index=False)
+    no_failed_files = 0
+    for f in files: 
+        try:      
+            outpath = (dst_dir / f.name).with_suffix('.csv')
+            log.debug("Converting %s, writing to %s", f, outpath)
+            ## Appending data if files exists otherwise creating new
+            if outpath.exists():
+                existing_data = pd.read_csv(outpath, parse_dates=['date'])
+                new_data = read_rat_out(f).reset_index()
+                # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
+                complement = pd.concat([existing_data, new_data], ignore_index=True)
+                # Remove all duplicates:
+                complement.drop_duplicates(subset=['date'], inplace=True, keep='first')
+                complement.sort_values(by='date', inplace=True)
+                complement.to_csv(outpath, index=False)
+            else:
+                read_rat_out(f).reset_index().to_csv(outpath, index=False)
+        except:
+            log.exception(f"Inflow could not be calculated for {f.name}.")
+            no_failed_files += 1
+    if no_failed_files:
+        log_level1.warning(f"Inflow was not calculated for {no_failed_files} reservoirs. Please check Level-2 log file for more details.")
 
 @dask.delayed(pure=True)
 def run_for_station(station_name, config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, clean=False):
@@ -234,11 +241,12 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
             station_xy = station_file_path
         )
         route.create_station_file()
-        ret_code = route.run_routing(cd=route_workspace_dir)
+        ret_code = route.run_routing(cd=route_workspace_dir) # This returns the completed process
+        ret_code = ret_code.returncode # The return code is extracted from the completed process
         basin_station_xy_path = route.station_path_xy
 
         output_path = Path(r.params['output_dir']) / f"{station_name}.day"
-    return output_path, basin_station_xy_path, ret_code
+    return output_path, basin_station_xy_path, ret_code, station_name
 
 def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, clean=False):
     start = pd.to_datetime(start)
@@ -255,5 +263,17 @@ def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_p
     output_paths = [r[0] for r in routing_results]
     station_xy_path = routing_results[0][1]
     ret_codes = [r[2] for r in routing_results]
-
-    return output_paths, station_xy_path, ret_codes
+    station_names = [r[3] for r in routing_results]
+    
+    # Logging the final status of routing execution in Log Level 2 file
+    routing_statuses = pd.DataFrame({"station_name": station_names, "routing_status": ret_codes})
+    routing_statuses.sort_values(by="station_name", inplace=True)
+    routing_statuses['routing_status'] = routing_statuses['routing_status'].astype('int')
+    log.info("Routing execution statuses:\n%s", routing_statuses.to_string(index=False, col_space=25))
+    
+    # Tracking number of stations (no_failed_files) for which routing has failed to execute.
+    no_failed_files = len(routing_statuses[routing_statuses["routing_status"]!=0])
+    if no_failed_files:
+        log_level1.warning(f"Routing failed to execute successfully for {no_failed_files} reservoirs. Please check Level-2 log file for more details. This will result in no inflow generation.")
+             
+    return output_paths, station_xy_path, routing_statuses

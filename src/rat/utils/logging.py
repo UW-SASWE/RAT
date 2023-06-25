@@ -10,6 +10,7 @@ import subprocess
 from rat.utils.utils import create_directory
 
 # -------------------------------------------------------------------- #
+LOG_LEVEL1_NAME = 'run_rat'
 LOG_NAME = 'rat-logger'
 LOG_LEVEL = 'DEBUG'
 NOTIFICATION = 25    # Setting level above INFO, below WARNING
