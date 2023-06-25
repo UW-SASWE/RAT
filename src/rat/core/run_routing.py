@@ -249,7 +249,7 @@ def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_p
     end = pd.to_datetime(end)
     
     # Getting station names from lat-lon csv or station_xy depending on their existence.
-    if station_path_latlon.exists():
+    if Path(station_path_latlon).exists():
         stations = pd.read_csv(station_path_latlon)
     else:
         station_xy_file = config['ROUTING PARAMETERS'].get('station_file')
