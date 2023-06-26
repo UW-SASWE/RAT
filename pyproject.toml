@@ -17,6 +17,22 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License"
 ]
+dependencies = [
+    "rasterio",
+    "xarray",
+    "geopandas",
+    "rioxarray",
+    "earthengine-api",
+    "pandas",
+    "numpy",
+    "netcdf4",
+    "dask",
+    "scipy",
+    "scikit-learn",
+    "ruamel_yaml",
+    "yaml",
+    "gdown",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/UW-SASWE/RAT"
