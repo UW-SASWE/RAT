@@ -1,6 +1,7 @@
 import subprocess
 import requests
 from datetime import datetime, timedelta
+import calendar
 import os
 import time
 import shutil
@@ -177,6 +178,7 @@ def download_precip(date, version, outputpath, secrets, interpolate=True):
                 log.warning(f"Precipitation download link not found. Skipping downloading: {date.strftime('%Y-%m-%d')}")
                 STATUS = "NOT_FOUND"
     else:
+        STATUS = "SKIPPED"
         log.debug(f"Precipitation file already exits: {date.strftime('%Y-%m-%d')}")
 
     return STATUS
@@ -188,10 +190,6 @@ def download_tmax(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()  #today date
-    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
-    today_year = str(tod.year)    # today year 
-    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
     if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
@@ -203,20 +201,21 @@ def download_tmax(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists tmax: %s", year)
-        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
-        log.info(f"Last modified date:{date_of_file_modification}")
-        if ((year == recent_year_20day_ago) or (year == today_year)):
-            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
-                log.info("No data since last modified date. No need to download.")
-            else:
-                cmd = [
+        # Checking days in year and in file. 
+        days_in_year=366 if calendar.isleap(int(year)) else 365
+        with xr.open_dataset(outputpath) as nc_data:
+            days_in_file = len(nc_data['time'])
+        if(days_in_file<days_in_year):
+            log.info(f"The file has only data for {days_in_file} days which is less than the days in the year ({days_in_year}).So, updating the tmax file: {year}")
+            cmd = [
                     'wget', 
                     '-O', 
                     f'{outputpath}', 
                     f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmax.{year}.nc'
                 ]
-                log.debug("Last modified date is not today. So, updating tmax: %s", year)
-                return run_command(cmd)
+            return run_command(cmd)
+        else:
+            log.info(f"The tmax file has complete data for {days_in_file} days of the year. No need to download for {year}.")
                 
 
 def download_tmin(year, outputpath):
@@ -226,10 +225,6 @@ def download_tmin(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()  #today date
-    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
-    today_year = str(tod.year)    # today year 
-    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
     if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
@@ -241,20 +236,21 @@ def download_tmin(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists tmin: %s", year)
-        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
-        log.info(f"Last modified date:{date_of_file_modification}")
-        if ((year == recent_year_20day_ago) or (year == today_year)):
-            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
-                log.info("No data since last modified date. No need to download.")
-            else:
-                cmd = [
+        # Checking days in year and in file. 
+        days_in_year=366 if calendar.isleap(int(year)) else 365
+        with xr.open_dataset(outputpath) as nc_data:
+            days_in_file = len(nc_data['time'])
+        if(days_in_file<days_in_year):
+            log.info(f"The file has only data for {days_in_file} days which is less than the days in the year ({days_in_year}).So, updating the tmin file: {year}")
+            cmd = [
                     'wget', 
                     '-O', 
                     f'{outputpath}', 
                     f'ftp://ftp.cdc.noaa.gov/Datasets/cpc_global_temp/tmin.{year}.nc'
                 ]
-                log.debug("Last modified date is not today. So, updating tmin: %s", year)
-                return run_command(cmd)
+            return run_command(cmd)
+        else:
+            log.info(f"The tmin file has complete data for {days_in_file} days of the year. No need to download for {year}.")
 
 def download_uwnd(year, outputpath):
     """
@@ -263,10 +259,6 @@ def download_uwnd(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()  #today date
-    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
-    today_year = str(tod.year)    # today year 
-    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
     if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
@@ -278,20 +270,21 @@ def download_uwnd(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists uwnd: %s", year)
-        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
-        log.info(f"Last modified date:{date_of_file_modification}")
-        if ((year == recent_year_20day_ago) or (year == today_year)):
-            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
-                log.info("No data since last modified date. No need to download.")
-            else:
-                cmd = [
+        # Checking days in year and in file. 
+        days_in_year=366 if calendar.isleap(int(year)) else 365
+        with xr.open_dataset(outputpath) as nc_data:
+            days_in_file = int(len(nc_data['time'])/4)  # daily 4 times data at 6hr frequency
+        if(days_in_file<days_in_year):
+            log.info(f"The file has only data for {days_in_file} days which is less than the days in the year ({days_in_year}).So, updating the uwnd file: {year}")
+            cmd = [
                     'wget', 
                     '-O', 
                     f'{outputpath}', 
                     f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/uwnd.10m.gauss.{year}.nc'
                 ]
-                log.debug("Last modified date is not today. So, updating uwnd: %s", year)
-                return run_command(cmd)
+            return run_command(cmd)
+        else:
+            log.info(f"The uwnd file has complete data for {days_in_file} days of the year. No need to download for {year}.")
 
 def download_vwnd(year, outputpath):
     """
@@ -300,10 +293,6 @@ def download_vwnd(year, outputpath):
         outputpath: path where the data has to be saved
     """
     ## New data will keep on coming in the year going on i.e. recent year
-    tod = datetime.now()  #today date
-    days_ago_20 = tod - timedelta(days=20)  # date 20 days back
-    today_year = str(tod.year)    # today year 
-    recent_year_20day_ago = str(days_ago_20.year)  # year for 20 days back 
     if (not(os.path.exists(outputpath))):
         cmd = [
             'wget', 
@@ -314,19 +303,21 @@ def download_vwnd(year, outputpath):
         return run_command(cmd)
     else:
         log.info("File already exists vwnd: %s", year)
-        date_of_file_modification = time.ctime(os.path.getmtime(outputpath))
-        log.info(f"Last modified date:{date_of_file_modification}")
-        if ((year == recent_year_20day_ago) or (year == today_year)):
-            if(datetime.strptime(date_of_file_modification, "%c").date()==tod.date()):
-                log.info("No data since last modified date. No need to download.")
-            else:
-                cmd = [
+        # Checking days in year and in file. 
+        days_in_year=366 if calendar.isleap(int(year)) else 365
+        with xr.open_dataset(outputpath) as nc_data:
+            days_in_file = int(len(nc_data['time'])/4) # daily 4 times data at 6hr frequency
+        if(days_in_file<days_in_year):
+            log.info(f"The file has only data for {days_in_file} days which is less than the days in the year ({days_in_year}).So, updating the vwnd file: {year}")
+            cmd = [
                     'wget', 
                     '-O', 
                     f'{outputpath}', 
-                    f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/vwnd.10m.gauss.{year}.nc']
-                log.debug("Last modified date is not today. So, updating vwnd: %s", year)
-                return run_command(cmd)
+                    f'ftp://ftp2.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/vwnd.10m.gauss.{year}.nc'
+                ]
+            return run_command(cmd)
+        else:
+            log.info(f"The vwnd file has complete data for {days_in_file} days of the year. No need to download for {year}.")
 
 def download_data(begin, end, datadir, secrets):
     """Downloads the data between dates defined by begin and end
@@ -359,9 +350,9 @@ def download_data(begin, end, datadir, secrets):
     for date in required_dates:
         data_version = _determine_precip_version(date)
         outputpath = os.path.join(datadir, "precipitation", f"{date.strftime('%Y-%m-%d')}_IMERG.tif")
-        if not os.path.isfile(outputpath):
-            future = dask.delayed(download_precip_with_semaphore)(date, data_version, outputpath, secrets, sem)
-            futures.append(future)
+        # if not os.path.isfile(outputpath):
+        future = dask.delayed(download_precip_with_semaphore)(date, data_version, outputpath, secrets, sem)
+        futures.append(future)
 
     results = dask.compute(*futures) # downloading precipitation files first
     precip_statuses["Date"] = [r[0] for r in results]

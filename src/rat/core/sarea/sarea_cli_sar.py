@@ -55,7 +55,7 @@ def detectWaterSAR(d, ref_image):
         .filterBounds(ROI) \
         .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
         .filter(ee.Filter.eq('instrumentMode', 'IW'))
-
+        
     vv = s1_subset.map(mask_by_angle)
     vv = vv.map(focal_median);
     vv_median = vv.select("Smooth").median();
@@ -77,35 +77,54 @@ def detectWaterSAR(d, ref_image):
 
 # client side code
 def ee_get_data(ee_Date_Start, ee_Date_End):
+    date_start_str = ee_Date_Start
+    date_end_str = ee_Date_End
     ee_Date_Start, ee_Date_End = ee.Date(ee_Date_Start), ee.Date(ee_Date_End)
     S1 = s1.filterDate(ee_Date_Start, ee_Date_End) \
             .filterBounds(ROI) \
             .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
             .filter(ee.Filter.eq('instrumentMode', 'IW'))
     
-    ref_image = S1.first()
-    first_date = getfirstobs(S1)
+     ## Checking if time interval is small then the image collection should not be empty in GEE
+    if (days_between(date_start_str,date_end_str) < 30):     # less than a month difference
+        number_of_images = S1.size().getInfo()
+    else:
+        number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
 
-    n_days = ee_Date_End.difference(ee_Date_Start, 'day').round()
-    dates = ee.List.sequence(0, n_days, REVISIT_TIME)
-    dates = dates.map(lambda n: first_date.advance(n, 'day'))
+    if number_of_images:
+        ref_image = S1.first()
+        first_date = getfirstobs(S1)
 
-    classified_water_sar = ee.ImageCollection(dates.map(lambda d: detectWaterSAR(d, ref_image)))
-    classified_water_sar = classified_water_sar.map(calcWaterPix)
+        n_days = ee_Date_End.difference(ee_Date_Start, 'day').round()
+        dates = ee.List.sequence(0, n_days, REVISIT_TIME)
+        dates = dates.map(lambda n: first_date.advance(n, 'day'))
 
-    wc = ee.Array(classified_water_sar.aggregate_array('water_pixels')).multiply(0.0001).getInfo() # area in sq. km
-    d = classified_water_sar.aggregate_array('system:time_start').getInfo() # convert from miliseconds to seconds from epoch
-    
-    df = pd.DataFrame({
-        'time': d,  # https://stackoverflow.com/a/15056365
-        'sarea': wc
-    })
-    df['time'] = df['time'].apply(lambda t: np.datetime64(t, 'ms'))
-    
-    return df
+        classified_water_sar = ee.ImageCollection(dates.map(lambda d: detectWaterSAR(d, ref_image)))
+        classified_water_sar = classified_water_sar.map(calcWaterPix)
 
-def retrieve_sar(start_date, end_date, res='ys'):
-    date_ranges = list((pd.date_range(start_date, end_date, freq=res).union([pd.to_datetime(start_date), pd.to_datetime(end_date)])).strftime("%Y-%m-%d").tolist()) 
+        # print('size line 103:',classified_water_sar.size().getInfo())
+        # print('size line 104:',ee.Array(classified_water_sar.aggregate_array('water_pixels')).multiply(0.0001).size().getInfo())
+
+        wc = ee.Array(classified_water_sar.aggregate_array('water_pixels')).multiply(0.0001).getInfo() # area in sq. km
+        d = classified_water_sar.aggregate_array('system:time_start').getInfo() # convert from miliseconds to seconds from epoch
+        
+        df = pd.DataFrame({
+            'time': d,  # https://stackoverflow.com/a/15056365
+            'sarea': wc
+        })
+        df['time'] = df['time'].apply(lambda t: np.datetime64(t, 'ms'))
+        
+        return df
+    else:
+        df = pd.DataFrame({
+            'time': [],  # https://stackoverflow.com/a/15056365
+            'sarea': []
+        })
+        print('No image observed. Returning empty dataframe.')
+        return df
+
+def retrieve_sar(start_date, end_date, res='ys'): #ys-year-start frequency
+    date_ranges = list((pd.date_range(start_date, end_date, freq=res).union([pd.to_datetime(start_date), pd.to_datetime(end_date)])).strftime("%Y-%m-%d").tolist()) #ys-year-start frequency
     print(date_ranges)
     dfs = []
     # for begin, end in zip(date_ranges[:-1], date_ranges.shift(1)[:-1]):
@@ -157,7 +176,7 @@ def sarea_s1(reservoir, reservoir_polygon ,start_date, end_date, datadir):
         else:
             to_combine = []
 
-        results = retrieve_sar(start_date, end_date, res='6MS')
+        results = retrieve_sar(start_date, end_date, res='6MS') #MS-month start frequency
         to_combine.append(results)
         data = pd.concat(to_combine).drop_duplicates().sort_values("time")
         
