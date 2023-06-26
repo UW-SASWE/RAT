@@ -266,7 +266,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
                 deltaS = os.path.join(dels_savedir, reservoir_name + ".csv")
-                inflowpath = os.path.join(inflow_dir, reservoir_name[:5] + ".csv")  ## Routing model keeps only first 5 letters of the reservoir name as file name
+                inflowpath = os.path.join(inflow_dir, reservoir_name + ".csv")
                 epath = os.path.join(evap_datadir, reservoir_name + ".csv")
                 a = float(reservoir[reservoir_shpfile_column_dict['area_column']])
 
