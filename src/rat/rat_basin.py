@@ -613,12 +613,12 @@ def rat_basin(config, rat_logger):
             try:
                 generate_inflow(routing_output_dir, inflow_dst_dir)
             except:
-                log.warning("Inflow could not be calculated. Moving forward to calculate storage change and evaporation.", exc_info=True)
+                rat_logger.warning("Inflow could not be calculated. Moving forward to calculate storage change and evaporation.", exc_info=True)
             # Copying AEC files to RAT output directory
             try:
                 copy_aec_files(aec_dir_path, aec_savedir)
             except:
-                log.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
+                rat_logger.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
             #Generating evaporation, storage change and outflow.    
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
                                 aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
