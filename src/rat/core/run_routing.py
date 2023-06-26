@@ -134,6 +134,9 @@ def generate_inflow(src_dir, dst_dir):
     log.log(NOTIFICATION, "Starting inflow generation")
     log.debug(f"Looking at directory: {src_dir}")
     files = [src_dir / f for f in src_dir.glob('*.day')]
+
+    if len(files)==0:
+        raise Exception("No routing output was found to generate inflow.")
     
     if not dst_dir.exists():
         log.error("Directory does not exist: %s", dst_dir)
