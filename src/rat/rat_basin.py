@@ -127,14 +127,17 @@ def rat_basin(config, rat_logger):
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
             vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            gee_start_date = user_given_start  # Run gee from the date provided by user and not spin-off start date.
         elif(config['BASIN'].get('vic_init_state_date')):
             data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
             vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
             use_state = True           # Routing state file will be used
+            gee_start_date = config['BASIN']['start'] # Run gee from the date provided by user.
         else:
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
             vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            gee_start_date = config['BASIN']['start']  # Run gee from the date provided by user.
 
         # Defining logger
         log = init_logger(
@@ -563,7 +566,7 @@ def rat_basin(config, rat_logger):
                 else: 
                     raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             # Get Sarea
-            run_sarea(config['BASIN']['start'].strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
+            run_sarea(gee_start_date.strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
                                                                                     basin_reservoir_shpfile_path, reservoirs_gdf_column_dict)
             GEE_STATUS = 1
         except:
