@@ -8,7 +8,7 @@ Essentially, RAT {{rat_version.major}}.{{rat_version.minor}} requires only the b
 
 ## Requirements
 
-+ Linux based operating system with python 3 installed. 
++ Linux based operating system with [miniconda(recommended)/anaconda] (https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html) installed. 
 + Login credentials for [AVISO user-account](https://www.aviso.altimetry.fr/en/data/data-access/registration-form.html)(for reservoir height data)
 + Login credentials for [IMERG user-account](https://registration.pps.eosdis.nasa.gov/registration/)
 (for accessing precipitation data for hydrologic model)
@@ -31,7 +31,7 @@ Essentially, RAT {{rat_version.major}}.{{rat_version.minor}} requires only the b
     ```
 4. Install RAT {{rat_version.major}}.{{rat_version.minor}} using conda
     ```
-    conda install rat –c pritamd47 –c conda-forge
+    conda install rat –c conda-forge
     ```
 
 !!! success_note "Congratulations"
