@@ -62,7 +62,7 @@ jobs:
       - name: Install RAT
         shell: bash -l {0}
         run: |
-          conda install -c conda_dist/ rat
+          conda install rat -c ./conda_dist/ 
       - name: Run tests
         shell: bash -l {0}
         run: |
