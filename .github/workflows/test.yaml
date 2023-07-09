@@ -58,7 +58,7 @@ jobs:
         shell: bash -l {0}
         run: |
           mkdir conda_dist
-          conda-build .github/workflows/meta.yaml --output-folder conda_dist
+          conda-build .github/workflows/ --output-folder conda_dist
       - name: Install RAT
         shell: bash -l {0}
         run: |
