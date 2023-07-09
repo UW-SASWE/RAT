@@ -52,7 +52,10 @@ def run_rat(config_fn, operational_latency=None):
     try:
         log.info("Checking earth engine credentials")
         secrets = configparser.ConfigParser()
-        secrets.read(config['CONFIDENTIAL']['secrets'])
+        if config['CONFIDENTIAL']['secrets'] == 'GA':
+            secrets.read_string(os.environ['GA'])
+        else:
+            secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]
         ee_configuration.key_file = secrets["ee"]["key_file"]
         ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)

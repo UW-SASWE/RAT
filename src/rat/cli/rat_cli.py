@@ -399,7 +399,7 @@ def run_func(args):
     from rat.run_rat import run_rat
     run_rat(args.param, args.operational_latency)
 
-def main():
+def main(args_param=None):
     ## CLI interface
     p = argparse.ArgumentParser(description='Reservoir Assessment Tool')
 
@@ -547,6 +547,10 @@ def main():
     
     test_parser.set_defaults(func=test_func)
 
+    if args is None:
+        args = p.parse_args()
+    else:
+        args = p.parse_args(args_param)
     args = p.parse_args()
     args.func(args)
 
