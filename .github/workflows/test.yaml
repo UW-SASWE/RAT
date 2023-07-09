@@ -54,10 +54,15 @@ jobs:
           conda info
           conda env list
           conda env export --from-history
+      - name: Build RAT conda package
+        shell: bash -l {0}
+        run: |
+          mkdir conda_dist
+          conda-build .github/workflows/meta.yaml --output-folder conda_dist
       - name: Install RAT
         shell: bash -l {0}
         run: |
-          conda install -c file://dist/ rat --use-local
+          conda install -c conda_dist/ rat
       - name: Run tests
         shell: bash -l {0}
         run: |
