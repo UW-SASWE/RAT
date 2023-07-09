@@ -45,6 +45,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           environment-file: test_env.yml
+          mamba-version: "*"
           activate-environment: rat_test_env
       - name: Test conda
         shell: bash -l {0}
