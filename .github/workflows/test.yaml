@@ -65,5 +65,8 @@ jobs:
           conda install rat -c ./conda_dist/ 
       - name: Run tests
         shell: bash -l {0}
+        env:
+          GA: ${{ secrets.GA }}
+          KEY_FILE: ${{ secrets.KEY_FILE }}
         run: |
           pytest -s tests/
