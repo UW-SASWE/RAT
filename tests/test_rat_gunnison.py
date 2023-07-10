@@ -31,3 +31,10 @@ def test_rat_gunnison():
     args.drive = None
 
     rat_t_func(args)
+
+    log_dir = args.project_dir / "data" / "test_output" / "runs" / "logs"
+    log_files = list(log_dir.glob("RAT_run*.log"))
+    assert log_dir.exists()
+    assert len(log_files) == 1 # there should only be one log file
+    if len(log_files) == 1:
+        print(log_files[0].read_text())
