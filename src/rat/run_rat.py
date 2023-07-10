@@ -64,6 +64,7 @@ def run_rat(config_fn, operational_latency=None):
             secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]
         ee_configuration.key_file = secrets["ee"]["key_file"]
+        print(f"{secrets['ee']['service_account']}")
         ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
         ee.Initialize(ee_credentials)
         log.info("Connected to earth engine succesfully.")
