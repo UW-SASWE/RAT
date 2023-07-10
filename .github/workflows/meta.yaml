@@ -13,7 +13,7 @@ build:
   script: {{ PYTHON }} -m pip install . -vv
   number: 0
   entry_points:
-    - rat = rat.cli:main
+    - rat = rat.cli.rat_cli:main
 
 requirements:
   host:
