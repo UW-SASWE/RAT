@@ -10,6 +10,7 @@ from pathlib import Path
 import datetime
 import copy
 from dask.distributed import Client, LocalCluster
+from tempfile import NamedTemporaryFile
 
 from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
 import rat.ee_utils.ee_config as ee_configuration
@@ -48,12 +49,17 @@ def run_rat(config_fn, operational_latency=None):
 
     log.debug(f"Started client with {config['GLOBAL']['multiprocessing']} workers. Dashboard link: {client.dashboard_link}")
 
+    temp_key_file = None
+
     # Trying the ee credentials given by user
     try:
         log.info("Checking earth engine credentials")
         secrets = configparser.ConfigParser()
         if config['CONFIDENTIAL']['secrets'] == 'GA':
             secrets.read_string(os.environ['GA'])
+            temp_key_file = NamedTemporaryFile(delete=True)
+            temp_key_file.write(os.environ['KEY_FILE'].encode())
+            secrets['ee']['key_file'] = temp_key_file.name
         else:
             secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]

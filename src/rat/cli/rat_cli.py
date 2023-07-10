@@ -75,7 +75,9 @@ def init_func(args):
             global_data_dir = None
 
     secrets_fp = None
-    if args.secrets is not None:
+    if args.secrets == 'GA':
+        secrets_fp = args.secrets
+    elif args.secrets is not None:
         secrets_fp = Path(args.secrets).resolve()
         assert secrets_fp.exists(), f"Secrets file {secrets_fp} does not exist"
 
@@ -238,8 +240,11 @@ def test_func(args):
 
     test_param_fp = project_dir / 'params' / 'test_config.yml'
     
-    secrets_fp = Path(args.secrets).resolve()
-    assert secrets_fp.exists(), f"{secrets_fp} does not exist - rat requires secrets.ini file to be passed. Please refer to documentation for more details."
+    if args.secrets == 'GA':
+        secrets_fp = args.secrets
+    elif args.secrets is not None:
+        secrets_fp = Path(args.secrets).resolve()
+        assert secrets_fp.exists(), f"{secrets_fp} does not exist - rat requires secrets.ini file to be passed. Please refer to documentation for more details."
 
     if args.drive is not None:
         drive = str(args.drive)
@@ -547,7 +552,7 @@ def main(args_param=None):
     
     test_parser.set_defaults(func=test_func)
 
-    if args is None:
+    if args_param is None:
         args = p.parse_args()
     else:
         args = p.parse_args(args_param)
