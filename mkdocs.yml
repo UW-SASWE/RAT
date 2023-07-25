@@ -5,7 +5,7 @@ repo_url: https://github.com/UW-SASWE/RAT
 site_url: https://rat-satellitedams.readthedocs.io/
 theme:
     name: readthedocs
-    logo: logos/RAT_Logo_white.png
+    logo: /logos/Rat_Logo_white.png
     highlightjs: true
     hljs_languages:
         - yaml
@@ -42,13 +42,15 @@ nav:
 # Main pages
 - Home:
     - 'RAT': 'index.md'
+- Preparation:
+    - 'Getting Ready': 'Preparation/GettingReady.md'
 - Quick Start: 
     - 'User Guide': 'QuickStart/UserGuide.md'
 - RAT Configuration:
     - 'Configuration File': 'Configuration/rat_config.md'
     - 'Secrets File': 'Configuration/secrets.md'
 - Development:
-    - 'Development Guide': 'Development/DevelopmentGuide.md'    
+    - 'Development Guide': 'Development/DevelopmentGuide.md'
 
 
 extra_css: [css/extra.css]
