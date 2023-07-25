@@ -1,6 +1,6 @@
 # RAT Configuration File 
 
-RAT Configuration settings are defined by a 'yaml' file. `rat init` command provides a `rat_config.yaml` file which is partially auto-filled for user's convenience and `rat_config_template.yaml` file which is just a template for the required rat configuration settings. User can use the latter to manually fill configuration file if they choose/feel not to use the auto-partially-filled configuration file. 
+RAT Configuration settings are defined by a 'yaml'/'yml' file. `rat init` command provides a `rat_config.yaml` file which is partially auto-filled for user's convenience and `rat_config_template.yaml` file which is just a template for the required rat configuration settings. User can use the latter to manually fill configuration file if they choose/feel not to use the auto-partially-filled configuration file. 
 
 !!! note
     `rat_config.yaml` and `rat_config_template.yaml` files are present inside `params` directory at `./rat_project/params/`.
@@ -414,7 +414,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 
 ### VIC Parameters
 
-This section is ***optional*** and describes the parameters defined by `vic_param_file`. As `vic_param_file` is used as a template and RAT {{rat_version.major}}.{{rat_version.minor}} automatically updates all the parameter values, this section can be used by you to define any parameter's value that you don't want to to get update automatically in `vic_param_file`. To know about the available parameters, click [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/). 
+This section is ***optional*** and describes the parameters defined by `vic_param_file`. As `vic_param_file` is used as a template and RAT {{rat_version.major}}.{{rat_version.minor}} automatically updates all the parameter values, this section can be used by you to define any parameter's value that you don't want to get update automatically in `vic_param_file`. To know about the available parameters, click [here](https://vic.readthedocs.io/en/master/Documentation/Drivers/Image/GlobalParam/). 
 
 For instance, if you want to update the number of moisture layers (`NLAYER`) used by the VIC model and want to define the name of forcing type for air temperature (`AIR_TEMP`) as *'temp'* to be read from the forcing file:
     ```
@@ -521,7 +521,7 @@ For instance, if you want to update the number of moisture layers (`NLAYER`) use
         &nbsp; 7   = west <br>
         &nbsp; 8   = northwest 
 
-    !!! tip_note
+    !!! tip_note "Tip"
         Replacing of directions takes place sequentially in the order provided. So if you want to replace 2 by 4 and 4 by 5 then first replace 4 by 5 and then replace 2 by 4. If you do the other way round, then there will be no directions with value 4. 
     
 * <h6 class="parameter_heading">*`station_global_data`* :</h6> 
@@ -531,7 +531,7 @@ For instance, if you want to update the number of moisture layers (`NLAYER`) use
 
     <span class="parameter_property">Default </span>: `True`
 
-    <span class="parameter_property">Syntax </span>: If you have reservoir information for the whole globe or the country in which the basin lies, then
+    <span class="parameter_property">Syntax </span>: If you have reservoir information in a shapefile, then
     ```
     ROUTING:
         station_global_data: True
@@ -545,12 +545,242 @@ For instance, if you want to update the number of moisture layers (`NLAYER`) use
 * <h6 class="parameter_heading">*`stations_vector_file`* :</h6> 
     <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: `Absolute path of the reservoir vector file where the geometry is reprented by point location of dams and there must be unique id, name, longitude and latitude column . It can be "global" (relative to basin) and will be automatically filtered for the basin.`False` if you don't have reservoir information in a vector file. For more information about routing station file, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#station-location-file).
+    <span class="parameter_property">Description </span>: Absolute path of the dam/station vector file where the geometry is represented by point location of dams and there must be unique id, name, longitude and latitude columns. It can be "global" (relative to basin) and will be automatically filtered for the basin. It is used to create routing station file. For more information about routing station file, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#station-location-file).
 
-    <span class="parameter_property">Default </span>: `True`
+    <span class="parameter_property">Default </span>: *'`project_dir`/global_data/global_dam_data/GRanD_dams_v1_3_filtered.shp'* 
 
-    <span class="parameter_property">Syntax </span>: If you have reservoir information for the whole globe or the country in which the basin lies, then
+    <span class="parameter_property">Syntax </span>: If reservoir station file has the path *'/Cheetah/rat_project/global_data/global_dam_data/GRanD_dams_v1_3_filtered.shp'*, then
     ```
     ROUTING:
-        station_global_data: True
+        stations_vector_file : Cheetah/rat_project/global_data/global_dam_data/GRanD_dams_v1_3_filtered.shp
     ```
+    !!! tip_note "Tip"
+        To use this parameter, make sure `station_global_data` is `True`.
+
+* <h6 class="parameter_heading">*`stations_vector_file_columns_dict:`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Dictionary of column names for `stations_vector_file`. The dictionary must have keys 'id_column', 'name_column', 'lon_column' and 'lat_column'  and their values should be the actual name of the corresponding columns respectively. The 'id_column' value should be unique for all stations in the vector file. 
+
+    <span class="parameter_property">Default </span>: `{id_column: GRAND_ID, name_column: DAM_NAME, lon_column: LONG_DD, lat_column: LAT_DD}`
+
+    <span class="parameter_property">Syntax </span>: If `stations_vector_file` has column names 'GRAND_ID', 'DAM_NAME', 'LONG_DD' and 'LAT_DD', then 
+    ```
+    ROUTING:
+        stations_vector_file_columns_dict: {id_column: GRAND_ID, name_column: DAM_NAME, lon_column: LONG_DD, lat_column: LAT_DD}
+    ```
+    or
+    ```
+    ROUTING:
+        stations_vector_file_columns_dict: 
+            id_column: GRAND_ID
+            name_column: DAM_NAME
+            lon_column: LONG_DD
+            lat_column: LAT_DD
+    ```
+    !!! tip_note "Tip"
+        1. To use this parameter, make sure `station_global_data` is `True`.
+        2. The default value is only useful if you are using the GRanD dam shapefile provided with global database of RAT 3.0.
+
+* <h6 class="parameter_heading">*`station_latlon_path:`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of station file in csv format with columns 'run', 'name', 'lon' and 'lat'. The 'run' column values should be 1 for  stations for which routing should be executed otherwise 0.
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If station csv file has the path *'/Cheetah/rat_project/custom_files/station_lat_lon.csv'*, then 
+    ```
+    ROUTING:
+        station_latlon_path: /Cheetah/rat_project/custom_files/station_lat_lon.csv
+    ```
+    !!! tip_note "Tip"
+        To use this parameter, make sure `station_global_data` is `False`.
+
+### Routing Parameters
+
+This section of the configuration file describes the parameters defined by `route_param_file`. As `route_param_file` is used as a template and RAT {{rat_version.major}}.{{rat_version.minor}} automatically updates all the parameter values, this section can be used by you to define any parameter's value that you don't want to get update automatically in `route_param_file`. To know about the available parameters, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#input-file-setup).
+
+!!! note
+    By default, RAT {{rat_version.major}}.{{rat_version.minor}} uses a standard unit hydrograph file which is downloaded when RAT is initialized using `rat init` command. To know more about the unit hydrograph file, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Routing/RoutingInput/#uh-file).
+
+!!! tip_note "Tip"
+    To improve accuracy of inflow values for a river basin, VIC and routing models can be calibrated. To know more, click [here](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Calibration/). 
+
+### GEE
+
+* <h6 class="parameter_heading">*`reservoir_vector_file`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the reservoir vector file where the geometry is represented by reservoir polygons. It can be "global" (relative to basin) and will be automatically filtered for the basin. It can have unique id column, dam name column and surface area columns. 
+
+    <span class="parameter_property">Default </span>: *'`project_dir`/global_data/global_reservoir_data/GRanD_reservoirs_v1_3.shp'* 
+
+    <span class="parameter_property">Syntax </span>: If reservoir station file has the path *'/Cheetah/rat_project/global_data/global_reservoir_data/GRanD_reservoirs_v1_3.shp'*, then
+    ```
+    GEE:
+        reservoir_vector_file : Cheetah/rat_project/global_data/global_reservoir_data/GRanD_reservoirs_v1_3.shp
+    ```
+
+* <h6 class="parameter_heading">*`reservoir_vector_file_columns_dict`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: Dictionary of column names for `reservoir_vector_file`. The dictionary must have keys 'id_column', 'dam_name_column' and 'area_column' and their values should be the actual name of the corresponding columns respectively. 'area' column should have value of average surface area of reservoirs in square Kilometers.   
+
+    <span class="parameter_property">Default </span>: `{id_column : 'GRAND_ID', dam_name_column : 'DAM_NAME', area_column : 'AREA_SKM'}` 
+
+    <span class="parameter_property">Syntax </span>: If `reservoir_vector_file` has column names 'GRAND_ID', 'DAM_NAME' and 'AREA_SKM', then 
+    ```
+    ROUTING:
+        reservoir_vector_file_columns_dict: {id_column : 'GRAND_ID', dam_name_column : 'DAM_NAME', area_column : 'AREA_SKM'}
+    ```
+    or
+    ```
+    ROUTING:
+        reservoir_vector_file_columns_dict: 
+            id_column: GRAND_ID
+            dam_name_column: DAM_NAME
+            area_column: AREA_SKM
+    ```
+    !!!note
+        1.  If `station_global_data` is `True`, the values of 'id_column' and 'dam_name_column' in `reservoir_vector_file` should match with that of 'id_column' and 'name_column' in `stations_vector_file`.
+        <br><br>
+        2. If `station_global_data` is `False`, the values of 'dam_name_column' in `reservoir_vector_file` should match with that of 'name' column in `station_latlon_path`. 'id_column' is not required in this case and will be ignored if provided.
+
+### Post Processing
+
+* <h6 class="parameter_heading">*`aec_dir`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the directory containing area elevation curve (AEC) files in csv format for all reservoirs. If for any reservoir AEC file is missing, it will be automatically created using digital elevation model inside this directory. 
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If `aec_dir` has the path *'/Cheetah/rat_project/custom_files/aec/'*, then
+    ```
+    POST_PROCESSING:
+        aec_dir : /Cheetah/rat_project/custom_files/aec/
+    ```
+    !!! note
+    1. If `station_global_data` is `True`, AEC file names should be <'id_column' value>_<'dam_name_column' value where spaces are replaced by '_'>. For example, the file name for a reservoir with 'dam_name' as 'Tehri Dam' and 'id' as 115 will be '115_Tehri_Dam.csv'.
+    <br><br>
+    2. If `station_global_data` is `False`, AEC file names should be <'dam_name_column' value where spaces are replaced by '_'>. For example, the file name for a reservoir with 'dam_name' as 'Tehri Dam' will be 'Tehri_Dam.csv'.
+    3. Each AEC file should have two columns with headers as 'Elevation' and 'CumArea'. 'Elevation' should be in meters and 'CumArea' should be in square Kilometers.
+
+### Clean Up
+
+* <h6 class="parameter_heading">*`clean_preprocessing`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate pre-processed data for a river basin except global raw data downloaded from servers after the RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate pre-processed data for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_preprocessing: True
+    ```
+
+* <h6 class="parameter_heading">*`clean_metsim`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate metsim outputs for a river basin after the RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate metsim outputs for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_metsim: True
+    ```
+
+* <h6 class="parameter_heading">*`clean_vic`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 15 days for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_vic: True
+    ```
+
+* <h6 class="parameter_heading">*`clean_routing`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 15 days for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_routing: True
+    ```
+
+* <h6 class="parameter_heading">*`clean_gee`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete gee produced small chunk files of surface area time series for a river basin after the RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete gee produced small chunk files of surface area time series for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_gee: True
+    ```
+    !!!note
+        If `clean_gee` is `True`, it will not delete the final gee outputs that will be appended with new data in next RAT run. To delete that, use `clean_previous_outputs`.
+
+* <h6 class="parameter_heading">*`clean_altimetry`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete raw altimetry data that takes a lot of time to download for a river basin after the RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete raw altimetry data for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_altimetry: True
+    ```
+    !!!note
+        If `clean_altimetry` is `True`, it will not delete the extracted altimetry data that will be appended with new data in next RAT run. To delete that, use `clean_previous_outputs`.
+
+* <h6 class="parameter_heading">*`clean_previous_outputs`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete previous outputs, gee extracted surface area time series and altimetry extracted height data produced by last RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete raw altimetry data that takes a lot of time to download for a river basin, 
+    ```
+    CLEAN_UP:
+        clean_previous_outputs: True
+    ```
+    !!!note
+         If `clean_previous_outputs` is `True`, the previous outputs are cleaned before executing any step in `steps`.
+         
+    !!!tip_note Tip
+        You should use `clean_previous_outputs` if you want to have fresh outputs of RAT for a river basin. Otherwise, by default RAT will keep appending the new outputs to the same files and will concatenate data by calendar dates.
+
+### Confidential
+* <h6 class="parameter_heading">*`secrets:`* :</h6> 
+    <span class="requirement">Reuired parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of secrets file in ini format with credentials for IMERG, AVISO and GEE as mentioned [here](../../QuickStart/UserGuide/#requirements).
+
+    <span class="parameter_property">Default </span>: Specified by `-s` or `--secrets` option of `rat init` command.
+
+    <span class="parameter_property">Syntax </span>: If secrets file has the path *'/Cheetah/rat_project/secrets/secrets.ini'*, then 
+    ```
+    CONFIDENTIAL:
+        secrets: /Cheetah/rat_project/secrets/secrets.ini
+    ```
+    !!! note 
+        It will be left blank if '-s' argument is not provided in `rat init` command.

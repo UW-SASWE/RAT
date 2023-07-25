@@ -113,3 +113,17 @@ h6.parameter_heading>em>code{
   background-color:rgb(250, 255, 216);
   color:rgb(250, 0, 33);
 }
+
+span.preparation_step{
+  font-size: 18px;
+  font-weight: 700;
+  background-color:rgb(220, 250, 202);
+  color:rgb(99, 13, 249);
+}
+
+span.preparation_task{
+  font-size: 19px;
+  font-weight: 800;
+  /* background-color:rgb(220, 250, 202); */
+  color:rgb(249, 162, 13);
+}
