@@ -23,6 +23,7 @@ site_dir: site
 use_directory_urls: true
 markdown_extensions:
   - admonition
+  - mdx_math
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -42,6 +43,10 @@ nav:
 # Main pages
 - Home:
     - 'RAT': 'index.md'
+    - 'Motivation': 'Motivation/motivation.md'
+- Model:
+    - 'Conceptual Model': 'Model/ConceptualModel.md'
+    - 'Computational Model': 'Model/ComputationalModel.md'
 - Preparation:
     - 'Getting Ready': 'Preparation/GettingReady.md'
 - Quick Start: 
@@ -54,6 +59,10 @@ nav:
 
 
 extra_css: [css/extra.css]
+
+extra_javascript: 
+    - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+    
 extra:
   homepage: https://depts.washington.edu/saswe/rat/
   rat_version:
