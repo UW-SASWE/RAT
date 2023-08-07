@@ -127,3 +127,16 @@ span.preparation_task{
   /* background-color:rgb(220, 250, 202); */
   color:rgb(249, 162, 13);
 }
+
+span.step_property{
+  font-size: 17px;
+  font-weight: 500;
+  /* background-color:rgb(220, 250, 202); */
+  color:rgb(249, 13, 103);
+}
+
+sup.step_heading{
+  font-size: 20px;
+  /* background-color:rgb(220, 250, 202); */
+  color:rgb(12, 120, 203);
+}
