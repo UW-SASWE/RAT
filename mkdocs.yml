@@ -47,15 +47,27 @@ nav:
 - Model:
     - 'Conceptual Model': 'Model/ConceptualModel.md'
     - 'Computational Model': 'Model/ComputationalModel.md'
-- Preparation:
-    - 'Getting Ready': 'Preparation/GettingReady.md'
 - Quick Start: 
+    - 'Getting Ready': 'QuickStart/GettingReady.md'
     - 'User Guide': 'QuickStart/UserGuide.md'
+- Commands:
+    - 'Command Line Interface': 'Commands/cli_commands.md'
+    - 'Python': 'Commands/python_commands.md'
 - RAT Configuration:
     - 'Configuration File': 'Configuration/rat_config.md'
     - 'Secrets File': 'Configuration/secrets.md'
+    - 'Multiple Basin Run': 'Configuration/basins_metadata.md'
+- Data Description:
+    - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
+    - 'Global Database': 'RAT_Data/GlobalDatabase.md'
+- Application:
+    - 'Web App': 'Applications/WebApp.md'
 - Development:
-    - 'Development Guide': 'Development/DevelopmentGuide.md'
+    - 'Dev Version': 'Development/DeveloperVersion.md'
+- Contact:
+    - 'Contact': 'Contact/contact.md'
+- Disclaimer:
+    - 'Disclaimer': 'Disclaimer/disclaimer.md'
 
 
 extra_css: [css/extra.css]
