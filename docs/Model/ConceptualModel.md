@@ -10,7 +10,7 @@ In RAT {{rat_version.major}}.{{rat_version.minor}}, either the user can provide 
 
 The reservoir inflow is simulated using a hydrological model with streamflow routing capability. The entire workflow is shown in the flowchart below. The hydrological model used is Variable Infiltration Capacity (VIC) model for simulating the gridded surface runoff in the upstream catchment area of the reservoir. In [VIC 5](https://vic.readthedocs.io/en/master/), the meteorological simulation and forcing disaggregation are decoupled from the hydrological modeling, and are packaged as a separate model – [MetSim model](https://metsim.readthedocs.io/en/latest/). 
 
-![Inflow estimation workflow of RAT](/../images/inflow/ss1.jpg)
+![Inflow estimation workflow of RAT](../images/inflow/ss1.jpg)
 
 MetSim is used to perform the meteorological simulation at a 6-h timestep using (i) the daily minimum and maximum temperatures, (ii) daily precipitation, and (iii) wind speed, as inputs. To get these inputs, meteorological data is downloaded which includes precipitation, minimum and maximum temperature, and wind speed. The [IMERG Late product](https://gpm.nasa.gov/taxonomy/term/1415) is used to retrieve daily precipitation, while temperature and wind speed data are sourced from [NOAA NCEP/Climate Prediction Center](https://journals.ametsoc.org/view/journals/bams/77/3/1520-0477_1996_077_0437_tnyrp_2_0_co_2.xml). These meteorological forcings are then disaggregated to – (i) average air temperature, (ii) total precipitation, (iii) pressure, (iv) incoming shortwave radiation, (v) incoming longwave radiation, (vi) vapor pressure, and (vii) wind speed, which are the outputs from MetSim model. 
 
