@@ -53,7 +53,7 @@ RAT {{rat_version.major}}.{{rat_version.minor}} can be initialized using `rat in
 rat init –d ./rat_project/ –g 
 ```
 !!! warning_note "Warning"
-    Default global-database is 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space initialize without downloading global-database using `rat init -d ./rat_project/`
+    Default global-database is 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space in rat_project directory, you can use `-gp or --global_data_dir` or initialize without downloading global-database using `rat init -d ./rat_project/`. Check [initialisation command](../../Commands/cli_commands/#initialization).
 
 !!! note
     Fill the [login credentials](#Requirements) for AVISO, IMERG and Earth-Engine accounts in the `secrets` file downloaded using `rat init` at the path `./rat_project/params/secrets_template.ini` and rename the file as `secrets.ini`.

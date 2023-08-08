@@ -1,6 +1,6 @@
 # Getting Ready
 
-To run RAT successfully, it requires three different sets of credentials mentioned [here](../../QuickStart/UserGuide/#requirements). In this section, detailed and stepwise instructions are provided to get the credentials required for executing RAT.
+To run RAT successfully, it requires three different sets of credentials mentioned [here](../UserGuide/#requirements). In this section, detailed and stepwise instructions are provided to get the credentials required for executing RAT.
 
 ### AVISO Credentials
 Follow the steps to set up AVISO account and its credentials which will be used to access and download JASON-3 altimetry data. 
