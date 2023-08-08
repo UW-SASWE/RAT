@@ -140,3 +140,24 @@ sup.step_heading{
   /* background-color:rgb(220, 250, 202); */
   color:rgb(12, 120, 203);
 }
+
+span.data_folder{
+  font-size: 19px;
+  color:rgb(14, 152, 215);
+}
+
+span.data_file{
+  font-size: 18px;
+  color:rgb(152, 68, 231);
+}
+
+p.folder_file_description{
+  margin-left: 30px;
+  margin-bottom: 0;
+  font-size: 16px;
+  color:rgb(4, 133, 73);
+}
+
+ul{
+  margin-left: 20px;
+}
