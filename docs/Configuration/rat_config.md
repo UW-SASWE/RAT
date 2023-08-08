@@ -120,7 +120,7 @@ RAT config file has 12 major sections that defines several parameters which are 
 * <h6 class="parameter_heading">*`multiple_basin_run`* :</h6> 
     <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if you want to run RAT for multiple basins using `rat run` command according to the parameters `basins_metadata` and `basins_to_process`. `False` otherwise. 
+    <span class="parameter_property">Description </span>: `True` if you want to run RAT for multiple basins using `rat run` command according to the parameters `basins_metadata` and `basins_to_process`. `False` otherwise. For more information, please look [multiple basin run](../basins_metadata).
 
     <span class="parameter_property">Default </span>: `False`
 
@@ -128,6 +128,32 @@ RAT config file has 12 major sections that defines several parameters which are 
     ```
     GLOBAL:
         multiple_basin_run: False
+    ```
+
+* <h6 class="parameter_heading">*`basins_metadata`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the basins metadata file in csv format. It is a csv file that is multi-indexed and have same index as this configuration file. For more information, please look [multiple basin run](../basins_metadata).
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If `basins_metadata` file has a path *'/Cheetah/rat_project/params/ basins_metadata_sample.csv'*, then
+    ```
+    GLOBAL:
+        basins_metadata: /Cheetah/rat_project/params/basins_metadata_sample.csv
+    ```
+
+* <h6 class="parameter_heading">*`basins_to_process`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: List of basins to run RAT for within the `basins_metadata`. The list values must match with the values of `basin_name` in `BASIN` section in `basins_metadata`.  For more information, please look [multiple basin run](../basins_metadata).
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If you want to run RAT for basins Sabine and Nueces, then
+    ```
+    GLOBAL:
+        basins_to_process: ['Sabine','Nueces']
     ```
 
 ### Basin 

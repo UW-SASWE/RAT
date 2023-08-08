@@ -23,6 +23,7 @@ site_dir: site
 use_directory_urls: true
 markdown_extensions:
   - admonition
+  - mdx_math
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -42,18 +43,38 @@ nav:
 # Main pages
 - Home:
     - 'RAT': 'index.md'
-- Preparation:
-    - 'Getting Ready': 'Preparation/GettingReady.md'
+    - 'Motivation': 'Motivation/motivation.md'
+- Model:
+    - 'Conceptual Model': 'Model/ConceptualModel.md'
+    - 'Computational Model': 'Model/ComputationalModel.md'
 - Quick Start: 
+    - 'Getting Ready': 'QuickStart/GettingReady.md'
     - 'User Guide': 'QuickStart/UserGuide.md'
+- Commands:
+    - 'Command Line Interface': 'Commands/cli_commands.md'
+    - 'Python': 'Commands/python_commands.md'
 - RAT Configuration:
     - 'Configuration File': 'Configuration/rat_config.md'
     - 'Secrets File': 'Configuration/secrets.md'
+    - 'Multiple Basin Run': 'Configuration/basins_metadata.md'
+- Data Description:
+    - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
+    - 'Global Database': 'RAT_Data/GlobalDatabase.md'
+- Application:
+    - 'Web App': 'Applications/WebApp.md'
 - Development:
-    - 'Development Guide': 'Development/DevelopmentGuide.md'
+    - 'Dev Version': 'Development/DeveloperVersion.md'
+- Contact:
+    - 'Contact': 'Contact/contact.md'
+- Disclaimer:
+    - 'Disclaimer': 'Disclaimer/disclaimer.md'
 
 
 extra_css: [css/extra.css]
+
+extra_javascript: 
+    - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+    
 extra:
   homepage: https://depts.washington.edu/saswe/rat/
   rat_version:
