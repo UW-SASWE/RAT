@@ -12,7 +12,6 @@ extras/
 .backup.git/
 notebooks/metsim_sample
 **/secrets.ini
-.git*/
 _send_files.py
 _send_files_adpc.py
 
