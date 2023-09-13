@@ -1,5 +1,5 @@
 ---
-title: ‘Reservoir Assessment Tool (RAT): A Python Package for monitoring the dynamic state of reservoirs and analyzing dam operations’
+title: 'Reservoir Assessment Tool (RAT): A Python Package for monitoring the dynamic state of reservoirs and analyzing dam operations'
 tags:
   - Reservoir Monitoring
   - Remote Sensing
