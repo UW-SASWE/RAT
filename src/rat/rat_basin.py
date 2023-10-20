@@ -583,7 +583,7 @@ def rat_basin(config, rat_logger):
             ##----------- Altimeter height extraction begins -----------##
             # Altimeter
             latest_altimetry_cycle = run_altimetry(config, 'ALTIMETER', basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, 
-                                                                                    basin_name, basin_data_dir, altimetry_savepath)
+                                                                                    basin_name, basin_data_dir, altimetry_savepath, secrets_file=config['CONFIDENTIAL']['secrets'])
             ALTIMETER_STATUS = 1
         except:
             no_errors = no_errors+1

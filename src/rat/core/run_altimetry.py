@@ -55,7 +55,7 @@ def altimeter_routine(reservoir_df, reservoir_column_dict, j3tracks, custom_rese
     
     return (resname,latest_cycle)
 
-def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_name, basin_data_dir, save_dir):
+def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_name, basin_data_dir, save_dir, secrets_file=None):
     reservoirs_gdf = gpd.read_file(res_shpfile) 
     
     ## Declaring variables to see if only certain reservoirs needs to be processed or certain range of a reservoir is available
@@ -84,7 +84,10 @@ def run_altimetry(config, section, res_shpfile, res_shpfile_column_dict, basin_n
                                                                                                         tuple,axis=1).to_dict()
 
     secrets = configparser.ConfigParser()
-    secrets.read(config['CONFIDENTIAL']['secrets'])
+    if secret_file == 'GA':
+        secrets.read_string(os.environ['GA'])
+    else:
+        secrets.read(config['CONFIDENTIAL']['secrets'])
     username = secrets["aviso"]["username"]
     pwd = secrets["aviso"]["pwd"]
 
