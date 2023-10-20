@@ -40,13 +40,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup environment with conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: mamba-org/setup-micromamba@v1
         with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
           environment-file: test_env.yml
-          mamba-version: "*"
-          activate-environment: rat_test_env
+          environment-name: rat_test_env
+          init-shell: bash
+          create-args: >-
+            python=${{ matrix.python-version }}
       - name: Test conda
         shell: bash -l {0}
         run: |
