@@ -81,6 +81,13 @@ def rat_basin(config, rat_logger):
         rat_logger.info("Reading Configuration settings to run RAT")
         ##--------------------- Reading and initialising global parameters ----------------------##
 
+        ##TEMP: Temporary Code for deprecating use of 'vic_init_state_date'
+        if (config['BASIN'].get('vic_init_state_date')):
+            warn_message = "The parameter 'vic_init_state_date' has been deprecated and will not be supported in future versions. Please use 'vic_init_state' instead."
+            warnings.warn(warn_message, DeprecationWarning, stacklevel=2)
+            rat_logger.warning(warn_message)
+            config['vic_init_state'] = config['BASIN'].get('vic_init_state_date')
+
         # Reading steps to be executed in RAT otherwise seting default value
         if config['GLOBAL'].get('steps'):
             steps = config['GLOBAL']['steps']
@@ -117,26 +124,34 @@ def rat_basin(config, rat_logger):
         rout_init_state_save_date = config['BASIN']['end']
 
         if(not config['BASIN']['spin_up']):
-            if(config['BASIN'].get('vic_init_state_date')):
-                config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
+            if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):  # If vic_init_state is a datetime.date instance and not a file path
+                config['BASIN']['vic_init_state'] = datetime.datetime.combine(config['BASIN']['vic_init_state'], datetime.time.min)
         
         # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
         if(config['BASIN']['spin_up']):
             user_given_start = config['BASIN']['start']
             config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
-            vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
+            vic_init_state = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            rout_init_state = None      # No initial state of Routing is present as running RAT for first time in this basin 
             gee_start_date = user_given_start  # Run gee from the date provided by user and not spin-off start date.
-        elif(config['BASIN'].get('vic_init_state_date')):
+        elif(config['BASIN'].get('vic_init_state')):
             data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
-            vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
-            use_state = True           # Routing state file will be used
+            vic_init_state = config['BASIN']['vic_init_state'] # Date or File path of the vic_init_state
+            use_state = True           # Routing state file will be used 
+            if(config['BASIN'].get('rout_init_state')):
+                rout_init_state = config['BASIN'].get('rout_init_state') # Routing Init State Date or File path
+            elif(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):
+                rout_init_state = config['BASIN'].get('vic_init_state') # If Routing Init State Date or File path not provided, will use vic init stateif it's a date
+            else:
+                rout_init_state = config['BASIN']['start'] # If Routing Init State Date or File path not provided and vic init state is not a date, use start date
             gee_start_date = config['BASIN']['start'] # Run gee from the date provided by user.
         else:
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
-            vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
+            vic_init_state = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            rout_init_state = None      # No initial state of Routing will be used.
             gee_start_date = config['BASIN']['start']  # Run gee from the date provided by user.
 
         # Defining logger
@@ -209,7 +224,14 @@ def rat_basin(config, rat_logger):
         vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
         rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
         rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
-        rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
+        # Defining path of routing state file to use
+        if(isinstance(rout_init_state), str):
+            rout_input_state_file = Path(rout_init_state).resolve()
+        elif(isinstance(rout_init_state),datetime.date):
+            rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
+        else:
+            rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
+         # Defining path of routing state file to save
         rout_init_state_save_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state_save_date.strftime("%Y-%m-%d")+'.nc')
         #----------- Paths Necessary for running of VIC  -----------#
 
@@ -441,7 +463,7 @@ def rat_basin(config, rat_logger):
                     enddate = config['BASIN']['end'],
                     vic_output_path = vic_output_path,
                     forcing_prefix = vic_input_forcing_path,
-                    init_state_date = vic_init_state_date
+                    init_state = vic_init_state
                 ) as p:
                     vic = VICRunner(
                         vic_env= config['VIC']['vic_env'],
@@ -454,7 +476,7 @@ def rat_basin(config, rat_logger):
                                                                                         save_path=rout_init_state_save_file, use_rout_state=use_state) # Start date of routing state file will be returned
                     if(config['BASIN']['spin_up']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If spin_up, use vic result file
-                    elif(config['BASIN'].get('vic_init_state_date')):                      # If vic_state file exists
+                    elif(config['BASIN'].get('vic_init_state')):                      # If vic_state file exists
                         vic.disagg_results(rout_input_state_file=rout_init_state_save_file)    # If not spin_up, use rout_init_state_save file just creates as it contains the recent vic outputs.
                     else:
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If spin_up is false and vic state file does not exist, use vic result file
@@ -505,7 +527,7 @@ def rat_basin(config, rat_logger):
                 ### Extracting routing start date ###
                 if(config['BASIN']['spin_up']):
                     rout_input_state_start_date = config['BASIN']['start']
-                elif(config['BASIN'].get('vic_init_state_date')): 
+                elif(config['BASIN'].get('vic_init_state')): 
                     rout_state_data = xr.open_dataset(rout_init_state_save_file).load()
                     rout_input_state_start_date = rout_state_data.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
                     rout_state_data.close()
