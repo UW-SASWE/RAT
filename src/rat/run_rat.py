@@ -70,7 +70,8 @@ def run_rat(config_fn, operational_latency=None):
             try:
                 log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
                 config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
-                config['BASIN']['vic_init_state_date'] = copy.deepcopy(config['BASIN']['end'])
+                config['BASIN']['vic_init_state'] = copy.deepcopy(config['BASIN']['end'])
+                config['BASIN']['rout_init_state'] = None
                 config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
             except:
                 log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
@@ -110,22 +111,36 @@ def run_rat(config_fn, operational_latency=None):
             if operational_latency:
                 try:
                     log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
+                    ## If end date is not in basins metadata.columns then it is in config file.
                     if ('BASIN','end') not in basins_metadata.columns:
-                        config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
-                        config['BASIN']['vic_init_state_date'] = copy.deepcopy(config['BASIN']['end'])
+                        ## Adding [Basin][start] to metadata.columns if not there with with None value 
+                        if ('BASIN','start') not in basins_metadata.columns:
+                            basins_metadata['BASIN','start'] = None
+                        ## Changning [Basin][start] in metadata.columns to previous end value from config file 
+                        basins_metadata['BASIN','start'] = copy.deepcopy(config['BASIN']['end'])
                         config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
+                    ## Else it is in metadata.columns
                     else:
                         # Updating start
+                        ## Adding [Basin][start] to metadata.columns if not there with None value
                         if ('BASIN','start') not in basins_metadata.columns:
                             basins_metadata['BASIN','start'] = None    
+                        ## Changning [Basin][start] in metadata.columns to previous end value from metadata
                         basins_metadata['BASIN','start'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','end'], inplace=True)
                         # Updating end
                         operational_end_date = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
                         basins_metadata['BASIN','end'].where(basins_metadata['BASIN','basin_name']!= basin, operational_end_date, inplace=True)
-                        # Updating vic_init_state_date
-                        if ('BASIN','vic_init_state_date') not in basins_metadata.columns:
-                            basins_metadata['BASIN','vic_init_state_date'] = None    
-                        basins_metadata['BASIN','vic_init_state_date'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','start'], inplace=True)
+                    ### We can add vic_init_state and rout_init_state to metadata as it will override the values in config anyway.
+                    # Updating vic_init_state
+                    ## Adding [Basin][vic_init_state] to metadata.columns if not there with None value
+                    if ('BASIN','vic_init_state') not in basins_metadata.columns:
+                        basins_metadata['BASIN','vic_init_state'] = None    
+                    basins_metadata['BASIN','vic_init_state'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','start'], inplace=True)
+                    # Updating rout_init_state to None for all.
+                    ## Adding [Basin][vic_init_state] to metadata.columns if not there with None value
+                    if ('BASIN','rout_init_state') not in basins_metadata.columns:
+                        basins_metadata['BASIN','rout_init_state'] = None
+                    basins_metadata['BASIN','rout_init_state'] = None
                 except:
                     log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
                     return None
