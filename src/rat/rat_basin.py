@@ -127,19 +127,27 @@ def rat_basin(config, rat_logger):
             if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):  # If vic_init_state is a datetime.date instance and not a file path
                 config['BASIN']['vic_init_state'] = datetime.datetime.combine(config['BASIN']['vic_init_state'], datetime.time.min)
         
-        # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
+        # Changing particular dates if running RAT for first time or if init_states are provided or if spin_up is True.
         if(config['BASIN']['spin_up']):
             user_given_start = config['BASIN']['start']
             config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
             vic_init_state = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            use_previous_data = False   # Previous Combined Nc file won't be used
             rout_init_state = None      # No initial state of Routing is present as running RAT for first time in this basin 
             gee_start_date = user_given_start  # Run gee from the date provided by user and not spin-off start date.
         elif(config['BASIN'].get('vic_init_state')):
-            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
+            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from [will be changed if vic_init_state is ot Date]
             vic_init_state = config['BASIN']['vic_init_state'] # Date or File path of the vic_init_state
-            use_state = True           # Routing state file will be used 
+            use_state = True           # Routing state file will be used
+            ## Assuming that if vic_init_state is file then the user doesn't have previous data to use
+            if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):
+                use_previous_data = True   # Previous Combined Nc file will be used
+            else:
+                use_previous_data = False # Previous Combined Nc file won't be used
+                data_download_start = config['BASIN']['start']-datetime.timedelta(days=90) # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state as won't be using previous data
+            ## Assuming rout_init_state (if not provided) as same date as vic_init_state if it is a date else assigning it the start date
             if(config['BASIN'].get('rout_init_state')):
                 rout_init_state = config['BASIN'].get('rout_init_state') # Routing Init State Date or File path
             elif(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):
@@ -151,6 +159,7 @@ def rat_basin(config, rat_logger):
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
             vic_init_state = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            use_previous_data = False   # Previous Combined Nc file won't be used
             rout_init_state = None      # No initial state of Routing will be used.
             gee_start_date = config['BASIN']['start']  # Run gee from the date provided by user.
 
@@ -345,7 +354,7 @@ def rat_basin(config, rat_logger):
                 datadir= processed_datadir,
                 basingridpath= basingridfile_path,
                 outputdir= combined_datapath,
-                use_previous= use_state,
+                use_previous= use_previous_data,
                 climatological_data=config['METSIM'].get('historical_precipitation')
             )
             #----------- Process Data End and combined data created -----------#
