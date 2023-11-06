@@ -222,12 +222,8 @@ class TMS():
 
         # Apply the trend based corrections
         if(sar is not None):
-            # If SAR begins before Optical
-            if(sar.index[0]<optical.index[0]):
-                result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
-                method = 'TMS-OS'
             # If Optical begins before SAR and has a difference of more than 15 days
-            elif(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
+            if(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
                 # Optical without SAR
                 optical_with_no_sar = optical[optical.index[0]:sar.index[0]].copy()
                 optical_with_no_sar['non-smoothened optical area'] = optical_with_no_sar['area']
@@ -245,6 +241,10 @@ class TMS():
                 if len(result)>9:    
                     result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
                 method = 'Combine'
+            # If SAR begins before Optical
+            else:
+                result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                method = 'TMS-OS'
         else:
             result = optical.copy()
             result['non-smoothened optical area'] = result['area']
