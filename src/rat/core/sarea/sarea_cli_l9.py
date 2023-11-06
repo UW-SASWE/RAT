@@ -52,7 +52,7 @@ start_date = ee.Date('2019-01-01')
 end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 16
 RESULTS_PER_ITER = 5
-MISSION_START_DATE = (2022,01,01) # Rough start date for mission/satellite data
+MISSION_START_DATE = (2022,1,1) # Rough start date for mission/satellite data
 
 
 # s2_subset = s2.filterBounds(aoi).filterDate(start_date, end_date)

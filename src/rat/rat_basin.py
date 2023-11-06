@@ -234,9 +234,9 @@ def rat_basin(config, rat_logger):
         rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
         rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
         # Defining path of routing state file to use
-        if(isinstance(rout_init_state), str):
+        if(isinstance(rout_init_state, str)):
             rout_input_state_file = Path(rout_init_state).resolve()
-        elif(isinstance(rout_init_state),datetime.date):
+        elif(isinstance(rout_init_state,datetime.date)):
             rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
         else:
             rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')

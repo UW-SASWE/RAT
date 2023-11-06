@@ -40,7 +40,7 @@ class VICRunner():
 
     def generate_routing_input_state(self, ndays, rout_input_state_file, save_path, use_rout_state):
         if os.path.isfile(rout_input_state_file) and (use_rout_state):
-            print('Routing input state fle exists at '+rout_input_state_file)
+            print('Routing input state fle exists at '+str(rout_input_state_file))
             new_vic_output = xr.open_mfdataset(self.vic_result).load()
             first_existing_time = new_vic_output.time[0]
             new_vic_output.close()

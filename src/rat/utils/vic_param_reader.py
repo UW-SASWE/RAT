@@ -323,7 +323,7 @@ class VICParameterFile:
                                                             'basins',self.basin_name,'vic','vic_init_states',
                                                             'state_.'+init_state_date_str+'_00000.nc')
             elif(isinstance(self.init_state, str)):
-                init_state_file_path = Path(str).resolve()
+                init_state_file_path = Path(self.init_state).resolve()
                 self.params['state_file_params']['INIT_STATE'] = init_state_file_path
         else:
             del self.params['state_file_params']['INIT_STATE']
