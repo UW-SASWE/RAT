@@ -4,10 +4,11 @@ from scipy.interpolate import interp1d
 from scipy.stats import sigmaclip, zscore
 import warnings
 import os
+from scipy.signal import savgol_filter
 warnings.filterwarnings('ignore')
 
 from rat.utils.utils import clip_ts
-
+from rat.utils.utils import weighted_moving_average
 
 class TMS():
     def __init__(self, reservoir_name, area=None, AREA_DEVIATION_THRESHOLD_PCNT=5):
@@ -168,48 +169,93 @@ class TMS():
 
             TO_MERGE.append(s2df_interpolated)
 
-        # Read in Sentinel-1 data
-        sar = pd.read_csv(s1_dfpath, parse_dates=['time']).rename({'time': 'date'}, axis=1)
-        sar['date'] = sar['date'].apply(lambda d: np.datetime64(d.strftime('%Y-%m-%d')))
-        sar.set_index('date', inplace=True)
-        sar.sort_index(inplace=True)
+        # If SAR file exists  
+        if os.path.isfile(s1_dfpath):
+            # Read in Sentinel-1 data
+            sar = pd.read_csv(s1_dfpath, parse_dates=['time']).rename({'time': 'date'}, axis=1)
+            # If SAR has atleast 3 data points 
+            if (len(sar) >=3):
+                sar['date'] = sar['date'].apply(lambda d: np.datetime64(d.strftime('%Y-%m-%d')))
+                sar.set_index('date', inplace=True)
+                sar.sort_index(inplace=True)
 
-        # apply weekly area change filter
-        sar = sar_data_statistical_fix(sar, self.area, 15)
+                # apply weekly area change filter
+                sar = sar_data_statistical_fix(sar, self.area, 15)
 
-        std = zscore(sar['sarea'])
-        SAR_ZSCORE_LIM = 3
-        sar.loc[(std > SAR_ZSCORE_LIM) | (std < -SAR_ZSCORE_LIM), 'sarea'] = np.nan
-        sar['sarea'] = sar['sarea'].interpolate()
-        sar = sar.loc[MIN_DATE:, :]
+                std = zscore(sar['sarea'])
+                SAR_ZSCORE_LIM = 3
+                sar.loc[(std > SAR_ZSCORE_LIM) | (std < -SAR_ZSCORE_LIM), 'sarea'] = np.nan
+                sar['sarea'] = sar['sarea'].interpolate()
+                sar = sar.loc[MIN_DATE:, :]
 
-        # in some cases s2df may have duplicated rows (with same values) that have to be removed
-        if sar.index.duplicated().sum() > 0:
-            print("Duplicated labels, deleting")
-            sar = sar[~sar.index.duplicated(keep='last')]
+                # in some cases s2df may have duplicated rows (with same values) that have to be removed
+                if sar.index.duplicated().sum() > 0:
+                    print("Duplicated labels, deleting")
+                    sar = sar[~sar.index.duplicated(keep='last')]
 
-        # extrapolate data by 12 days (S1_TEMPORAL_RESOLUTION)
-        extrapolated_date = sar.index[-1] + pd.DateOffset(S1_TEMPORAL_RESOLUTION)
+                # extrapolate data by 12 days (S1_TEMPORAL_RESOLUTION)
+                extrapolated_date = sar.index[-1] + pd.DateOffset(S1_TEMPORAL_RESOLUTION)
 
-        from scipy.interpolate import interp1d
+                from scipy.interpolate import interp1d
 
-        in_unix_time = lambda x: (x - pd.Timestamp("1970-01-01"))//pd.Timedelta('1s')
+                in_unix_time = lambda x: (x - pd.Timestamp("1970-01-01"))//pd.Timedelta('1s')
 
-        extrapolated_value = interp1d(in_unix_time(sar.index[-7:]), sar['sarea'][-7:], kind='linear', fill_value="extrapolate")(in_unix_time(extrapolated_date))
+                extrapolated_value = interp1d(in_unix_time(sar.index[-7:]), sar['sarea'][-7:], kind='linear', fill_value="extrapolate")(in_unix_time(extrapolated_date))
 
-        sar.loc[extrapolated_date, "sarea"] = extrapolated_value
+                sar.loc[extrapolated_date, "sarea"] = extrapolated_value
 
+                sar = sar.rename({'sarea': 'area'}, axis=1)
+            # If SAR has less than 3 points
+            else:
+                sar = None
+                print("Sentinel-1 SAR has less than 3 data points.")
+        # If SAR file does not exist
+        else:
+            sar = None
+            print("Sentinel-1 SAR file does not exist.")
         # combine opticals into one dataframes
         
         optical = pd.concat(TO_MERGE).sort_index()
         optical = optical.loc[~optical.index.duplicated(keep='last')] # when both s2 and l8 are present, keep s2
         optical.rename({'water_area_corrected': 'area'}, axis=1, inplace=True)
-        sar = sar.rename({'sarea': 'area'}, axis=1)
+
 
         # Apply the trend based corrections
-        result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
-
-        return result
+        if(sar is not None):
+            # If Optical begins before SAR and has a difference of more than 15 days
+            if(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
+                # Optical without SAR
+                optical_with_no_sar = optical[optical.index[0]:sar.index[0]].copy()
+                optical_with_no_sar['non-smoothened optical area'] = optical_with_no_sar['area']
+                optical_with_no_sar.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
+                # Calculate smoothed values with moving weighted average method if more than 7 values; weights are calculated using cloud percent.
+                if len(optical_with_no_sar)>7:
+                    optical_with_no_sar['filled_area'] = weighted_moving_average(optical_with_no_sar['non-smoothened optical area'], weights = (101-optical_with_no_sar['cloud_percent']),window_size=3)
+                # Drop 'area' column from optical_with_no_sar
+                optical_with_no_sar = optical_with_no_sar.drop('area',axis=1)
+                # Optical with SAR
+                optical_with_sar = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                # Merge both
+                result = pd.concat([optical_with_no_sar,optical_with_sar],axis=0)
+                # Smoothen the combined surface area estimates to avoid noise or peaks using savgol_filter if more than 9 values (to increase smoothness and include more points as we have both TMS-OS and Optical)
+                if len(result)>9:    
+                    result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
+                method = 'Combine'
+            # If SAR begins before Optical
+            else:
+                result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                method = 'TMS-OS'
+        else:
+            result = optical.copy()
+            result['non-smoothened optical area'] = result['area']
+            result.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
+            # Calculate smoothed values with Savitzky-Golay method if more than 7 values
+            if len(result)>7:
+                result['filled_area'] = weighted_moving_average(result['non-smoothened optical area'], weights = (101-result['cloud_percent']),window_size=3)
+                result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
+            method = 'Optical'
+        # Returning method used for surface area estimation
+        return result,method
 
 def area_change(df, date, n=14):
     """calculate the change in area in last n days"""
@@ -315,7 +361,6 @@ def deviation_correction(area, DEVIATION_THRESHOLD, AREA_COL_NAME='area'):
 
     inner_area.loc[:, 'corrected_trend'] = inner_area['trend']
     inner_area.loc[inner_area['erroneous'], 'corrected_trend'] = inner_area['sar_trend']
-    print(inner_area)
     if(not inner_area['erroneous'].empty):
         areas = backcalculate(inner_area[AREA_COL_NAME], inner_area['corrected_trend'], inner_area['erroneous'])
         inner_area[AREA_COL_NAME] = areas

@@ -209,6 +209,7 @@ backend/scripts/data_processing/_download_data.py
 #SM
 .rat_env
 testing/*
+custom_data/*
 data/*
 global_data/*
 trial_notebooks/*

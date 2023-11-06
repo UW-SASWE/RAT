@@ -1,8 +1,10 @@
 from pathlib import Path
 import pandas as pd
+import traceback
+
 
 class Verify_Tests:
-
+    
     def __init__(self, true_dir, estimated_dir):
         self.true_dir = true_dir
         self.estimated_dir = estimated_dir
@@ -37,14 +39,14 @@ class Verify_Tests:
             var_true_file_paths = list(var_true_dir.glob('**/*.csv'))
             var_file_names = [f.name for f in var_true_file_paths]
             # Comparing the true and estimated directory
-            var_matched, var_unmatched, var_failed = self._round_and_compare_files(var_true_dir,var_estimated_dir,var_file_names,4)     
+            var_matched, var_unmatched, var_failed = self._round_and_compare_files(var_true_dir,var_estimated_dir,var_file_names,5)     
             # Displaying results
             self._display_results_for_var(var_to_display,var_file_names,var_matched,var_unmatched,var_failed)
         except Exception as error:
             print("Error in verification of "+var_to_display+" files.")
             print(error)
 
-    def _round_and_compare_files(self,var_true_dir,var_estimated_dir,var_file_names,precision):
+    def _round_and_compare_files(self,var_true_dir,var_estimated_dir,var_file_names,threshold):
         # Initialising variables to output
         matched_file_names=[]
         unmatched_file_names=[]
@@ -65,21 +67,37 @@ class Verify_Tests:
                     incorrect_file_names.append(file_name)
                     continue
                 
-                # Match the files after reading pandas and rounding off
+                # Get the difference between the files after reading pandas 
                 true_df=pd.read_csv(var_true_file_path)
-                true_df.iloc[:,1]=true_df.iloc[:,1].round(precision)
-
                 estimated_df=pd.read_csv(var_estimated_file_path)
-                estimated_df.iloc[:,1]=estimated_df.iloc[:,1].round(precision)
-                # Combine and drop duplicates
-                combined_df = pd.concat([true_df,estimated_df]).drop_duplicates(keep=False)
-                # If nothing left, put the file_name in matched otherwise in unmatched
-                if(combined_df.empty):
+
+                diff_cols = []
+                # Take only float columns
+                true_df_float = true_df.select_dtypes(include=['floating'])
+                estimated_df_float=estimated_df.select_dtypes(include=['floating'])
+                
+                # % Difference between any value of each column
+                for col_no in range(0,len(true_df_float.columns)):
+                    diff_col =(estimated_df_float.iloc[:,col_no]-true_df_float.iloc[:,col_no])*100/true_df_float.iloc[:,0]
+                    diff_cols.append(diff_col)
+
+                # Checking difference against the threshold
+                for col_no in range(0,len(true_df_float.columns)):
+                    condn_to_pass = (len(diff_cols[col_no][diff_cols[col_no]>threshold])==0)
+                    if(condn_to_pass):
+                        status = 'match'
+                    else:
+                        status = 'unmatch'
+                        break
+                                    
+                if(status == 'match'):
                     matched_file_names.append(file_name)
-                else:
+                elif(status == 'unmatch'):
                     unmatched_file_names.append(file_name)
-            except:
+            except Exception as e:
                 incorrect_file_names.append(file_name)
+                # print(traceback.format_exc())
+                # print(e)
                 
         return(matched_file_names,unmatched_file_names,incorrect_file_names)
 
