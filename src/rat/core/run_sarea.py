@@ -17,6 +17,9 @@ log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_dict):
     reservoirs_polygon = gpd.read_file(reservoirs_shpfile)
     no_failed_files = 0
+    Optical_files = 0
+    Tmsos_files = 0
+    Partial_optical_tmsos_files = 0
     
     for reservoir_no,reservoir in reservoirs_polygon.iterrows():
         try:
@@ -25,14 +28,24 @@ def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_
             reservoir_area = float(reservoir[shpfile_column_dict['area_column']])
             reservoir_polygon = reservoir.geometry
             log.info(f"Calculating surface area for {reservoir_name}.")
-            run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir)
-            log.info(f"Calculated surface area for {reservoir_name} successfully.")
+            method = run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir)
+            log.info(f"Calculated surface area for {reservoir_name} successfully using {method} method.")
+            if method == 'Optical':
+                Optical_files += 1
+            elif method == 'Combine':
+                Partial_optical_tmsos_files +=1
+            else:
+                Tmsos_files += 1
         except:
             log.exception(f"Surface area calculation failed for {reservoir_name}.")
             no_failed_files += 1
     if no_failed_files:
         log_level1.warning(f"Surface area was not calculated for {no_failed_files} reservoirs.")
-        
+    if Optical_files:
+        log_level1.warning(f"Surface area was calculated using only Optical data and not TMS-OS for {Optical_files} reservoirs. It can be due to insufficient SAR data. Please refer level-2 log file for more details.")
+    if Partial_optical_tmsos_files:
+        log_level1.warning(f"Surface area was calculated partially using only Optical data and rest using TMS-OS for {Partial_optical_tmsos_files} reservoirs. It can be due to more Optical data than SAR data. Please refer level-2 log file for more details.") 
+
 def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir):
 
     # Obtain surface areas
@@ -57,8 +70,9 @@ def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_d
     s1_dfpath = os.path.join(datadir, 'sar', reservoir_name+'_12d_sar.csv')
 
     tmsos = TMS(reservoir_name, reservoir_area)
-    result = tmsos.tms_os(l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath, s2_dfpath=s2_dfpath, s1_dfpath=s1_dfpath)
+    result,method = tmsos.tms_os(l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath, s2_dfpath=s2_dfpath, s1_dfpath=s1_dfpath)
 
     tmsos_savepath = os.path.join(datadir, reservoir_name+'.csv')
     log.debug(f"Saving surface area of {reservoir_name} at {tmsos_savepath}")
     result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
+    return method
