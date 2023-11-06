@@ -32,6 +32,10 @@ dependencies = [
     "ruamel_yaml",
     "yaml",
     "gdown",
+    "requests",
+    "shapely",
+    "matplotlib"
+    "pyyaml"
 ]
 
 [project.urls]
