@@ -29,7 +29,7 @@ dependencies = [
     "dask",
     "scipy",
     "scikit-learn",
-    "ruamel.yaml",
+    "ruamel-yaml",
     "PyYAML",
     "gdown",
 ]
