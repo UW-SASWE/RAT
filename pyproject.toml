@@ -29,13 +29,9 @@ dependencies = [
     "dask",
     "scipy",
     "scikit-learn",
-    "ruamel_yaml",
-    "yaml",
+    "ruamel.yaml",
+    "PyYAML",
     "gdown",
-    "requests",
-    "shapely",
-    "matplotlib",
-    "pyyaml"
 ]
 
 [project.urls]
