@@ -8,15 +8,17 @@ from rat.utils.logging import LOG_NAME, LOG_LEVEL1_NAME
 log = getLogger(f"{LOG_NAME}.{__name__}")
 log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
-def bot_filter(tmsos_gee_path,basin_reservoir_shpfile_path,apply,bias_threshold,outlier_threshold,trend_threshold):
+def bot_filter(tmsos_gee_path,shpfile_column_dict,basin_reservoir_shpfile_path,apply,bias_threshold,outlier_threshold,trend_threshold):
     ''' 
     Applies the BOT Filter to the surface area time series,
     which filters the optical derived surface area with SAR surface area as the reference.
     
     Parameters
     ----------
-    tmsos_gee_path : str
+    tmsos_gee_path: str
         The path to the tmsos surface area folder within the basin data directory
+    shpfile_column_dict: dict
+        A dictionary containing column names of unique identifier for the reservoir name and area
     basin_reservoir_shpfile_path : str
         The path to the file containing reservoir shapefile data
     apply: boolean
@@ -33,11 +35,10 @@ def bot_filter(tmsos_gee_path,basin_reservoir_shpfile_path,apply,bias_threshold,
         Values: 0 - 9
     '''
    
-    #  Reading the reservoir shapefile data and creating the list of reservoirs in the basin. 
+    #  Reading the reservoir shapefile data
     basin_reservoir_data = gpd.read_file(basin_reservoir_shpfile_path)
-    log_level1.debug(basin_reservoir_shpfile_path)
-    res_list = [row["DAM_NAME"] if pd.isna(row["GRAND_ID"]) else str(int(row["GRAND_ID"])) +'_'+ row["DAM_NAME"] for index, row in basin_reservoir_data.iterrows()]
-        
+    
+    #Check if BOT filter 'apply' is set to True.
     if(apply == True):
         log_level1.info('Running BOT filter for Surface Area')
         res_nomArea = basin_reservoir_data["AREA_SKM"]
@@ -51,30 +52,61 @@ def bot_filter(tmsos_gee_path,basin_reservoir_shpfile_path,apply,bias_threshold,
         # Initialising counter for failures
         count_failed = 0
         botFilter_status = pd.DataFrame(columns=['Reservoir', 'Status'])
-        for curr_dam_index,res_name in enumerate(res_list):   
-            try:
-                res_wa_timeseries_l8 =  pd.read_csv(os.path.join(tmsos_gee_path,'l8',res_name +'.csv'))
-                res_wa_timeseries_s2 =  pd.read_csv(os.path.join(tmsos_gee_path,'s2',res_name +'.csv'))
-                res_wa_timeseries_s1 =  pd.read_csv(os.path.join(tmsos_gee_path,'sar',res_name +'_12d_sar.csv'))
-                res_wa_timeseries_l9 =  pd.read_csv(os.path.join(tmsos_gee_path,'l9',res_name +'.csv'))
-                res_wa_timeseries_l8['area'] = res_wa_timeseries_l8['corrected_area_cordeiro']
-                res_wa_timeseries_s2['area'] = res_wa_timeseries_s2['water_area_corrected']
-                res_wa_timeseries_l9['area'] = res_wa_timeseries_l9['corrected_area_cordeiro']
-                res_wa_timeseries_l8 = res_wa_timeseries_l8.fillna(0)
-                res_wa_timeseries_s2 = res_wa_timeseries_s2.fillna(0)
-                res_wa_timeseries_l9 = res_wa_timeseries_l9.fillna(0)
-                # pre-processing optical data - dates are converted to datetime objects and set as the index. Sentinel-2 and Landsat-8 datasets are merged and the dataset sorted w.r.t date.
-                res_wa_timeseries_s2['time'] = pd.to_datetime(res_wa_timeseries_s2['date'])
-                res_wa_timeseries_s2['date'] = res_wa_timeseries_s2['time'].dt.date
-                res_wa_timeseries_l8['time'] = pd.to_datetime(res_wa_timeseries_l8['mosaic_enddate'])
-                res_wa_timeseries_l8['date'] = res_wa_timeseries_l8['time'].dt.date
-                res_wa_timeseries_l9['time'] = pd.to_datetime(res_wa_timeseries_l9['mosaic_enddate'])
-                res_wa_timeseries_l9['date'] = res_wa_timeseries_l9['time'].dt.date
-                res_wa_timeseries_s1['time'] = pd.to_datetime(res_wa_timeseries_s1['time'])
-                res_wa_timeseries_s1['date'] = res_wa_timeseries_s1['time'].dt.date
 
-                #Merging dataframes
-                res_wa_1to5day = pd.concat([res_wa_timeseries_s2,res_wa_timeseries_l8,res_wa_timeseries_l9])
+       
+        for curr_dam_index,reservoir in basin_reservoir_data.iterrows():   
+            try:
+                res_name = str(reservoir[shpfile_column_dict['unique_identifier']]).replace(" ","_")
+                res_area = float(reservoir[shpfile_column_dict['area_column']])
+                optical_count = 0
+                sar_count = 0
+                res_l8_fp = os.path.join(os.path.join(tmsos_gee_path,'l8',res_name +'.csv'))
+                res_s2_fp = os.path.join(tmsos_gee_path,'s2',res_name +'.csv')
+                res_l9_fp = os.path.join(tmsos_gee_path,'l9',res_name +'.csv')
+                res_s1_fp = os.path.join(tmsos_gee_path,'sar',res_name +'_12d_sar.csv')
+                
+                #Checking if atleast 1 optical and 1 sar dataset is available to run BOT filter
+                # If so,optical data is preprocessed and merged for further filtering
+                res_wa_1to5day = pd.DataFrame()
+                if os.path.isfile(res_l8_fp):
+                    optical_count = optical_count + 1
+                    res_wa_timeseries_l8 =  pd.read_csv(res_l8_fp)
+                    res_wa_timeseries_l8['area'] = res_wa_timeseries_l8['corrected_area_cordeiro']
+                    res_wa_timeseries_l8 = res_wa_timeseries_l8.fillna(0)
+                    res_wa_timeseries_l8['time'] = pd.to_datetime(res_wa_timeseries_l8['mosaic_enddate'])
+                    res_wa_timeseries_l8['date'] = res_wa_timeseries_l8['time'].dt.date
+                    res_wa_1to5day = pd.concat([res_wa_1to5day,res_wa_timeseries_l8])
+                    
+                if os.path.isfile(res_s2_fp):
+                    optical_count = optical_count + 1
+                    res_wa_timeseries_s2 =  pd.read_csv(res_s2_fp)
+                    res_wa_timeseries_s2['area'] = res_wa_timeseries_s2['water_area_corrected']
+                    res_wa_timeseries_s2 = res_wa_timeseries_s2.fillna(0)
+                    res_wa_timeseries_s2['time'] = pd.to_datetime(res_wa_timeseries_s2['date'])
+                    res_wa_timeseries_s2['date'] = res_wa_timeseries_s2['time'].dt.date
+                    res_wa_1to5day = pd.concat([res_wa_1to5day,res_wa_timeseries_s2])
+                if os.path.isfile(res_l9_fp):
+                    optical_count = optical_count + 1
+                    res_wa_timeseries_l9 =  pd.read_csv(res_l9_fp)
+                    res_wa_timeseries_l9['area'] = res_wa_timeseries_l9['corrected_area_cordeiro']
+                    res_wa_timeseries_l9 = res_wa_timeseries_l9.fillna(0)
+                    res_wa_timeseries_l9['time'] = pd.to_datetime(res_wa_timeseries_l9['mosaic_enddate'])
+                    res_wa_timeseries_l9['date'] = res_wa_timeseries_l9['time'].dt.date
+                    res_wa_1to5day = pd.concat([res_wa_1to5day,res_wa_timeseries_l9])
+                if os.path.isfile(res_s1_fp):
+                    sar_count = sar_count + 1
+                    res_wa_timeseries_s1 =  pd.read_csv(res_s1_fp)
+                    res_wa_timeseries_s1['time'] = pd.to_datetime(res_wa_timeseries_s1['time'])
+                    res_wa_timeseries_s1['date'] = res_wa_timeseries_s1['time'].dt.date
+                    
+                if(optical_count == 0 and sar_count == 0):
+                    raise Exception(f'Not enough optical and sar datasets available. Need atleast 1 of each')
+                elif(sar_count == 0):
+                    raise Exception(f'Not enough sar datasets available. Need atleast 1')
+                elif(optical_count == 0):
+                    raise Exception(f'Not enough optical datasets available. Need atleast 1')
+ 
+                # Sorting data by date and creating final area field
                 res_wa_1to5day = res_wa_1to5day.sort_values('date')
                 res_wa_1to5day['WA_mean'] = res_wa_1to5day['area']
 
@@ -134,7 +166,8 @@ def bot_filter(tmsos_gee_path,basin_reservoir_shpfile_path,apply,bias_threshold,
                 merged_pdf_remOutliers['norm_deviations'] = dev_bias = merged_pdf_remOutliers['deviations'] - dev_bias
 
                 #Filtering 2 - SAR bias correction
-                res_nom_SA = res_nomArea[curr_dam_index] #km^2
+                # res_nom_SA = res_nomArea[curr_dam_index] #km^2
+                res_nom_SA = res_area
                 cloud_thresh = -1 #%
                 filt2_thresh_values = (-res_nom_SA*filt_2_thresh/100, res_nom_SA*filt_2_thresh/100)
 
@@ -212,25 +245,17 @@ def bot_filter(tmsos_gee_path,basin_reservoir_shpfile_path,apply,bias_threshold,
                 botFilter_status = pd.concat([botFilter_status, botFilter_status_new])
                 
             except Exception as e:
-                log.error(f'Filtering failed for {res_name} due to error: {e}')
+                log.error(f'BOT Filter run failed for {res_name} due to error: {e}')
                 count_failed = count_failed+1
                 botFilter_status_new = pd.DataFrame({ 'Reservoir': f'{res_name}', 'Status': 0 }, index = [curr_dam_index])
                 botFilter_status = pd.concat([botFilter_status, botFilter_status_new])
                 
         if(count_failed > 0):    
-            log_level1.info(f'BOT filter run completed with {count_failed} errors.')
+            log_level1.info(f'BOT filter run finished with {count_failed} errors. Please check Level-2 log file for more details.')
         else:
             log_level1.info(f'BOT filter run completed succesfully')       
-        log.info('BOT Filter status\n',botFilter_status)  
+        log.info('BOT Filter status\n %s',botFilter_status)  
         
     else:
         # If Bot filter apply is set to False, reset the surface area to TMSOS.
-        for curr_dam_index,res_name in enumerate(res_list):
-            try: 
-                tmsos_gee_data = pd.read_csv(os.path.join(tmsos_gee_path,res_name + '.csv'))
-                if 'area_tmsos' in tmsos_gee_data.columns:
-                    log_level1.warning('BOT Filter toggled off. Reseting Surface Area values to TMSOS.')
-                    tmsos_gee_data['area'] = tmsos_gee_data['area_tmsos']
-            except Exception as e:
-                log_level1.error(f'BOT Filter toggled off. Reseting Surface Area values to TMSOS. \
-                      \nOperation failed due to error: {e}')
+        log.warning('BOT Filter toggled off. Surface Area Values will be reset to TMSOS')

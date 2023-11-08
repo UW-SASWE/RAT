@@ -15,7 +15,7 @@ log = getLogger(f"{LOG_NAME}.{__name__}")
 log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
 
-def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_dict, filt_options):
+def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_dict, filt_options = None):
     reservoirs_polygon = gpd.read_file(reservoirs_shpfile)
     no_failed_files = 0
     Optical_files = 0
@@ -48,13 +48,14 @@ def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_
         log_level1.warning(f"Surface area was calculated partially using only Optical data and rest using TMS-OS for {Partial_optical_tmsos_files} reservoirs. It can be due to more Optical data than SAR data. Please refer level-2 log file for more details.")
         
     #Running Bot Filter
-    bot_thresholds = [filt_options['bias_threshold'],filt_options['outlier_threshold'],filt_options['trend_threshold']]
-    if(min(bot_thresholds)<0 or max(bot_thresholds) > 9):
-        if(filt_options['apply']==True):
-            log_level1.error(f"BOT Filter run failed for {reservoir_no} reservoirs")
-            log.error("BOT Filter values out of bounds. Please ensure that a value in between 0 and 9 is selected")
-    else:
-        bot_filter(datadir,reservoirs_shpfile,**filt_options)    
+    if filt_options is not None:
+        bot_thresholds = [filt_options['bias_threshold'],filt_options['outlier_threshold'],filt_options['trend_threshold']]
+        if(None in bot_thresholds or min(bot_thresholds)<0 or max(bot_thresholds) > 9):
+            if(filt_options['apply']==True):
+                log_level1.error(f"BOT Filter run failed for all reservoirs.")
+                log_level1.error("Filter values out of bounds. Please ensure that a value in between 0 and 9 is selected")
+        else:
+            bot_filter(datadir,shpfile_column_dict,reservoirs_shpfile,**filt_options)    
 
 def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir):
 
