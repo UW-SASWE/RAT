@@ -1,7 +1,6 @@
 ![Reservoir Assessment Tool](docs/logos/Rat_Logo_black_github.png)
 # Reservoir Assessment Tool (RAT) 3.0
 
----
 ***A scalable and easy-to-apply python based software architecture to empower the global water community***
 ---
 
