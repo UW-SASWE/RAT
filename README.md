@@ -1,9 +1,64 @@
 ![Reservoir Assessment Tool](docs/logos/Rat_Logo_black_github.png)
-# Reservoir Assessment Tool 3.0
-[![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest)
+# Reservoir Assessment Tool (RAT) 3.0
+
+***A scalable and easy-to-apply python based software architecture to empower the global water community***
 
 The Reservoir Assessment Tool (RAT) uses satellite remote sensing data to monitor water surface area and water level changes in artificial reservoirs. It uses this information, along with topographical information (either derived from satellite data, or in-situ topo maps) to estimate the **Storage Change (∆S)** in the reservoirs. Additionally, RAT models the **Inflow (I)** and the **Evaporation (E)** of each reservoir. Finally, RAT uses the modeled I, and E, and estimated ∆S, to estimate the **Outflow (O)** from reservoirs.
 
+## Current release info
+
+| Name | Downloads | Version | Platforms | Documentation | 
+| --- | --- | --- | --- | --- |
+| [![Conda Package](https://img.shields.io/badge/package-rat-51A1B0.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest) |
+
+## Installing RAT
+
+Installing `rat` from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
+
+```
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+```
+
+Once the `conda-forge` channel has been enabled, `rat` can be installed with `conda`:
+
+```
+conda install rat
+```
+
+or with `mamba`:
+
+```
+mamba install rat
+```
+
+It is possible to list all of the versions of `rat` available on your platform with `conda`:
+
+```
+conda search rat --channel conda-forge
+```
+
+or with `mamba`:
+
+```
+mamba search rat --channel conda-forge
+```
+
+Alternatively, `mamba repoquery` may provide more information:
+
+```
+# Search all versions available on your platform:
+mamba repoquery search rat --channel conda-forge
+
+# List packages depending on `rat`:
+mamba repoquery whoneeds rat --channel conda-forge
+
+# List dependencies of `rat`:
+mamba repoquery depends rat --channel conda-forge
+```
+
+
+## About RAT
 RAT 3.0 makes numerous improvements to the code structure, performance optimizations, added configurations, ability to run RAT for multiple basins, among some introduced features. It also introduces packaging of RAT as a conda package, allowing for quick and easy installation.
 
 It was originally developed by [Biswas et al. (2021)](https://doi.org/10.1016/j.envsoft.2021.105043) at [SASWE](https://saswe.net/), [University of Washington](https://www.washington.edu/). The RAT framework developed by [Biswas et al. (2021)](https://doi.org/10.1016/j.envsoft.2021.105043) was a first-of-its-kind open-source reservoir monitoring tool, it is reffered to as the version 1 of RAT, or [RAT 1.0](http://depts.washington.edu/saswe/rat_beta/). It currently runs for 3 regions - (1) South and South East Asia, (2) Africa, and (3) South America, and can be accessed [here](http://depts.washington.edu/saswe/rat_beta/).
