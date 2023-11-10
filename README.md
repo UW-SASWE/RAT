@@ -9,7 +9,7 @@ The Reservoir Assessment Tool (RAT) uses satellite remote sensing data to monito
 
 | Name | Downloads | Version | Platforms | Documentation | 
 | --- | --- | --- | --- | --- |
-| [![Conda Package](https://img.shields.io/badge/package-rat-skyblue.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest) |
+| [![Conda Package](https://img.shields.io/badge/package-rat-51A1B0.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest) |
 
 ## Installing RAT
 
