@@ -1,6 +1,12 @@
 ![Reservoir Assessment Tool](docs/logos/Rat_Logo_black_github.png)
 # Reservoir Assessment Tool 3.0
-[![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest)
+
+#### Current release info
+====================
+
+| Name | Downloads | Version | Platforms | Documentation | 
+| --- | --- | --- | --- | --- |
+| [![Conda Package](https://img.shields.io/badge/recipe-rat-green.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/rat.svg)](https://anaconda.org/conda-forge/rat) | [![Documentation Status](https://readthedocs.org/projects/rat-satellitedams/badge/?version=latest)](https://rat-satellitedams.readthedocs.io/en/latest/?badge=latest) |
 
 The Reservoir Assessment Tool (RAT) uses satellite remote sensing data to monitor water surface area and water level changes in artificial reservoirs. It uses this information, along with topographical information (either derived from satellite data, or in-situ topo maps) to estimate the **Storage Change (∆S)** in the reservoirs. Additionally, RAT models the **Inflow (I)** and the **Evaporation (E)** of each reservoir. Finally, RAT uses the modeled I, and E, and estimated ∆S, to estimate the **Outflow (O)** from reservoirs.
 
