@@ -597,9 +597,10 @@ def rat_basin(config, rat_logger):
                 else: 
                     raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             # Get Sarea
+            filt_options = config['GEE'].get('bot_filter') 
             run_sarea(gee_start_date.strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
-                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict)
-            GEE_STATUS = 1
+                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,filt_options)
+            GEE_STATUS = 1         
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-10: TMS-OS Surface Area Calculation from GEE")
