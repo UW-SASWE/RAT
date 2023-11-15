@@ -1,6 +1,6 @@
 # Getting Ready
 
-To run RAT successfully, it requires three different sets of credentials mentioned [here](../UserGuide/#requirements). In this section, detailed and stepwise instructions are provided to get the credentials required for executing RAT.
+To run RAT successfully, it requires three different sets of credentials mentioned [here](../UserGuide/#requirements). In this section, detailed and stepwise instructions are provided to get the credentials required for executing RAT {{rat_version.major}}.{{rat_version.minor}}.
 
 ### AVISO Credentials
 Follow the steps to set up AVISO account and its credentials which will be used to access and download JASON-3 altimetry data. 
@@ -116,3 +116,7 @@ Enter the created service account’s email address.<br>
 ![Registering service account EE  screenshot](../images/gee/ss13.jpg)
 <span class="preparation_step">Step 7:</span> <br>
 Click on ‘REGISTER SERVICE ACCOUNT’. <br>
+
+### RAT Credentials
+
+RAT {{rat_version.major}}.{{rat_version.minor}} requires all the credentials created in the above sections in a single secret file. So, put all the credentials into a file named 'secrets.ini' by following the commands as mentioned [here in secrets section](../Configuration/secrets.md).
