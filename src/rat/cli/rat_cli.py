@@ -67,6 +67,7 @@ def init_func(args):
         global_data_dir = global_data_parent_dir.joinpath('global_data')
     # if not downloading global data 
     else:
+        global_data = 'N'
         # and global_data directory is specified
         if args.global_data_dir is not None:
             global_data_dir = Path(args.global_data_dir).resolve()
@@ -160,9 +161,9 @@ def init_func(args):
         print("Failed to download parameter files for RAT.")
 
     #### download global data
-    print("Downloading global database for RAT...")
     try:
         if global_data == 'Y':
+            print("Downloading global database for RAT...")
             if drive=='dropbox':
                 global_data_dl_url = DOWNLOAD_LINKS_DROPBOX["global_data"]
                 global_vic_params_dl_url = DOWNLOAD_LINKS_DROPBOX["global_vic_params"]
