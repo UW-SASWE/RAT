@@ -119,4 +119,4 @@ Click on ‘REGISTER SERVICE ACCOUNT’. <br>
 
 ### RAT Credentials
 
-RAT {{rat_version.major}}.{{rat_version.minor}} requires all the credentials created in the above sections in a single secret file. So, put all the credentials into a file named 'secrets.ini' by following the commands as mentioned [here in secrets section](../Configuration/secrets.md).
+RAT {{rat_version.major}}.{{rat_version.minor}} requires all the credentials created in the above sections in a single secret file. So, put all the credentials into a file named 'secrets.ini' by following the commands as mentioned [here in secrets file section](../Configuration/secrets.md).
