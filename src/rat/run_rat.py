@@ -55,11 +55,15 @@ def run_rat(config_fn, operational_latency=None):
         secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]
         ee_configuration.key_file = secrets["ee"]["key_file"]
+        if not os.path.exists(ee_configuration.key_file):
+            raise Exception(f"No such file exists: {ee_configuration.key_file}")
+        
         ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
         ee.Initialize(ee_credentials)
+    except Exception as e:
+        log.error(f"Failed to connect to Earth engine due to error: {e}")
+    else:
         log.info("Connected to earth engine succesfully.")
-    except:
-        log.info("Failed to connect to Earth engine. Wrong credentials. If you want to use Surface Area Estimations from RAT, please update the EE credentials.")
 
     ############ ----------- Single basin run ---------------- ################
     if(not config['GLOBAL']['multiple_basin_run']):
