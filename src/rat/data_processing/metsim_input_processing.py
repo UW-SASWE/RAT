@@ -9,6 +9,8 @@ import xarray as xr
 import os
 import pandas as pd
 import shutil
+import dask
+from pathlib import Path
 
 from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 
@@ -16,7 +18,7 @@ log = getLogger(LOG_NAME)
 log.setLevel(LOG_LEVEL)
 
 class CombinedNC:
-    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous, climatological_data=None, z_lim=3):
+    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous, forecast_dir=None, forecast_basedate=None, climatological_data=None, z_lim=3):
         """
         Parameters:
             start: Start date in YYYY-MM-DD format
@@ -39,13 +41,10 @@ class CombinedNC:
         self._longitudes1d, self._latitudes1d = self._get_lat_long_1d()
         self._latitudes, self._longitudes = self._get_lat_long_meshgrid()
 
-        self.precips = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.tmaxes = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.tmins = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.winds = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.dates = pd.date_range(start, end)
-
-        self._read()
+        if forecast_dir:
+            self.read_forecast(forecast_dir, forecast_basedate)
+        else:
+            self._read()
         self._write()
         # If climatological data is passed, then run the climatological data correction
         if climatological_data:
@@ -126,7 +125,64 @@ class CombinedNC:
         
         return latitudes, longitudes
 
+    def read_forecast(self, forecast_dir, basedate):
+        forecast_dir = Path(forecast_dir)
+        basedate = pd.to_datetime(basedate)
+
+        # define data arrays
+        self.precips = np.zeros((15, self._rast.height, self._rast.width))
+        self.tmaxes = np.zeros((15, self._rast.height, self._rast.width))
+        self.tmins = np.zeros((15, self._rast.height, self._rast.width))
+        self.winds = np.zeros((15, self._rast.height, self._rast.width))
+
+        self.dates = pd.date_range(basedate + datetime.timedelta(days=1), basedate + datetime.timedelta(days=15))
+        print(len(self.dates))
+
+        for day, date in enumerate(self.dates):
+            fileDate = date
+            reqDate = fileDate.strftime("%Y-%m-%d")
+            # pbar.set_description(reqDate)
+
+            precipfilepath = forecast_dir / f'gfs-chirps/processed' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            precipitation = rio.open(precipfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
+
+            #Reading Maximum Temperature ASCII file contents
+            tmaxfilepath = forecast_dir / f'gfs/processed/tmax' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            tmax = rio.open(tmaxfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
+
+            #Reading Minimum Temperature ASCII file contents
+            tminfilepath = forecast_dir / f'gfs/processed/tmin' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            tmin = rio.open(tminfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
+
+            #Reading Average Wind Speed ASCII file contents
+            uwndfilepath = forecast_dir / f'gfs/processed/uwnd' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            uwnd = rio.open(uwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
+            
+            # #Reading Average Wind Speed ASCII file contents
+            vwndfilepath = forecast_dir / f'gfs/processed/vwnd' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            vwnd = rio.open(vwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
+            wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))#.flatten()[self.gridvalue==0.0]
+
+            # self.dates.append(fileDate)
+            self.precips[day, :, :] = precipitation
+            self.tmaxes[day, :, :] = tmax
+            self.tmins[day, :, :] = tmin
+            self.winds[day, :, :] = wind
+            # pbar.update(1)
+
+        print(self.precips.shape)
+        print(self.tmaxes.shape)
+        print(self.tmins.shape)
+        print(self.winds.shape)
+
     def _read(self):
+        self.precips = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        self.tmaxes = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        self.tmins = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        self.winds = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        log.debug(self._start, self._end)
+        self.dates = pd.date_range(self._start, self._end)
+
         for day, date in enumerate(self.dates):
             fileDate = date
             reqDate = fileDate.strftime("%Y-%m-%d")

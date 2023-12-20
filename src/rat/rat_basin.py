@@ -58,7 +58,7 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-5 step-13 outflow (mass-balance)
 #RAT using all modules and step-14 to produce final outputs
 
-def rat_basin(config, rat_logger):
+def rat_basin(config, rat_logger, forecast_mode=False):
     """Runs RAT as per configuration defined in `config_fn` for one single basin.
 
     parameters:
@@ -219,8 +219,12 @@ def rat_basin(config, rat_logger):
         #Creating metsim input directory for basin if not exist
         metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
         #Defining paths for metsim input data, metsim state and metsim domain
-        ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
-        ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
+        if forecast_mode:
+            ms_state = os.path.join(metsim_inputs_dir, 'forecast_state.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir, 'forecast_metsim_input.nc')
+        else:
+            ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
         domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
         #Creating metsim output directory for basin if not exist
         metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
@@ -352,6 +356,7 @@ def rat_basin(config, rat_logger):
                 start= data_download_start,
                 end= config['BASIN']['end'],
                 datadir= processed_datadir,
+                forecast_dir=None,
                 basingridpath= basingridfile_path,
                 outputdir= combined_datapath,
                 use_previous= use_previous_data,
@@ -402,13 +407,13 @@ def rat_basin(config, rat_logger):
                 rat_logger.info("Starting Step-4: Running MetSim & preparation of VIC input")
                 ##-------------- Metsim Begin & Pre-processing for VIC --------------##
                 with MSParameterFile(
-                    start= config['BASIN']['start'],
-                    end= config['BASIN']['end'],
-                    init_param= config['METSIM']['metsim_param_file'],
-                    out_dir= metsim_output_path, 
-                    forcings= ms_input_data, 
-                    state= ms_state,
-                    domain= domain_nc_path
+                        start= config['BASIN']['start'],
+                        end= config['BASIN']['end'],
+                        init_param= config['METSIM']['metsim_param_file'],
+                        out_dir= metsim_output_path, 
+                        forcings=ms_input_data,
+                        state=ms_state,
+                        domain= domain_nc_path
                     ) as m:
                     
                     ms = MetSimRunner(

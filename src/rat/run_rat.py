@@ -16,7 +16,7 @@ import rat.ee_utils.ee_config as ee_configuration
 from rat.rat_basin import rat_basin
 
 #------------ Define Variables ------------#
-def run_rat(config_fn, operational_latency=None):
+def run_rat(config_fn, forecast_mode=False, operational_latency=None):
     """Runs RAT as per configuration defined in `config_fn`.
 
     parameters:
@@ -31,6 +31,7 @@ def run_rat(config_fn, operational_latency=None):
 
     # Logging this run
     log_dir = os.path.join(config['GLOBAL']['data_dir'],'runs','logs','')
+    print(f"Logging this run at {log_dir}")
     log = init_logger(
         log_dir,
         verbose=False,
@@ -87,7 +88,11 @@ def run_rat(config_fn, operational_latency=None):
             # Store deep copy of config as it is mutable
             config_copy = copy.deepcopy(config)
             # Run RAT for basin
-            no_errors, latest_altimetry_cycle = rat_basin(config, log)
+            if config['PLUGIN']['forecast']:
+                no_errors, latest_altimetry_cycle = rat_basin(config, log, forecast_mode=True)
+            else:
+                no_errors, latest_altimetry_cycle = rat_basin(config, log, forecast_mode=False)
+            #     forecast_wrapper(config) TODO
         # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
         if(latest_altimetry_cycle):
             config_copy['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
