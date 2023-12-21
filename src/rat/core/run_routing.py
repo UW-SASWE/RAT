@@ -164,7 +164,7 @@ def generate_inflow(src_dir, dst_dir):
         log_level1.warning(f"Inflow was not calculated for {no_failed_files} reservoirs. Please check Level-2 log file for more details.")
 
 @dask.delayed(pure=True)
-def run_for_station(station_name, config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, route_workspace_dir, clean=False):
+def run_for_station(station_name, config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, route_workspace_dir, forecast_mode=False, clean=False):
     if isinstance(station_path_latlon, pd.Series):
         station_path_latlon = station_path_latlon.to_frame().T
     log.debug("Running routing for station: %s", station_name)
@@ -186,7 +186,10 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
     input_files_glob = input_files_dst / Path(rout_input_path_prefix).stem
     
     # output files
-    output_files_dst = route_workspace_dir / 'ou'
+    if forecast_mode:
+        output_files_dst = route_workspace_dir / 'forecast_ou'
+    else:
+        output_files_dst = route_workspace_dir / 'ou'
     output_files_dst.mkdir(parents=True, exist_ok=True)
 
     # flow direction file
@@ -229,7 +232,7 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
         clean=False
     ) as r:
         log.debug("Routing Parameter file: %s", r.route_param_path)
-        route = RoutingRunner(    
+        route = RoutingRunner(
             project_dir = config['GLOBAL']['project_dir'], 
             result_dir = str(output_files_dst), 
             inflow_dir = str(input_files_dst), 
@@ -247,7 +250,7 @@ def run_for_station(station_name, config, start, end, basin_flow_direction_file,
         output_path = Path(r.params['output_dir']) / f"{station_name}.day"
     return output_path, basin_station_xy_path, ret_code, station_name
 
-def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, route_dir, route_output_dir, clean=False):
+def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station_path_latlon, route_dir, route_output_dir, forecast_mode=False, clean=False):
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
     
@@ -265,7 +268,7 @@ def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_p
     
     futures = []
     for i, station in stations.iterrows():
-        future = run_for_station(station['name'], config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station, route_workspace_dir, clean)
+        future = run_for_station(station['name'], config, start, end, basin_flow_direction_file, rout_input_path_prefix, inflow_dir, station, route_workspace_dir, forecast_mode, clean)
         futures.append(future)
     routing_results = dask.compute(*futures)
 
