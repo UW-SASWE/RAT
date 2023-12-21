@@ -271,10 +271,11 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         rout_dir.mkdir(parents=True, exist_ok=True)
         if forecast_mode:
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','forecast_ou')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecasting_inflow')
         else:
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         routing_output_dir.mkdir(parents=True, exist_ok=True)
-        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         # Defining path and name for basin flow direction file
         basin_flow_dir_file = os.path.join(rout_param_dir,'fl.asc')

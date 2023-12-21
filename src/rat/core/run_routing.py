@@ -305,7 +305,7 @@ def gathering_ro_ou(wkspc_dir, gathered_ro_ou_dir):
     assert wkspc_dir.exists()
     gathered_ro_ou_dir.mkdir(parents=True, exist_ok=True)
     # for all files with this pattern in wkspc dir
-    for f in list(wkspc_dir.glob('**/ou/*.day')):
+    for f in list(wkspc_dir.glob('**/*ou/*.day')):
         try:
             # grab station name
             station_name = f.parent.parent.name
