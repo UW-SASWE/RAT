@@ -143,23 +143,23 @@ class CombinedNC:
             reqDate = fileDate.strftime("%Y-%m-%d")
             # pbar.set_description(reqDate)
 
-            precipfilepath = forecast_dir / f'gfs-chirps/processed' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            precipfilepath = forecast_dir / f'gefs-chirps/processed' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
             precipitation = rio.open(precipfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
 
             #Reading Maximum Temperature ASCII file contents
-            tmaxfilepath = forecast_dir / f'gfs/processed/tmax' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            tmaxfilepath = forecast_dir / f'gfs/processed/{basedate:%Y%m%d}/tmax/{date:%Y%m%d}.asc'
             tmax = rio.open(tmaxfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
 
             #Reading Minimum Temperature ASCII file contents
-            tminfilepath = forecast_dir / f'gfs/processed/tmin' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            tminfilepath = forecast_dir / f'gfs/processed/{basedate:%Y%m%d}/tmin/{date:%Y%m%d}.asc'
             tmin = rio.open(tminfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
 
             #Reading Average Wind Speed ASCII file contents
-            uwndfilepath = forecast_dir / f'gfs/processed/uwnd' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            uwndfilepath = forecast_dir / f'gfs/processed/{basedate:%Y%m%d}/uwnd/{date:%Y%m%d}.asc'
             uwnd = rio.open(uwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
-            
+
             # #Reading Average Wind Speed ASCII file contents
-            vwndfilepath = forecast_dir / f'gfs/processed/vwnd' / f'{basedate:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            vwndfilepath = forecast_dir / f'gfs/processed/{basedate:%Y%m%d}/vwnd/{date:%Y%m%d}.asc'
             vwnd = rio.open(vwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
             wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))#.flatten()[self.gridvalue==0.0]
 
@@ -188,10 +188,10 @@ class CombinedNC:
             reqDate = fileDate.strftime("%Y-%m-%d")
             log.debug("Combining data: %s", reqDate)
             # pbar.set_description(reqDate)
-            
+
             precipfilepath = os.path.join(self._datadir, f'precipitation/{reqDate}_IMERG.asc')
             precipitation = rio.open(precipfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
-            
+
             #Reading Maximum Temperature ASCII file contents
             tmaxfilepath = os.path.join(self._datadir, f'tmax/{reqDate}_TMAX.asc')
             tmax = rio.open(tmaxfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
@@ -203,12 +203,12 @@ class CombinedNC:
             #Reading Average Wind Speed ASCII file contents
             uwndfilepath = os.path.join(self._datadir, f'uwnd/{reqDate}_UWND.asc')
             uwnd = rio.open(uwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
-            
+
             # #Reading Average Wind Speed ASCII file contents
             vwndfilepath = os.path.join(self._datadir, f'vwnd/{reqDate}_VWND.asc')
             vwnd = rio.open(vwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
             wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))#.flatten()[self.gridvalue==0.0]
-            
+
             # self.dates.append(fileDate)
             self.precips[day, :, :] = precipitation
             self.tmaxes[day, :, :] = tmax

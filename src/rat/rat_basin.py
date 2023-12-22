@@ -217,17 +217,18 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         basingridfile_path= create_directory(os.path.join(basin_data_dir, 'basin_grid_data',''), True)
         basingridfile_path= os.path.join(basingridfile_path, basin_name+'_grid_mask.tif')
         #Creating metsim input directory for basin if not exist
-        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
         #Defining paths for metsim input data, metsim state and metsim domain
+        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
         if forecast_mode:
+            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'forecast_metsim_outputs',''), True)
             ms_state = os.path.join(metsim_inputs_dir, 'forecast_state.nc')
-            ms_input_data = os.path.join(metsim_inputs_dir, 'forecast_metsim_input.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir,'forecast_metsim_input.nc')
         else:
+            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
             ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
             ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
         domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
         #Creating metsim output directory for basin if not exist
-        metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
         #Creating vic input directory for basin if not exist
         if forecast_mode:
             vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'forecast_vic_inputs',''), True)
@@ -242,11 +243,13 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','forecast_in',''), True)
             rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','forecast_rout_state_file',''), True)
             rout_hindcast_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+            init_state_out_dir = 'forecast_vic_init_states'
         else:
             vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
             rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
             rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
-        init_state_dir = 'vic_init_states'
+            init_state_out_dir = 'vic_init_states'
+        init_state_in_dir = 'vic_init_states'
         # Defining path of routing state file to use
         if(isinstance(rout_init_state, str)):
             rout_input_state_file = Path(rout_init_state).resolve()
@@ -495,7 +498,8 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                     vic_output_path = vic_output_path,
                     forcing_prefix = vic_input_forcing_path,
                     init_state = vic_init_state,
-                    init_state_dir=init_state_dir
+                    init_state_dir=init_state_in_dir,
+                    init_state_out_dir=init_state_out_dir
                 ) as p:
                     vic = VICRunner(
                         vic_env= config['VIC']['vic_env'],

@@ -14,6 +14,7 @@ from dask.distributed import Client, LocalCluster
 from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
 import rat.ee_utils.ee_config as ee_configuration
 from rat.rat_basin import rat_basin
+from rat.plugins.forecasting import forecast
 
 #------------ Define Variables ------------#
 def run_rat(config_fn, forecast_mode=False, operational_latency=None):
@@ -88,11 +89,12 @@ def run_rat(config_fn, forecast_mode=False, operational_latency=None):
             # Store deep copy of config as it is mutable
             config_copy = copy.deepcopy(config)
             # Run RAT for basin
-            if config['PLUGIN']['forecast']:
-                no_errors, latest_altimetry_cycle = rat_basin(config, log, forecast_mode=True)
-            else:
-                no_errors, latest_altimetry_cycle = rat_basin(config, log, forecast_mode=False)
-            #     forecast_wrapper(config) TODO
+            no_errors, latest_altimetry_cycle = rat_basin(config, log)
+            # Run RAT forecast for basin if forecast is True
+            if config['PLUGINS']['forecast']:
+                log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
+                no_errors = forecast(config, log)
+                log.info('############## RAT forecast finished for '+config['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
         # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
         if(latest_altimetry_cycle):
             config_copy['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
