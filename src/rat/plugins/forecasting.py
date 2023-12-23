@@ -445,5 +445,6 @@ def forecast(config, rat_logger):
     [f.unlink() for f in vic_forecast_input_dir.glob("*") if f.is_file()]
     vic_forecast_state_dir = basin_data_dir / 'vic' / 'forecast_vic_state'
     [f.unlink() for f in vic_forecast_state_dir.glob("*") if f.is_file()]
+    combined_nc_path.unlink()
 
     return no_errors
