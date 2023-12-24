@@ -148,26 +148,23 @@ def download_GFS_files(
         basedate, lead_time, save_dir
     ):
     """Download GFS files for a day and saves it with a consistent naming format for further processing."""
-    basedate = pd.to_datetime(basedate)
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
+    hours = range(24, 16*24+1, 24)
+
     # determine where to download from. nomads has data for the last 10 days
-    if basedate > basedate.today() - pd.Timedelta(days=10):
-        print("Downloading from nomads")
-        hours = range(24, lead_time*24+1, 24)
-
+    if basedate > pd.Timestamp(date.today()) - pd.Timedelta(days=10):
         links = [f"https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?dir=%2Fgfs.{basedate:%Y%m%d}%2F00%2Fatmos&file=gfs.t00z.pgrb2.0p25.f{h:03}&var_TMAX=on&var_TMIN=on&var_UGRD=on&var_VGRD=on&lev_2_m_above_ground=on&lev_10_m_above_ground=on" for h in hours]
-        raw_savefns = [save_dir / f"{basedate:%Y%m%d}/{basedate+pd.Timedelta(h, 'hours'):%Y%m%d}.grib2" for h in hours]
-
-        for link, savefn in zip(links, raw_savefns):
-            savefn.parent.mkdir(parents=True, exist_ok=True)
-            r = requests.get(link)
-            with open(savefn, 'wb') as f:
-                f.write(r.content)
     else:
-        # TODO for historical data
-        # look into https://rda.ucar.edu/datasets/ds084.1/dataaccess/ ncar's archive of gfs data
-        print("Downloading from ncei") # TODO for historical data
+        links = [f"https://data.rda.ucar.edu/ds084.1/{basedate:%Y}/{basedate:%Y%m%d}/gfs.0p25.{basedate:%Y%m%d}00.f{h:03}.grib2" for h in hours]
+    
+    raw_savefns = [save_dir / f"{basedate:%Y%m%d}/{basedate+pd.Timedelta(h, 'hours'):%Y%m%d}.grib2" for h in hours]
+
+    for link, savefn in zip(links, raw_savefns):
+        savefn.parent.mkdir(parents=True, exist_ok=True)
+        r = requests.get(link)
+        with open(savefn, 'wb') as f:
+            f.write(r.content)
 
 
 def aggregate_ncs(ncs, fn, var=None):
