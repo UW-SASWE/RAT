@@ -17,7 +17,7 @@ from rat.rat_basin import rat_basin
 from rat.plugins.forecasting import forecast
 
 #------------ Define Variables ------------#
-def run_rat(config_fn, forecast_mode=False, operational_latency=None):
+def run_rat(config_fn, operational_latency=None):
     """Runs RAT as per configuration defined in `config_fn`.
 
     parameters:

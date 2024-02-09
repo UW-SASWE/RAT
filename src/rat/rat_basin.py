@@ -274,7 +274,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         rout_dir.mkdir(parents=True, exist_ok=True)
         if forecast_mode:
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','forecast_ou')
-            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecasting_inflow')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecast_inflow', f"{config['BASIN']['start']:%Y%m%d}")
         else:
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
             inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
@@ -318,7 +318,10 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         else:
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
         ## Paths for storing post-processed data and in webformat data
-        evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
+        if forecast_mode:
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{config['BASIN']['start']:%Y%m%d}"), True)
+        else:
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'Evaporation'), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
         aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
@@ -468,7 +471,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                 create_directory(vic_param_dir)
 
                 # Creating vic soil param and domain file if not present
-                if not os.path.exists(os.path.join(vic_param_dir,'vic_param.nc')):
+                if not os.path.exists(os.path.join(vic_param_dir,'vic_soil_param.nc')):
                     global_vic_param_file = os.path.join(config['VIC']['vic_global_param_dir'],config['VIC']['vic_basin_continent_param_filename'])
                     global_vic_domain_file = os.path.join(config['VIC']['vic_global_param_dir'],config['VIC']['vic_basin_continent_domain_filename'])
 
@@ -689,7 +692,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                 rat_logger.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
             #Generating evaporation, storage change and outflow.    
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
-                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
+                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS, forecast_mode=forecast_mode)
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
