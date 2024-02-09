@@ -57,6 +57,8 @@ nav:
     - 'Configuration File': 'Configuration/rat_config.md'
     - 'Secrets File': 'Configuration/secrets.md'
     - 'Multiple Basin Run': 'Configuration/basins_metadata.md'
+- Plugins:
+    - 'Forecasting': 'Plugins/Forecasting.md'
 - Data Description:
     - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
     - 'Global Database': 'RAT_Data/GlobalDatabase.md'
