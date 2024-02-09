@@ -406,8 +406,17 @@ def forecast(config, rat_logger):
     raw_gfs_dir = gfs_dir / 'raw'
     extracted_gfs_dir = gfs_dir / 'extracted'
     processed_gfs_dir = gfs_dir / 'processed'
-    for d in [raw_gefs_chirps_dir, processed_gefs_chirps_dir, raw_gfs_dir, extracted_gfs_dir, processed_gefs_chirps_dir]:
+
+    for d in [raw_gefs_chirps_dir, processed_gefs_chirps_dir, raw_gfs_dir, extracted_gfs_dir, processed_gfs_dir]:
         d.mkdir(parents=True, exist_ok=True)
+
+    # cleanup previous runs
+    vic_forecast_input_dir = basin_data_dir / 'vic' / 'forecast_vic_inputs'
+    [f.unlink() for f in vic_forecast_input_dir.glob("*") if f.is_file()]
+    vic_forecast_state_dir = basin_data_dir / 'vic' / 'forecast_vic_state'
+    [f.unlink() for f in vic_forecast_state_dir.glob("*") if f.is_file()]
+    combined_nc_path.unlink() if combined_nc_path.is_file() else None
+
 
     # Download and process GEFS-CHIRPS data
     get_gefs_precip(basin_bounds, raw_gefs_chirps_dir, processed_gefs_chirps_dir, basedate, lead_time)
@@ -434,14 +443,8 @@ def forecast(config, rat_logger):
     config['GLOBAL']['steps'] = [3, 4, 5, 6, 7, 8, 13] # only run metsim-routing and inflow file generation
     config['BASIN']['start'] = basedate
     config['BASIN']['end'] = forecast_enddate
+    config['BASIN']['spin_up'] = False
 
     no_errors, _ = rat_basin(config, rat_logger, forecast_mode=True)
-
-    # cleanup
-    vic_forecast_input_dir = basin_data_dir / 'vic' / 'forecast_vic_inputs'
-    [f.unlink() for f in vic_forecast_input_dir.glob("*") if f.is_file()]
-    vic_forecast_state_dir = basin_data_dir / 'vic' / 'forecast_vic_state'
-    [f.unlink() for f in vic_forecast_state_dir.glob("*") if f.is_file()]
-    combined_nc_path.unlink()
 
     return no_errors
