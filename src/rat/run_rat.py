@@ -94,13 +94,12 @@ def run_rat(config_fn, operational_latency=None):
             if config['PLUGINS']['forecast']:
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
                 forecast_no_errors = forecast(config, log)
-                log.info('############## RAT forecast finished for '+config['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
                 if(forecast_no_errors>0):
-                    log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
+                    log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                 elif(forecast_no_errors==0):
-                    log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
+                    log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
                 else:
-                    log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
+                    log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
         # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
         if(latest_altimetry_cycle):
             config_copy['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
@@ -176,13 +175,12 @@ def run_rat(config_fn, operational_latency=None):
                 if config['PLUGINS']['forecast']:
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
                     forecast_no_errors = forecast(config, log)
-                    log.info('############## RAT forecast finished for '+config['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
-                if(forecast_no_errors>0):
-                    log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
-                elif(forecast_no_errors==0):
-                    log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
-                else:
-                    log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
+                    if(forecast_no_errors>0):
+                        log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
+                    elif(forecast_no_errors==0):
+                        log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                    else:
+                        log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
             # Displaying and storing RAT function outputs
             if(latest_altimetry_cycle):
                 # If column doesn't exist in basins_metadata, create one
