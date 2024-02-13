@@ -48,7 +48,7 @@ def calc_dels(aecpath, sareapath, savepath):
 
     df.to_csv(savepath, index=False)
 
-def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_path, savepath):
+def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, savepath):
     ds = xr.open_dataset(vic_res_path)
     forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
     ## Slicing the latest run time period
@@ -71,15 +71,16 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
     reqvars_clipped = ds_clipped[['OUT_EVAP', 'OUT_R_NET', 'OUT_VP', 'OUT_WIND', 'OUT_AIR_TEMP']]
     reqvars = reqvars_clipped.load()
 
-    # get sarea
-    log.debug("Getting surface areas")
-    sarea = pd.read_csv(sarea_path, parse_dates=['date']).rename({'date': 'time'}, axis=1)[['time', 'area']]
-    sarea = sarea.set_index('time')
-    upsampled_sarea = sarea.resample('D').mean()
-    sarea_interpolated = upsampled_sarea.interpolate(method='linear')
-    
-    ## Slicing the latest run time period
-    sarea_interpolated = sarea_interpolated[start_date:end_date]
+    # get sarea - if string, read from file, else use same surface area value for all time steps
+    log.debug("Getting surface areas", sarea)
+    if isinstance(sarea, str):
+        sarea = pd.read_csv(sarea, parse_dates=['date']).rename({'date': 'time'}, axis=1)[['time', 'area']]
+        sarea = sarea.set_index('time')
+        upsampled_sarea = sarea.resample('D').mean()
+        sarea_interpolated = upsampled_sarea.interpolate(method='linear')
+        
+        ## Slicing the latest run time period
+        sarea_interpolated = sarea_interpolated[start_date:end_date]
     
     log.debug("Checking if grid cells lie inside reservoir")
     last_layer = reqvars.isel(time=-1).to_dataframe().reset_index()
@@ -103,7 +104,10 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea_pa
 
         P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
 
-    data['area'] = sarea_interpolated['area']
+    if isinstance(sarea, str):
+        data['area'] = sarea_interpolated['area']
+    else:
+        data['area'] = sarea
     data['P'] = P
     data = data.dropna()
     if (data.empty):
@@ -171,7 +175,7 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
 
 
 def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date, rout_init_state_save_file, use_rout_state,
-                            evap_datadir, dels_savedir, outflow_savedir, vic_status, routing_status, gee_status):
+                            evap_datadir, dels_savedir, outflow_savedir, vic_status, routing_status, gee_status, forecast_mode=False):
     # read file defining mapped resrvoirs
     # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
     reservoirs = gpd.read_file(reservoir_shpfile)
@@ -226,20 +230,29 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
         if(use_rout_state):
             vic_results_path = rout_init_state_save_file
         else:
-            vic_results_path = os.path.join(basin_data_dir,'vic', "vic_outputs/nc_fluxes."+start_date_str+".nc")
-        forcings_path = os.path.join(basin_data_dir,'vic', "vic_inputs/*.nc")
+            if forecast_mode:
+                vic_results_path = os.path.join(basin_data_dir,'vic', 'forecast_vic_outputs', "nc_fluxes."+start_date_str+".nc")
+            else:
+                vic_results_path = os.path.join(basin_data_dir,'vic', "vic_outputs/nc_fluxes."+start_date_str+".nc")
+        if forecast_mode:
+            forcings_path = os.path.join(basin_data_dir,'vic', 'forecast_vic_inputs/*.nc')
+        else:
+            forcings_path = os.path.join(basin_data_dir,'vic', "vic_inputs/*.nc")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
             try:
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
                 sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
+                if not os.path.isfile(sarea_path):
+                    sarea = float(reservoir[reservoir_shpfile_column_dict['area_column']])
+                else:
+                    sarea = sarea_path
                 e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
                 
-                if os.path.isfile(sarea_path):
+                if os.path.isfile(sarea) or isinstance(sarea, float):
                     log.debug(f"Calculating Evaporation for {reservoir_name}")
-                    # calc_E(e_path, respath, vic_results_path)
-                    calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea_path, e_path)
+                    calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea, e_path)
                 else:
                     raise Exception("Surface area file not found; skipping evaporation calculation")          
             except:

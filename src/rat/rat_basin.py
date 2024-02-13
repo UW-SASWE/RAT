@@ -58,7 +58,7 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-5 step-13 outflow (mass-balance)
 #RAT using all modules and step-14 to produce final outputs
 
-def rat_basin(config, rat_logger):
+def rat_basin(config, rat_logger, forecast_mode=False):
     """Runs RAT as per configuration defined in `config_fn` for one single basin.
 
     parameters:
@@ -217,27 +217,47 @@ def rat_basin(config, rat_logger):
         basingridfile_path= create_directory(os.path.join(basin_data_dir, 'basin_grid_data',''), True)
         basingridfile_path= os.path.join(basingridfile_path, basin_name+'_grid_mask.tif')
         #Creating metsim input directory for basin if not exist
-        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
         #Defining paths for metsim input data, metsim state and metsim domain
-        ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
-        ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
+        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
+        #Creating metsim output directory for basin if not exist.
+        if forecast_mode:
+            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'forecast_metsim_outputs',''), True)
+            ms_state = os.path.join(metsim_inputs_dir, 'forecast_state.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir,'forecast_metsim_input.nc')
+        else:
+            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
+            ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
         domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
-        #Creating metsim output directory for basin if not exist
-        metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
         #Creating vic input directory for basin if not exist
-        vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'vic_inputs',''), True)
+        if forecast_mode:
+            vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'forecast_vic_inputs',''), True)
+        else:
+            vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'vic_inputs',''), True)
         #----------- Paths Necessary for running of METSIM  -----------#
 
         #----------- Paths Necessary for running of VIC  -----------#
         vic_input_forcing_path = os.path.join(vic_input_path,'forcing_')
-        vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
-        rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
-        rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+        if forecast_mode:
+            vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','forecast_vic_outputs',''), True)
+            rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','forecast_in',''), True)
+            rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','forecast_rout_state_file',''), True)
+            rout_hindcast_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+            init_state_out_dir = 'forecast_vic_init_states'
+        else:
+            vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
+            rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
+            rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+            init_state_out_dir = 'vic_init_states'
+        init_state_in_dir = 'vic_init_states'
         # Defining path of routing state file to use
         if(isinstance(rout_init_state, str)):
             rout_input_state_file = Path(rout_init_state).resolve()
         elif(isinstance(rout_init_state,datetime.date)):
-            rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
+            if forecast_mode:
+                rout_input_state_file = os.path.join(rout_hindcast_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
+            else:
+                rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
         else:
             rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
          # Defining path of routing state file to save
@@ -252,9 +272,13 @@ def rat_basin(config, rat_logger):
         # Creating routing and its inflow directory
         rout_dir = Path(config['GLOBAL']['data_dir']) / f'{config["BASIN"]["region_name"]}' / 'basins' / f'{config["BASIN"]["basin_name"]}' / 'ro'
         rout_dir.mkdir(parents=True, exist_ok=True)
-        routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+        if forecast_mode:
+            routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','forecast_ou')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecast_inflow', f"{config['BASIN']['start']:%Y%m%d}")
+        else:
+            routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         routing_output_dir.mkdir(parents=True, exist_ok=True)
-        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         # Defining path and name for basin flow direction file
         basin_flow_dir_file = os.path.join(rout_param_dir,'fl.asc')
@@ -294,7 +318,10 @@ def rat_basin(config, rat_logger):
         else:
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
         ## Paths for storing post-processed data and in webformat data
-        evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
+        if forecast_mode:
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{config['BASIN']['start']:%Y%m%d}"), True)
+        else:
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'Evaporation'), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
         aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
@@ -352,6 +379,7 @@ def rat_basin(config, rat_logger):
                 start= data_download_start,
                 end= config['BASIN']['end'],
                 datadir= processed_datadir,
+                forecast_dir=None,
                 basingridpath= basingridfile_path,
                 outputdir= combined_datapath,
                 use_previous= use_previous_data,
@@ -402,13 +430,13 @@ def rat_basin(config, rat_logger):
                 rat_logger.info("Starting Step-4: Running MetSim & preparation of VIC input")
                 ##-------------- Metsim Begin & Pre-processing for VIC --------------##
                 with MSParameterFile(
-                    start= config['BASIN']['start'],
-                    end= config['BASIN']['end'],
-                    init_param= config['METSIM']['metsim_param_file'],
-                    out_dir= metsim_output_path, 
-                    forcings= ms_input_data, 
-                    state= ms_state,
-                    domain= domain_nc_path
+                        start= config['BASIN']['start'],
+                        end= config['BASIN']['end'],
+                        init_param= config['METSIM']['metsim_param_file'],
+                        out_dir= metsim_output_path, 
+                        forcings=ms_input_data,
+                        state=ms_state,
+                        domain= domain_nc_path
                     ) as m:
                     
                     ms = MetSimRunner(
@@ -443,7 +471,7 @@ def rat_basin(config, rat_logger):
                 create_directory(vic_param_dir)
 
                 # Creating vic soil param and domain file if not present
-                if not os.path.exists(os.path.join(vic_param_dir,'vic_param.nc')):
+                if not os.path.exists(os.path.join(vic_param_dir,'vic_soil_param.nc')):
                     global_vic_param_file = os.path.join(config['VIC']['vic_global_param_dir'],config['VIC']['vic_basin_continent_param_filename'])
                     global_vic_domain_file = os.path.join(config['VIC']['vic_global_param_dir'],config['VIC']['vic_basin_continent_domain_filename'])
 
@@ -472,7 +500,9 @@ def rat_basin(config, rat_logger):
                     enddate = config['BASIN']['end'],
                     vic_output_path = vic_output_path,
                     forcing_prefix = vic_input_forcing_path,
-                    init_state = vic_init_state
+                    init_state = vic_init_state,
+                    init_state_dir=init_state_in_dir,
+                    init_state_out_dir=init_state_out_dir
                 ) as p:
                     vic = VICRunner(
                         vic_env= config['VIC']['vic_env'],
@@ -482,7 +512,7 @@ def rat_basin(config, rat_logger):
                     )
                     vic.run_vic(np=config['GLOBAL']['multiprocessing'])
                     vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file, 
-                                                                                        save_path=rout_init_state_save_file, use_rout_state=use_state) # Start date of routing state file will be returned
+                        save_path=rout_init_state_save_file, use_rout_state=use_state) # Start date of routing state file will be returned
                     if(config['BASIN']['spin_up']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If spin_up, use vic result file
                     elif(config['BASIN'].get('vic_init_state')):                      # If vic_state file exists
@@ -550,6 +580,7 @@ def rat_basin(config, rat_logger):
                     end = config['BASIN']['end'],
                     basin_flow_direction_file = basin_flow_dir_file,
                     rout_input_path_prefix = rout_input_path_prefix,
+                    forecast_mode=forecast_mode,
                     clean=False,
                     inflow_dir = inflow_dst_dir,
                     station_path_latlon = basin_station_latlon_file,
@@ -661,7 +692,7 @@ def rat_basin(config, rat_logger):
                 rat_logger.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
             #Generating evaporation, storage change and outflow.    
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
-                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
+                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS, forecast_mode=forecast_mode)
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")

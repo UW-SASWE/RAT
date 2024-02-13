@@ -13,8 +13,8 @@ log.setLevel(LOG_LEVEL)
 
 class VICParameterFile:
     def __init__(self, config, basin_name, startdate=None, enddate=None, vic_output_path=None, vic_section='VIC',
-                                     forcing_prefix=None, runname=None, init_state=None, save_init_state=True,
-                                      intermediate_files= False):
+                                     forcing_prefix=None, runname=None, init_state=None, save_init_state=True, init_state_dir=None,
+                                      init_state_out_dir=None, intermediate_files= False):
         
         self.params = {
             'steps': {
@@ -111,6 +111,14 @@ class VICParameterFile:
         self.save_init_state = save_init_state
         #VIC State Save Date
         self.vic_init_state_save_date = config['BASIN']['end']
+        if init_state_dir:
+            self.init_state_dir = init_state_dir
+        else:
+            self.init_state_dir = 'vic_init_states'
+        if init_state_out_dir:
+            self.init_state_out_dir = init_state_out_dir
+        else:
+            self.init_state_out_dir = 'vic_init_states'
 
         if runname is None:
             self.runname = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -305,8 +313,8 @@ class VICParameterFile:
         
         # Saving initital state file for vic's next run  if save_init_state is True else deleting STATENAME from state_file_params
         if (self.save_init_state):
-            create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',self.basin_name,'vic','vic_init_states'),False)
-            self.params['state_file_params']['STATENAME'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',self.basin_name,'vic','vic_init_states','state_')
+            create_directory(os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',self.basin_name,'vic', self.init_state_out_dir),False)
+            self.params['state_file_params']['STATENAME'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],'basins',self.basin_name,'vic', self.init_state_out_dir,'state_')
             self.params['state_file_params']['STATEYEAR'] = self.vic_init_state_save_date.strftime('%Y')
             self.params['state_file_params']['STATEMONTH'] = self.vic_init_state_save_date.strftime('%m')
             self.params['state_file_params']['STATEDAY'] = self.vic_init_state_save_date.strftime('%d')
@@ -320,7 +328,7 @@ class VICParameterFile:
                                     str(self.init_state.strftime('%d'))
                 
                 self.params['state_file_params']['INIT_STATE'] = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],
-                                                            'basins',self.basin_name,'vic','vic_init_states',
+                                                            'basins',self.basin_name,'vic',self.init_state_dir,
                                                             'state_.'+init_state_date_str+'_00000.nc')
             elif(isinstance(self.init_state, str)):
                 init_state_file_path = Path(self.init_state).resolve()
