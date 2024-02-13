@@ -219,6 +219,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         #Creating metsim input directory for basin if not exist
         #Defining paths for metsim input data, metsim state and metsim domain
         metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
+        #Creating metsim output directory for basin if not exist.
         if forecast_mode:
             metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'forecast_metsim_outputs',''), True)
             ms_state = os.path.join(metsim_inputs_dir, 'forecast_state.nc')
@@ -228,7 +229,6 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
             ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
         domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
-        #Creating metsim output directory for basin if not exist
         #Creating vic input directory for basin if not exist
         if forecast_mode:
             vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'forecast_vic_inputs',''), True)
