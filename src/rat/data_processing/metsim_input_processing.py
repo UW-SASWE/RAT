@@ -136,7 +136,6 @@ class CombinedNC:
         self.winds = np.zeros((15, self._rast.height, self._rast.width))
 
         self.dates = pd.date_range(basedate + datetime.timedelta(days=1), basedate + datetime.timedelta(days=15))
-        print(len(self.dates))
 
         for day, date in enumerate(self.dates):
             fileDate = date
@@ -170,17 +169,11 @@ class CombinedNC:
             self.winds[day, :, :] = wind
             # pbar.update(1)
 
-        print(self.precips.shape)
-        print(self.tmaxes.shape)
-        print(self.tmins.shape)
-        print(self.winds.shape)
-
     def _read(self):
         self.precips = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
         self.tmaxes = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
         self.tmins = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
         self.winds = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        log.debug(self._start, self._end)
         self.dates = pd.date_range(self._start, self._end)
 
         for day, date in enumerate(self.dates):
