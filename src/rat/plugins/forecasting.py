@@ -374,9 +374,14 @@ def generate_forecast_state_and_inputs(
 
 
 def forecast(config, rat_logger):
-    """
+    """Function to run the forecasting plugin.
+
+    Args:
+        config (dict): Dictionary containing the configuration parameters.
+        rat_logger (Logger): Logger object
     """
     print("Forecasting Plugin Started")
+    # read necessary parameters from config
     basins_shapefile_path = config['GLOBAL']['basin_shpfile'] # Shapefile containg information of basin(s)- geometry and attributes
     basins_shapefile = gpd.read_file(basins_shapefile_path)  # Reading basins_shapefile_path to get basin polygons and their attributes
     basins_shapefile_column_dict = config['GLOBAL']['basin_shpfile_column_dict'] # Dictionary of column names in basins_shapefile, Must contain 'id' field
@@ -388,6 +393,7 @@ def forecast(config, rat_logger):
     basin_bounds = np.array(basin_bounds)[0]
     basin_data_dir = Path(config['GLOBAL']['data_dir']) / region_name / 'basins' / basin_name
 
+    # determine forecast related dates - basedate, lead time and enddate
     if config['PLUGINS']['forecast_start_date'] == 'end_date':
         basedate = pd.to_datetime(config['BASIN']['end'])
     else:
@@ -395,6 +401,7 @@ def forecast(config, rat_logger):
     lead_time = config['PLUGINS']['forecast_lead_time']
     forecast_enddate = basedate + pd.Timedelta(days=lead_time)
 
+    # define and create directories
     hindcast_nc_path = basin_data_dir / 'pre_processing' / 'nc' / 'combined_data.nc'
     combined_nc_path = basin_data_dir / 'pre_processing' / 'nc' / 'forecast_combined.nc'
     metsim_inputs_dir = basin_data_dir / 'metsim' / 'metsim_inputs'
@@ -418,20 +425,20 @@ def forecast(config, rat_logger):
     combined_nc_path.unlink() if combined_nc_path.is_file() else None
 
 
-    # Download and process GEFS-CHIRPS data
+    # RAT STEP-1 (Forecasting) Download and process GEFS-CHIRPS data
     get_gefs_precip(basin_bounds, raw_gefs_chirps_dir, processed_gefs_chirps_dir, basedate, lead_time)
 
-    # Download and process GFS data
+    # RAT STEP-1 (Forecasting) Download and process GFS data
     get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir)
 
-    # make combined nc
+    # RAT STEP-2 (Forecasting) make combined nc
     CombinedNC(
         basedate, forecast_enddate, None,
         basingridfile_path, combined_nc_path, False,
         forecast_data_dir, basedate
     )
 
-    # generate metsim inputs
+    # RAT STEP-2 (Forecasting) generate metsim inputs
     generate_forecast_state_and_inputs(
         basedate, forecast_enddate,
         hindcast_nc_path, combined_nc_path,
@@ -445,6 +452,7 @@ def forecast(config, rat_logger):
     config['BASIN']['end'] = forecast_enddate
     config['BASIN']['spin_up'] = False
 
+    # Run RAT with forecasting parameters
     no_errors, _ = rat_basin(config, rat_logger, forecast_mode=True)
 
     return no_errors
