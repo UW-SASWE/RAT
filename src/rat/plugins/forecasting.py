@@ -388,11 +388,11 @@ def forecast(config, rat_logger):
     basin_bounds = np.array(basin_bounds)[0]
     basin_data_dir = Path(config['GLOBAL']['data_dir']) / region_name / 'basins' / basin_name
 
-    if config['BASIN']['forecast_start_date'] == 'end_date':
+    if config['PLUGINS']['forecast_start_date'] == 'end_date':
         basedate = pd.to_datetime(config['BASIN']['end'])
     else:
-        basedate = pd.to_datetime(config['BASIN']['forecast_start_date'])
-    lead_time = config['BASIN']['forecast_lead_time']
+        basedate = pd.to_datetime(config['PLUGINS']['forecast_start_date'])
+    lead_time = config['PLUGINS']['forecast_lead_time']
     forecast_enddate = basedate + pd.Timedelta(days=lead_time)
 
     hindcast_nc_path = basin_data_dir / 'pre_processing' / 'nc' / 'combined_data.nc'
