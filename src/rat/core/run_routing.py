@@ -285,7 +285,7 @@ def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_p
 
     # Gathering all the outputs of routing in route_output_dir
     route_workspace_dir = route_dir / 'wkspc' 
-    gathering_ro_ou(route_workspace_dir,route_output_dir)
+    gathering_ro_ou(route_workspace_dir,route_output_dir, forecast_mode=forecast_mode)
 
     # Tracking number of stations (no_failed_files) for which routing has failed to execute.
     no_failed_files = len(routing_statuses[routing_statuses["routing_status"]!=0])
@@ -295,7 +295,7 @@ def run_routing(config, start, end, basin_flow_direction_file, rout_input_path_p
     return output_paths, station_xy_path, routing_statuses
 
 # Gathers all the workspace routing outputs into single output directory and save them by their complete station name.
-def gathering_ro_ou(wkspc_dir, gathered_ro_ou_dir):
+def gathering_ro_ou(wkspc_dir, gathered_ro_ou_dir, forecast_mode):
     '''Gathers all the workspace routing outputs into single output directory and save them by their complete station name.
     
     Parameters:
@@ -305,7 +305,11 @@ def gathering_ro_ou(wkspc_dir, gathered_ro_ou_dir):
     assert wkspc_dir.exists()
     gathered_ro_ou_dir.mkdir(parents=True, exist_ok=True)
     # for all files with this pattern in wkspc dir
-    for f in list(wkspc_dir.glob('**/*ou/*.day')):
+    if forecast_mode:
+        glob_pattern = '**/forecast_ou/*.day'
+    else:
+        glob_pattern = '**/ou/*.day'
+    for f in list(wkspc_dir.glob(glob_pattern)):
         try:
             # grab station name
             station_name = f.parent.parent.name
