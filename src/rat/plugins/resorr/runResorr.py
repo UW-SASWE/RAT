@@ -14,7 +14,6 @@ from rat.utils.utils import create_directory
 from rat.plugins.resorr.data_prep import generate_network
 from resorr.data_prep import generate_forcings_from_rat, generate_network
 from resorr.network import ReservoirNetwork
-from tqdm.notebook import tqdm
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
