@@ -90,8 +90,8 @@ def run_rat(config_fn, operational_latency=None):
             config_copy = copy.deepcopy(config)
             # Run RAT for basin
             no_errors, latest_altimetry_cycle = rat_basin(config, log)
-            # Run RAT forecast for basin if forecast is True
-            if config['PLUGINS']['forecast']:
+            # Run RAT forecast for basin if forecast is True           
+            if config.get('PLUGINS', {}).get('forecasting'):
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
                 forecast_no_errors = forecast(config, log)
                 if(forecast_no_errors>0):
@@ -172,7 +172,7 @@ def run_rat(config_fn, operational_latency=None):
                 ryaml_client.dump(config, config_fn.open('w'))
                 no_errors, latest_altimetry_cycle = rat_basin(config_copy, log)
                 # Run RAT forecast for basin if forecast is True
-                if config['PLUGINS']['forecast']:
+                if config.get('PLUGINS', {}).get('forecasting'):
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
                     forecast_no_errors = forecast(config, log)
                     if(forecast_no_errors>0):
