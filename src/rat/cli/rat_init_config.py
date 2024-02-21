@@ -1,12 +1,12 @@
 DOWNLOAD_LINKS_DROPBOX = {
-    'route_model': "https://www.dropbox.com/s/9jwep2g5pyj8sni/routing.zip?dl=1",
+    'route_model': "https://www.dropbox.com/scl/fi/1kjivr13kyf6gn7wlhbzt/routing.zip?rlkey=zq8j501amqyirfprcgb9dquec&dl=1",
     'params': "https://www.dropbox.com/scl/fi/9qk9bwrbawryx79o7cclg/params.zip?rlkey=j5dqxipkvwuo3nso4dl1cxaux&dl=1",
     'global_data': "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1",
     'global_vic_params': "https://www.dropbox.com/s/jsg2wu62qi2ltwz/global_vic_params.zip?dl=1",
 }
 
 DOWNLOAD_LINKS_GOOGLE = {
-    'route_model': "https://drive.google.com/uc?id=1dkUOSNZL33Vk7YBRhkquK3uWZB--WBY6",
+    'route_model': "https://drive.google.com/uc?id=1zr3VH0wy-XN-yF2_n0xic89_PiT_V_Mb",
     'params': "https://drive.google.com/uc?id=1LAGivWvgBdtJvDWzkGKorzfjPEKvO69k",
     'global_data': "https://drive.google.com/uc?id=1WZ44rS-woViLHlIreK1DBPRXX50PiQI_",
     'global_vic_params': "https://drive.google.com/uc?id=16P95eu2yG0i77ac_NrmTSVutNtVXWNeA",
