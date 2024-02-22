@@ -23,7 +23,7 @@ On [this](https://www.dropbox.com/scl/fo/fpl6as11pq87sfjzbue71/h?rlkey=fv88x7oqe
 4.	Login credentials for [Earth Engine](https://developers.google.com/earth-engine/cloud/earthengine_cloud_project_setup) using service account (for reservoir storage change calculation)
 
 !!! tip "Tip"
-    To get the three set of credentials (requirement 2,3 and 4), follow the steps mentioned [here in Getting Ready section](../../QuickStart/GettingReady.md) and create a secrets file accordingly.
+    To get the three set of credentials (requirement 2,3 and 4), follow the steps mentioned [here in Getting Ready section](../../QuickStart/GettingReady) and create a secrets file accordingly.
 
 ## Installation
 
@@ -103,17 +103,17 @@ Access the file in project directory at ***data/test_output/runs/logs/RAT_run-YY
 2.	Level-2 Log (Detailed Log) : 
 Open the file in project directory at ***data/test_output/Texas/logs/Nueces/RAT-NuecesYYYYMMDD-\*.log*** (once again using an editor that permits real-time updates). Here, you can scrutinize every process taking place within each step of RAT. This detailed log is primarily employed for debugging errors.
 
-You can further read about the entire directory structure that usually exists inside the project directory in the [Directory Structure section](../../RAT_Data/DirectoryStructure.md).
+You can further read about the entire directory structure that usually exists inside the project directory in the [Directory Structure section](../../RAT_Data/DirectoryStructure).
 
 ## Configuration File
 
 Navigate to ***params/rat_config.yml*** in project directory. This file is a partially complete configuration file where you can observe the paths for model (or Python environment) and parameter files in the Metsim, VIC, and Routing sections. These paths were configured during RAT initialization, with the initialization command populating these paths. It's important to note that global data hasn't been downloaded, which is why these paths remain unpopulated. It's worth mentioning that within the params directory, there are two additional configuration files: 'rat_config_template.yml' functions as a template, while 'test_config.yml' was employed by RAT for conducting RAT tests. 
 
 !!! tip "Tip"
-    If you are curious what these terms “Metsim, VIC” or ‘routing’ mean, you should refer to the [conceptual model of RAT](../../Model/ConceptualModel.md). However, here, we can safely treat these terms and components as ‘blackbox’ as the goal here is to set up RAT for Hidkal dam and focus on the reservoir operations.
+    If you are curious what these terms “Metsim, VIC” or ‘routing’ mean, you should refer to the [conceptual model of RAT](../../Model/ConceptualModel). However, here, we can safely treat these terms and components as ‘blackbox’ as the goal here is to set up RAT for Hidkal dam and focus on the reservoir operations.
 
 !!! note
-    Information regarding each parameter in the configuration file is provided in the [Configuration File section](../../Configuration/rat_config.md).
+    Information regarding each parameter in the configuration file is provided in the [Configuration File section](../../Configuration/rat_config).
 
 Now, you are ready to utilize RAT for Hidkal Dam. To begin with, download the ‘custom_data’ folder inside the project directory. Note that you should have already downloaded this ‘custom_data’ earlier before starting the tutorial from this [cloud location](https://www.dropbox.com/scl/fo/fpl6as11pq87sfjzbue71/h?rlkey=fv88x7oqeu4xulqihlwopmkl7&dl=0). Let us configure the file to analyze the reservoir operations of Hidkal Dam in the year 2019. In this instance, we are using a Python code to update the configuration file, although manual updates are also possible, albeit time-consuming.
 
@@ -267,7 +267,7 @@ hidkal_reservoir = RAT_RESERVOIR(
 final_outputs='data/India/basins/Krishna/final_outputs', file_name='4773_Hidkal.csv')
 ```
 
-1. **Inflow:**
+**Inflow:**
 ```python
 inflow_figure = hidkal_reservoir.plot_var(
     var_to_observe = 'Inflow',
@@ -284,7 +284,7 @@ Upon observing the Inflow timeseries interactive plot, zooming into the year 201
 
 ![Plot of Inflow time series](../images/tutorials/KarnatakaFloods/inflow.png)
 
-2. **Outflow:**
+**Outflow:**
 ```python
 Outflow_figure = hidkal_reservoir.plot_var(
     var_to_observe = 'Outflow',
@@ -301,7 +301,7 @@ We can observe that during the flood period, the reservoir's outflow reached its
 
 ![Plot of Outflow time series](../images/tutorials/KarnatakaFloods/outflow.png)
 
-3. **Surface Area of Reservoir:**
+**Surface Area of Reservoir:**
 ```python
 surface_area_figure = hidkal_reservoir.plot_var(
     var_to_observe = 'Surface Area',
@@ -318,7 +318,7 @@ The surface area estimates were estimated using the Tiered Multi Sensor-Optical 
 
 ![Plot of reservoir's surface area time series](../images/tutorials/KarnatakaFloods/surface_area.png)
 
-4. **Reservoir Storage Change:**
+**Reservoir Storage Change:**
 ```python
 storage_change_figure = hidkal_reservoir.plot_var(
     var_to_observe = 'Storage Change',
@@ -335,7 +335,7 @@ The positive storage change observed during the months of July indicates that th
 
 ![Plot of reservoir's storage time series](../images/tutorials/KarnatakaFloods/storage_change.png)
 
-5. **Reservoir EvaporationL:**
+**Reservoir EvaporationL:**
 ```python
 evaporation_figure = hidkal_reservoir.plot_var(
     var_to_observe = 'Evaporation',
@@ -353,7 +353,7 @@ The amount of evaporation from the reservoir was estimated by RAT at a daily fre
 
 ![Plot of reservoir's evaporation time series](../images/tutorials/KarnatakaFloods/evaporation.png)
 
-6. **Reservoir Area-Elevation Curve**
+**Reservoir Area-Elevation Curve**
 ```python
 aec_figure = hidkal_reservoir.plot_var(
     var_to_observe = 'A-E Curve',
