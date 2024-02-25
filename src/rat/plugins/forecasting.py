@@ -298,7 +298,6 @@ def process_GFS_file(fn, basin_bounds, gfs_dir):
     out_fn = outdir / f"{forecasted_date:%Y%m%d}.asc"
     cmd = ['gdal_translate', '-of', 'aaigrid', str(in_fn), str(out_fn)]
     res = run_command(cmd)#, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print(res)
     # print(f"{basedate:%Y-%m-%d} - {var} - (4) Converted to .asc")
 
 
@@ -318,7 +317,6 @@ def process_GFS_files(basedate, lead_time, basin_bounds, gfs_dir):
         for var in ["tmax", "tmin", "uwnd", "vwnd"]
     ]
     for i, in_fn in enumerate(in_fns):
-        print(i, in_fn)
         process_GFS_file(in_fn, basin_bounds, gfs_dir)
 
 
@@ -353,6 +351,14 @@ def generate_forecast_state_and_inputs(
     out_dir = Path(out_dir)
     hindcast_combined_data = xr.open_dataset(hindcast_combined_datapath)
     forecast_combined_data = xr.open_dataset(forecast_combined_datapath)
+    
+    # check if tmin < tmax. If not, set tmin = tmax
+    forecast_combined_data['tmin'] = xr.where(
+        forecast_combined_data['tmin'] < forecast_combined_data['tmax'],
+        forecast_combined_data['tmin'],
+        forecast_combined_data['tmax']
+    )
+
     combined_data = xr.concat([
         hindcast_combined_data, forecast_combined_data
     ], dim="time")
@@ -423,6 +429,8 @@ def forecast(config, rat_logger):
     vic_forecast_state_dir = basin_data_dir / 'vic' / 'forecast_vic_state'
     [f.unlink() for f in vic_forecast_state_dir.glob("*") if f.is_file()]
     combined_nc_path.unlink() if combined_nc_path.is_file() else None
+    rout_forecast_state_dir = basin_data_dir / 'rout' / 'forecast_rout_state_file'
+    [f.unlink() for f in rout_forecast_state_dir.glob("*") if f.is_file()]
 
 
     # RAT STEP-1 (Forecasting) Download and process GEFS-CHIRPS data
