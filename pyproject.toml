@@ -32,7 +32,8 @@ dependencies = [
     "ruamel-yaml",
     "PyYAML",
     "gdown",
-    "geonetworkx"
+    "geonetworkx",
+    "cfgrib"
 ]
 
 [project.urls]
