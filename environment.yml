@@ -16,5 +16,8 @@ dependencies:
   - ruamel_yaml
   - yaml
   - gdown
-  - conda-build
   - cfgrib
+  - conda-build
+  - pip 
+  - pip:
+    - geonetworkx

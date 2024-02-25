@@ -33,8 +33,6 @@ from rat.core.run_postprocessing import run_postprocessing
 
 from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files
 
-from rat.plugins.resorr.runResorr import runResorr
-
 # Step-(-1): Reading Configuration settings to run RAT
 # Step-0: Creating required directory structure for RAT
 # Step-1: Downloading and Pre-processing of meteorolgical data
@@ -768,6 +766,11 @@ def rat_basin(config, rat_logger, forecast_mode=False):
            
             ## Plugins: RESORR
             if config.get('PLUGINS', {}).get('resorr'):
+                # Importing ResORR
+                try:
+                    from rat.plugins.resorr.runResorr import runResorr
+                except:
+                    rat_logger.exception("Failed to import ResORR due to missing package(s). Please check for geonetworkx package. You can install it using 'pip install geonetworkx'.")
                 resorr_startDate = config['BASIN']['start']
                 resorr_endDate = config['BASIN']['end']
                 # check if basin_station_latlon_file exists:
