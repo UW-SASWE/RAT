@@ -48,7 +48,7 @@ def calc_dels(aecpath, sareapath, savepath):
 
     df.to_csv(savepath, index=False)
 
-def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, savepath):
+def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, savepath, forecast_mode=False):
     ds = xr.open_dataset(vic_res_path)
     forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
     ## Slicing the latest run time period
@@ -72,7 +72,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
     reqvars = reqvars_clipped.load()
 
     # get sarea - if string, read from file, else use same surface area value for all time steps
-    log.debug("Getting surface areas", sarea)
+    log.debug(f"Getting surface areas - {sarea}")
     if isinstance(sarea, str):
         sarea = pd.read_csv(sarea, parse_dates=['date']).rename({'date': 'time'}, axis=1)[['time', 'area']]
         sarea = sarea.set_index('time')
@@ -80,6 +80,10 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
         sarea_interpolated = upsampled_sarea.interpolate(method='linear')
         
         ## Slicing the latest run time period
+        first_obs = sarea_interpolated.index[0]
+        if forecast_mode: # forecast mode. extrapolate using forward fill.
+            ix = pd.date_range(start=first_obs, end=end_date, freq='D')
+            sarea_interpolated = sarea_interpolated.reindex(ix).fillna(method='ffill')
         sarea_interpolated = sarea_interpolated[start_date:end_date]
     
     log.debug("Checking if grid cells lie inside reservoir")
@@ -104,7 +108,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
 
         P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
 
-    if isinstance(sarea, str):
+    if isinstance(sarea, pd.DataFrame):
         data['area'] = sarea_interpolated['area']
     else:
         data['area'] = sarea
@@ -252,7 +256,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 
                 if os.path.isfile(sarea) or isinstance(sarea, float):
                     log.debug(f"Calculating Evaporation for {reservoir_name}")
-                    calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea, e_path)
+                    calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea, e_path, forecast_mode=forecast_mode)
                 else:
                     raise Exception("Surface area file not found; skipping evaporation calculation")          
             except:
