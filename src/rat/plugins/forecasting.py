@@ -300,7 +300,6 @@ def process_GFS_file(fn, basin_bounds, gfs_dir):
     res = run_command(cmd)#, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # print(f"{basedate:%Y-%m-%d} - {var} - (4) Converted to .asc")
 
-
 def process_GFS_files(basedate, lead_time, basin_bounds, gfs_dir):
     """Extracts only the required meteorological variables and converts from GRIB2 format to netcdf
 
@@ -318,7 +317,6 @@ def process_GFS_files(basedate, lead_time, basin_bounds, gfs_dir):
     ]
     for i, in_fn in enumerate(in_fns):
         process_GFS_file(in_fn, basin_bounds, gfs_dir)
-
 
 def get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir):
     """Extracts only the required meteorological variables and converts from GRIB2 format to netcdf
@@ -340,6 +338,373 @@ def get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir):
         basin_bounds,
         gfs_dir
     )
+
+def forecast_scenario_custom_wl(forecast_outflow, initial_sa, aec_data, cust_wl):
+    delS = []
+    delH = []
+    sarea = []
+    elevation = []
+    outflow = []
+    curr_sa = initial_sa
+    curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+    cust_wl_area = np.interp(cust_wl, aec_data['elevation'],aec_data['area'])
+    init_deficit_elevation = cust_wl - curr_elevation
+    init_deficit_storage = 0 if init_deficit_elevation > 0 else init_deficit_elevation*curr_sa*1E6 + forecast_outflow['evaporation'].sum().values
+    deficit_elevation = init_deficit_elevation
+    for iter,inflow in enumerate(forecast_outflow['inflow'].values):
+        
+        if(curr_elevation > cust_wl):
+            # how is this working?
+            deficit_release = init_deficit_storage/(16)
+            if(init_deficit_storage==0):
+                outflow.append(inflow - forecast_outflow['evaporation'].values[iter])
+                delS.append(0.0)
+            else:
+                outflow.append(inflow - deficit_release)
+                delS.append(deficit_release - inflow - forecast_outflow['evaporation'].values[iter])
+        else:
+            delS.append(inflow - forecast_outflow['evaporation'].values[iter])
+            outflow.append(0.0)
+        delH.append(delS[-1]/(curr_sa*1E6))        # S2 - S1 = (H2-H1) * (A1 + A2)/2; Is A2 -> A1?
+        curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+        new_elevation = curr_elevation + delH[-1]
+        elevation.append(new_elevation)
+        curr_sa = np.interp(new_elevation, aec_data['elevation'],aec_data['area'])
+        sarea.append(curr_sa)
+
+        
+    sarea_da = xr.DataArray(sarea, dims='date', coords={'date': forecast_outflow['date']})
+    delH_da = xr.DataArray(delH, dims='date', coords={'date': forecast_outflow['date']})
+    delS_da = xr.DataArray(delS, dims='date', coords={'date': forecast_outflow['date']})
+    elevation_da = xr.DataArray(elevation, dims='date', coords={'date': forecast_outflow['date']})
+    outflow_da = xr.DataArray(outflow, dims='date', coords={'date': forecast_outflow['date']})
+
+    forecast_outflow['CL_sarea'] = sarea_da
+    forecast_outflow['CL_delH'] = delH_da
+    forecast_outflow['CL_delS'] = delS_da
+    forecast_outflow['CL_elevation'] = elevation_da
+    forecast_outflow['CL_outflow'] = outflow_da
+
+    return forecast_outflow
+
+def rc_SbySmax(date, rule_curve):
+    ''' 
+    Returns the linearly interpolated S/Smax value for a given date using monthly rule curve values as input.
+    
+    Parameters
+    ----------
+    date: str or datetime object
+        Date for which the S/Smax value is to be extracted from the rule curve. (str format: 'yyyy-mm-dd' or 'mm-dd-yyyy')
+    rule_curve: str
+        Path to the rule curve file for the reservoir in .csv format containing headers - (Month, S/Smax)
+    '''
+    #Extracting day and month from date
+    date = pd.to_datetime(date)
+    day = date.day
+    month = date.month
+    
+    ## reading rule curve data and returning interpolated S/Smax for given day and month
+    rule_curve_data = pd.read_csv(rule_curve)
+    rc_SbySmax = rule_curve_data['S/Smax']
+    day_inMonths = day/30
+    #If month is December, interpolate between Dec and Jan. For all other months, interpolate between the given month and next.
+    if(month == 12):
+        SbySmax_day = rc_SbySmax.loc[month-1] + (rc_SbySmax.loc[0]-rc_SbySmax.loc[month-1])*day_inMonths
+    else:
+        SbySmax_day = rc_SbySmax.loc[month-1] + (rc_SbySmax.loc[month]-rc_SbySmax.loc[month-1])*day_inMonths
+
+    return(SbySmax_day)
+
+def forecast_scenario_rule_curve(forecast_outflow, initial_sa, base_date, end_date, rule_curve, s_max, aec_data):
+    delSbySmax = rc_SbySmax(end_date, rule_curve) - rc_SbySmax(base_date, rule_curve)
+    rc_delS= delSbySmax*(s_max*1E6) #m3
+    delS = []
+    delH = []
+    sarea = []
+    elevation = []
+    outflow = []
+    curr_sa = initial_sa
+    curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+    cum_netInflow = forecast_outflow['inflow'].sum() - forecast_outflow['evaporation'].sum()
+    for iter,inflow in enumerate(forecast_outflow['inflow'].values):
+        if(cum_netInflow < rc_delS):
+            delS.append(inflow - forecast_outflow['evaporation'].values[iter])
+            delH.append(delS[-1]/(curr_sa*1E6))
+            curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+            new_elevation = curr_elevation + delH[-1]
+            elevation.append(new_elevation)
+            curr_sa = np.interp(new_elevation, aec_data['elevation'], aec_data['area'])
+            sarea.append(curr_sa)
+            outflow.append(0)
+        else:
+            net_delS = cum_netInflow - rc_delS
+            outflow.append(net_delS/15)
+            delS.append(inflow - outflow[-1])
+            delH.append(delS[-1]/(curr_sa*1E6))
+            curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+            new_elevation = curr_elevation + delH[-1]
+            elevation.append(new_elevation)
+            curr_sa = np.interp(new_elevation, aec_data['elevation'],aec_data['area'])
+            sarea.append(curr_sa)
+
+    sarea_da = xr.DataArray(sarea, dims='date', coords={'date': forecast_outflow['date']})
+    delH_da = xr.DataArray(delH, dims='date', coords={'date': forecast_outflow['date']})
+    delS_da = xr.DataArray(delS, dims='date', coords={'date': forecast_outflow['date']})
+    elevation_da = xr.DataArray(elevation, dims='date', coords={'date': forecast_outflow['date']})
+    outflow_da = xr.DataArray(outflow, dims='date', coords={'date': forecast_outflow['date']})
+
+    forecast_outflow['RC_sarea'] = sarea_da
+    forecast_outflow['RC_delH'] = delH_da
+    forecast_outflow['RC_delS'] = delS_da
+    forecast_outflow['RC_elevation'] = elevation_da
+    forecast_outflow['RC_outflow'] = outflow_da
+
+    return forecast_outflow
+
+def forecast_scenario_gates_closed(forecast_outflow, initial_sa, aec_data):
+    #Initialising delS, delH, sarea, elevation variables. outflow = 0
+    delS = []
+    delH = []
+    sarea = []
+    elevation = []
+    forecast_outflow['GC_outflow'] = xr.zeros_like(forecast_outflow['inflow'])
+    curr_sa = initial_sa
+    #Iterating over daily inflow and computing new delS, delH, elevation and sarea values.
+    for iter,inflow in enumerate(forecast_outflow['inflow'].values):
+        delS.append(inflow - forecast_outflow['evaporation'].values[iter])
+        delH.append(delS[-1]/(curr_sa*1E6))
+        curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+        new_elevation = curr_elevation + delH[-1]
+        elevation.append(new_elevation)
+        curr_sa = np.interp(new_elevation, aec_data['elevation'], aec_data['area'])
+        sarea.append(curr_sa)
+    # Creating new data arrays and merging with the xarray dataset
+    sarea_da = xr.DataArray(sarea, dims='date', coords={'date': forecast_outflow['date']})
+    delH_da = xr.DataArray(delH, dims='date', coords={'date': forecast_outflow['date']})
+    elevation_da = xr.DataArray(elevation, dims='date', coords={'date': forecast_outflow['date']})
+    forecast_outflow['GC_sarea'] = sarea_da
+    forecast_outflow['GC_delH'] = delH_da
+    forecast_outflow['GC_elevation'] = elevation_da
+
+    return forecast_outflow
+
+def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data, st_percSmax):
+    #Creating positive and negative values for permissible storage cases
+    st_percSmax = np.array(st_percSmax)
+    st_percSmax = np.append(st_percSmax, -st_percSmax)
+
+    #Converting storage cases from %Smax to absolute volumes
+    st_volumes = np.array(st_percSmax)/100*s_max*1E6
+    if(cust_st is not None):
+        st_percSmax = np.append(st_percSmax, cust_st)
+        st_volumes = np.append(st_volumes, cust_st*1E6)
+    # Iterating over all storage cases and creating outflow, sarea, delH, delS, elevation change results
+    for iter_vol,vol in enumerate(st_volumes):
+        delS = []
+        delH = []
+        sarea = []
+        elevation = []
+        outflow = []
+        curr_sa = initial_sa
+        curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+        cum_netInflow = forecast_outflow['inflow'].sum() - forecast_outflow['evaporation'].sum()
+        for iter,inflow in enumerate(forecast_outflow['inflow'].values):
+            if(cum_netInflow < vol):
+                delS.append(inflow - forecast_outflow['evaporation'].values[iter])
+                delH.append(delS[-1]/(curr_sa*1E6))
+                curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+                new_elevation = curr_elevation + delH[-1]
+                elevation.append(new_elevation)
+                curr_sa = np.interp(new_elevation, aec_data['elevation'], aec_data['area'])
+                sarea.append(curr_sa)
+                outflow.append(0)
+            else:
+                net_delS = cum_netInflow - vol
+                outflow.append(net_delS/15)
+                delS.append(inflow - outflow[-1])
+                delH.append(delS[-1]/(curr_sa*1E6))
+                curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
+                new_elevation = curr_elevation + delH[-1]
+                elevation.append(new_elevation)
+                curr_sa = np.interp(new_elevation, aec_data['elevation'], aec_data['area'])
+                sarea.append(curr_sa)
+        sarea_da = xr.DataArray(sarea, dims='date', coords={'date': forecast_outflow['date']})
+        delH_da = xr.DataArray(delH, dims='date', coords={'date': forecast_outflow['date']})
+        delS_da = xr.DataArray(delS, dims='date', coords={'date': forecast_outflow['date']})
+        elevation_da = xr.DataArray(elevation, dims='date', coords={'date': forecast_outflow['date']})
+        outflow_da = xr.DataArray(outflow, dims='date', coords={'date': forecast_outflow['date']})
+        if(iter_vol==len(st_percSmax)-1 and cust_st is not None):
+            forecast_outflow[f'ST_sarea_{st_percSmax[iter_vol]}MCM'] = sarea_da
+            forecast_outflow[f'ST_delH_{st_percSmax[iter_vol]}MCM'] = delH_da
+            forecast_outflow[f'ST_delS_{st_percSmax[iter_vol]}MCM'] = delS_da
+            forecast_outflow[f'ST_elevation_{st_percSmax[iter_vol]}MCM'] = elevation_da
+            forecast_outflow[f'ST_outflow_{st_percSmax[iter_vol]}MCM'] = outflow_da
+        else:
+            forecast_outflow[f'ST_sarea_{st_percSmax[iter_vol]}%'] = sarea_da
+            forecast_outflow[f'ST_delH_{st_percSmax[iter_vol]}%'] = delH_da
+            forecast_outflow[f'ST_delS_{st_percSmax[iter_vol]}%'] = delS_da
+            forecast_outflow[f'ST_elevation_{st_percSmax[iter_vol]}%'] = elevation_da
+            forecast_outflow[f'ST_outflow_{st_percSmax[iter_vol]}%'] = outflow_da    
+    return forecast_outflow
+
+def forecast_outflow_for_res(
+        base_date, 
+        forecast_lead_time,
+        forecast_inflow_fp,
+        evap_fp,
+        sarea_fp,
+        aec_fp,
+        dels_scenario = None, 
+        cust_wl = None, 
+        s_max = None, 
+        rule_curve = None, 
+        st_percSmax = [0.5, 1, 2.5], 
+        cust_st = None, 
+        output_path = None
+    ):
+    ''' 
+    Generates forecasted outflow for RAT given forecasted inflow time series data based on specific delS scenarios.
+    Returns an xarray dataset containing forecasted results.
+    
+    Parameters
+    ----------
+    forecast_inflow_fp: str
+        Path to forecasted inflow netcdf file
+    base_date: str or datetime object
+        Start date of forecasted outflow estimation. This is typically the end date of hindcast RAT run + 1.
+    rat_folder: str
+        Path to current working RAT folder. For obtaining ancillary data such as evaporation, surface area, Area Elevation Curve.
+    dels_scenario: str
+        Specifies the delS scenario to use. If None, returns results for all scenarios
+        values: 
+            GC - Gates Closed scenario: All inflow will be accumulated as change in storage. Final surface area, storage state, water level is returned
+            GO - Gates Open scenario: All inflow will be released as outflow. Outflows returned 
+            CL - Custom Water Level scenario: Inflow will be accumulated till desired water level, then released as outflow
+            RC - Rule Curve scenario: Outflow will be calculated depending on the permissible rule curve based change in storage
+            ST - storage change scenario: Outflows will be calculated based on permissible storage values provided 
+    cust_wl: float
+        Specifies the value for custom water level in meters above sea level. Only used if dels_scenario = CL or None.
+    s_max: float
+        Maximum storage capacity of the reservoir in Million cubic meters (MCM)
+    rule_curve: str
+        Path to rule curve file in .csv with headers (Month, S/Smax)   
+    st_percSmax: list
+        A list of values of storages as percentage of Smax
+    cust_st: float
+        User defined custom storage value in Million cubic meters (MCM). Used if dels_scenario = ST or None  
+    output_path: str
+        If provided, generates a netcdf file at the specified path containing the forecasted outflow results.
+    '''
+    # Reading forecasted inflow data, computing forecasting period as base date to base date + 15 days
+    forecast_inflow = pd.read_csv(forecast_inflow_fp, parse_dates=['date']).set_index('date').rename({'streamflow': 'inflow'}, axis=1).to_xarray()
+    base_date = pd.to_datetime(base_date)
+    base_date_15lead = base_date + pd.Timedelta(days=forecast_lead_time)
+
+    # Reading evaporation, sarea, aec data
+    evaporation_data = pd.read_csv(evap_fp)
+    sarea_data = pd.read_csv(sarea_fp)
+    aec_data = pd.read_csv(aec_fp)
+    
+    ## Initialising forecasted_outflow dataset. 
+    # Inititial surface area is taken as the final surface area state of hindcasted data
+    # Evaporation is taken to be constant across the forecasted period and equals the final evaporation value of hindcasted data
+    # forecast_outflow = forecast_inflow.copy()
+    forecast_outflow = forecast_inflow.sel(date = slice(base_date, base_date_15lead))
+    initial_sa = sarea_data['area'].values[-1]
+    evaporation_mm = evaporation_data['OUT_EVAP'].values[-1]
+    forecast_outflow['evaporation'] = xr.ones_like(forecast_outflow['inflow'])*(evaporation_mm*1E-3*initial_sa*1E6)
+    
+    ################################################ delS scenario based forecasted outflow estimation #######################################################
+       
+    ######### delS_scenario = GC (Gates Closed) ############ 
+    # outflow = 0, dels = I - E
+    # surface area and delH is iteratively estimated
+    if(dels_scenario is None or dels_scenario == 'GC'):
+        forecast_outflow_gates_closed = forecast_scenario_gates_closed(forecast_outflow, initial_sa, aec_data)
+        forecast_outflow = forecast_outflow.merge(forecast_outflow_gates_closed)
+
+    ######### delS_scenario = GO (Gates Open to match inflow) ############ 
+    # outflow = I, dels = 0
+    if(dels_scenario is None or dels_scenario == 'GO'):
+        forecast_outflow['GO_outflow'] = forecast_outflow['inflow'] - forecast_outflow['evaporation']
+        forecast_outflow['GO_sarea'] = xr.ones_like(forecast_outflow['inflow'])*initial_sa
+    
+    ######### If dels_scenario = CL (Custom Water Level ############ 
+    # delS = I - E till custom water level is reached.
+    # Then delS = 0 (if I > Evap else I - Evap), O = I - E
+    # delSA and delH is iteratively estimated  
+    if(dels_scenario is None or dels_scenario == 'CL'):
+        if cust_wl is not None:
+            forecast_outflow_cust_wl = forecast_scenario_custom_wl(forecast_outflow, initial_sa, aec_data, cust_wl)
+            forecast_outflow = forecast_outflow.merge(forecast_outflow_cust_wl)
+
+    ######### If dels_scenario = RC (Rule Curve Scenario ############ 
+    # S/Smax ratio for base date and base date + 15 days is computed.
+    # delS/Smax is obtained and multiplied with known Smax to get permissible delS.
+    # if delS is +ve, inflow is accumulated. If delS is -ve, outflow is produced by evenly releasing required inflow over the 15 day period.
+    if(dels_scenario is None or dels_scenario == 'RC'):
+        if rule_curve is not None:
+            forecast_outflow_rule_curve = forecast_scenario_rule_curve(forecast_outflow, initial_sa, base_date, base_date_15lead, rule_curve, s_max, aec_data)
+            forecast_outflow = forecast_outflow.merge(forecast_outflow_rule_curve)
+
+    ######### If dels_scenario = ST (Storage Scenario ############ 
+    # Storage change scenarios take a list of %Smax values as permissible change in storage. Eg. [1,2.5,5] (1%, 2.5%, and 5% of Smax)
+    # Outflows, delH, delS, sarea are generated for all %Smax values as per similar logic as RC scenario.
+    # Custom storage value in MCM may also be provided. (release: -ve or store: +ve)
+    if(dels_scenario is None or dels_scenario == 'ST'):
+        forecast_outflow_st = forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data, st_percSmax)
+        forecast_outflow = forecast_outflow.merge(forecast_outflow_st)
+
+    if(output_path is not None):
+        forecast_outflow.to_pandas().to_csv(output_path)
+
+    return forecast_outflow
+
+def forecast_outflow(
+    basedate, lead_time, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict,
+    rule_curve_dir,
+    scenarios = ['GC', 'GO', 'RC', 'ST'],
+    st_percSmaxes = [0.5, 1, 2.5],
+):
+    reservoirs = gpd.read_file(reservoir_shpfile)
+    reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
+
+    for res_name in reservoirs['Inflow_filename'].tolist():
+        res_scenarios = scenarios.copy()
+        forecast_inflow_fp = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+        forecast_evap_fp = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+        sarea_fp = basin_data_dir / 'gee' / 'gee_sarea_tmsos' / f'{res_name}.csv'
+        aec_fp = basin_data_dir / 'final_outputs' / 'aec' / f'{res_name}.csv'
+        output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+        output_fp.parent.mkdir(parents=True, exist_ok=True)
+
+        s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name]['CAP_MCM'].values[0]
+        grand_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name]['GRAND_ID'].values[0]
+
+        if np.isnan(s_max):
+            res_scenarios.remove('ST')
+
+        if np.isnan(grand_id):
+            res_scenarios.remove('RC')
+            rule_curve_fp = None
+        else:
+            rule_curve_fp = rule_curve_dir / f'{int(grand_id):04}.txt'
+
+        for scenario in res_scenarios:       
+            forecast_outflow_for_res(
+                base_date = basedate,
+                forecast_lead_time = lead_time,
+                forecast_inflow_fp = forecast_inflow_fp,
+                evap_fp = forecast_evap_fp,
+                sarea_fp = sarea_fp,
+                aec_fp = aec_fp,
+                dels_scenario = scenario,
+                s_max = s_max,
+                rule_curve = rule_curve_fp,
+                st_percSmax = st_percSmaxes,
+                output_path = output_fp
+            )
+
 
 def generate_forecast_state_and_inputs(
         forecast_startdate, # forecast start date
@@ -379,6 +744,51 @@ def generate_forecast_state_and_inputs(
     return state_outpath, forcings_outpath
 
 
+def convert_forecast_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  final_out_inflow_dir, basedate):
+    # Inflow
+    reservoirs = gpd.read_file(reservoir_shpfile)
+    reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
+
+    inflow_paths = list(Path(inflow_dir).glob('*.csv'))
+    final_out_inflow_dir.mkdir(exist_ok=True)
+
+    for inflow_path in inflow_paths:
+        res_name = os.path.splitext(os.path.split(inflow_path)[-1])[0]
+
+        if res_name in reservoirs['Inflow_filename'].tolist():
+            savepath = final_out_inflow_dir / inflow_path.name
+
+            df = pd.read_csv(inflow_path, parse_dates=['date'])
+            df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+            df = df[['date', 'inflow (m3/d)']]
+
+            print(f"Converting [Inflow]: {res_name}")
+            df = df[df['date'] > basedate]
+            df.to_csv(savepath, index=False)
+            print(df.tail())
+        else:
+            print(f"Currently not displayed in website: {res_name}")
+
+
+def convert_forecast_evaporation(evap_dir, evap_web_dir):
+    # Evaporation
+    evap_paths = [os.path.join(evap_dir, f) for f in os.listdir(evap_dir) if f.endswith(".csv")]
+    evap_dir.mkdir(exist_ok=True)
+
+    for evap_path in evap_paths:
+        res_name = os.path.splitext(os.path.split(evap_path)[-1])[0]
+        savename = res_name
+
+        savepath = os.path.join(evap_web_dir , f"{savename}.csv")
+
+        df = pd.read_csv(evap_path)
+        df = df[['time', 'OUT_EVAP']]
+        df.rename({'time':'date', 'OUT_EVAP':'evaporation (mm)'}, axis=1, inplace=True)
+
+        print(f"Converting [Evaporation]: {res_name}, {savepath}")
+        df.to_csv(savepath, index=False)
+
+
 def forecast(config, rat_logger):
     """Function to run the forecasting plugin.
 
@@ -398,6 +808,11 @@ def forecast(config, rat_logger):
     basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
     basin_bounds = np.array(basin_bounds)[0]
     basin_data_dir = Path(config['GLOBAL']['data_dir']) / region_name / 'basins' / basin_name
+    reservoirs_gdf_column_dict = config['GEE']['reservoir_vector_file_columns_dict']
+    if (config['ROUTING']['station_global_data']):
+        reservoirs_gdf_column_dict['unique_identifier'] = 'uniq_id'
+    else:
+        reservoirs_gdf_column_dict['unique_identifier'] = reservoirs_gdf_column_dict['dam_name_column']
 
     # determine forecast related dates - basedate, lead time and enddate
     if config['PLUGINS']['forecast_start_date'] == 'end_date':
@@ -419,6 +834,14 @@ def forecast(config, rat_logger):
     raw_gfs_dir = gfs_dir / 'raw'
     extracted_gfs_dir = gfs_dir / 'extracted'
     processed_gfs_dir = gfs_dir / 'processed'
+    inflow_dst_dir = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
+    basin_reservoir_shpfile_path = Path(basin_data_dir) / 'gee' / 'gee_basin_params' / 'basin_reservoirs.shp'
+    final_inflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
+    final_inflow_out_dir.mkdir(exist_ok=True, parents=True,)
+    final_evap_out_dir = basin_data_dir / 'final_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
+    final_evap_out_dir.mkdir(exist_ok=True, parents=True)
+    evap_dir = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
+    rule_curve_dir = Path('/cheetah2/pdas47/rat3_mekong/global_data/rc')
 
     for d in [raw_gefs_chirps_dir, processed_gefs_chirps_dir, raw_gfs_dir, extracted_gfs_dir, processed_gfs_dir]:
         d.mkdir(parents=True, exist_ok=True)
@@ -460,7 +883,18 @@ def forecast(config, rat_logger):
     config['BASIN']['end'] = forecast_enddate
     config['BASIN']['spin_up'] = False
 
-    # Run RAT with forecasting parameters
+    # run RAT with forecasting parameters
     no_errors, _ = rat_basin(config, rat_logger, forecast_mode=True)
+
+    # generate outflow forecast
+    forecast_outflow(
+        basedate, lead_time, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, rule_curve_dir,
+        scenarios = ['GC', 'GO', 'RC', 'ST'],
+        st_percSmaxes = [0.5, 1, 2.5]
+    )
+
+    # RAT STEP-14 (Forecasting) convert forecast inflow and evaporation
+    convert_forecast_inflow(inflow_dst_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_inflow_out_dir, basedate)
+    convert_forecast_evaporation(evap_dir, final_evap_out_dir)
 
     return no_errors
