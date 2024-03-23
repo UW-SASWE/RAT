@@ -673,6 +673,21 @@ This section of the configuration file describes the parameters defined by `rout
         <br><br>
         2. If `station_global_data` is `False`, the values of 'dam_name_column' in `reservoir_vector_file` should match with that of 'name' column in `station_latlon_path`. 'id_column' is not required in this case and will be ignored if provided.
 
+* <h6 class="parameter_heading">*`bot_filter`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: The BOT Filter can be used to have granular control over the filtering applied to surface area (SA) time series. To use the filter, set 'apply' to 'true' and set the three thresholds.</br> Bias_threshold: The intensity of filtering out optical SA values that has a bias from SAR value. Outlier_threshold: The intensity of filtering out outlier values in the Optical SA time series </br> Trend_threshold: The intensity of filtering out optical SA values whose trend differs from SAR trend </br> Threshold ranges: (Off: 0 - 9: MAX) Eg. Relatively Aggressive filtering set: [8,8,8]  
+
+    <span class="parameter_property">Default </span>: `{apply: false, bias_threshold: 9, outlier_threshold: 8, trend_threshold: 9}` 
+
+    <span class="parameter_property">Syntax </span>: If filtering for surface area is required to be run, then 
+    ```
+    GEE:
+        bot_filter: {apply: true, bias_threshold: 0-9, outlier_threshold: 0-9, trend_threshold: 0-9}
+    ```
+    !!!note
+        Setting `bot_filter` `apply` to `false` in a subsequent run after it was made `true` will result in Surface Area reverting to `TMSOS` based values.
+
 ### Post Processing
 
 * <h6 class="parameter_heading">*`aec_dir`* :</h6> 

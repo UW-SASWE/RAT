@@ -59,6 +59,7 @@ nav:
     - 'Multiple Basin Run': 'Configuration/basins_metadata.md'
 - Plugins:
     - 'Forecasting': 'Plugins/Forecasting.md'
+    - 'ResORR': 'Plugins/Resorr.md'
 - Data Description:
     - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
     - 'Global Database': 'RAT_Data/GlobalDatabase.md'
