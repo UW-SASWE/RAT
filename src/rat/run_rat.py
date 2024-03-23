@@ -164,7 +164,7 @@ def run_rat(config_fn, operational_latency=None):
             basin_info = basins_metadata[basins_metadata['BASIN']['basin_name']==basin]
             config_copy = copy.deepcopy(config)
             for col in basin_info.columns:
-                if(not np.isnan(basin_info[col[0]][col[1]].values[0])):
+                if(not pd.isna(basin_info[col[0]][col[1]].values[0])):
                     config_copy[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
             # Running RAT if start < end date
             if (config_copy['BASIN']['start'] >= config_copy['BASIN']['end']):
