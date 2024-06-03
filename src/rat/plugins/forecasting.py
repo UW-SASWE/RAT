@@ -789,6 +789,83 @@ def convert_forecast_evaporation(evap_dir, evap_web_dir):
         df.to_csv(savepath, index=False)
 
 
+def convert_forecast_outflow_states(outflow_dir, final_outflow_dir, final_dels_dir, final_sarea_dir):
+    """
+    Convert forecast outflow states (outflow, dels and sarea) to RAT's final format (step-14).
+
+    Parameters:
+    - outflow_dir (Path): input outflow directory (rat_outputs).
+    - final_outflow_dir (Path): directory where final outflow files will be saved.
+    - final_dels_dir (Path): directory where final storage change files will be saved.
+    - final_sarea_dir (Path): directory where final sarea files will be saved.
+    """
+
+    # Outflow
+    outflow_paths = list(sorted(outflow_dir.glob("*.csv")))
+
+    for outflow_path in outflow_paths:
+        res_name = outflow_path.name.split('.')[0]
+
+        savename = res_name
+
+        df = pd.read_csv(outflow_path, parse_dates=['date'])
+
+        # outflow
+        outflow_df = df.copy()
+        outflow_savefp = final_outflow_dir / f"{savename}.csv"
+        outflow_cols = list(filter(lambda x: 'outflow' in x, outflow_df.columns))
+        col_names = []
+        for outflow_col in outflow_cols:
+            if outflow_col.startswith('ST'):
+                outflow_case = outflow_col.split('_')[0] + ' ' + outflow_col.split('_')[-1]
+            elif outflow_col.startswith('GO') or outflow_col.startswith('GC'):
+                outflow_case = outflow_col.split('_')[0]
+            
+            converted_col_name = f'outflow (m3/d) [case: {outflow_case}]'
+            col_names.append(converted_col_name)
+            outflow_df.loc[outflow_df[outflow_col]<0, outflow_col] = 0
+            outflow_df[converted_col_name] = outflow_df[outflow_col] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+        outflow_df = outflow_df[['date', *col_names]]
+        final_outflow_dir.mkdir(parents=True, exist_ok=True)
+        outflow_df.to_csv(outflow_savefp, index=False)
+
+        # dels
+        dels_df = df.copy()
+        dels_savefp = final_dels_dir / f"{savename}.csv"
+        dels_cols = list(filter(lambda x: 'delS' in x, dels_df.columns))
+        col_names = []
+        for dels_col in dels_cols:
+            if dels_col.startswith('ST'):
+                dels_case = dels_col.split('_')[0] + ' ' + dels_col.split('_')[-1]
+            elif dels_col.startswith('GO') or dels_col.startswith('GC'):
+                dels_case = dels_col.split('_')[0]
+            
+            converted_col_name = f'delS (m) [case: {dels_case}]'
+            col_names.append(converted_col_name)
+            dels_df[converted_col_name] = dels_df[dels_col]
+        dels_df = dels_df[['date', *col_names]]
+        final_dels_dir.mkdir(parents=True, exist_ok=True)
+        dels_df.to_csv(dels_savefp, index=False)
+
+        # sarea
+        sarea_df = df.copy()
+        sarea_savefp = final_sarea_dir / f"{savename}.csv"
+        sarea_cols = list(filter(lambda x: 'sarea' in x, sarea_df.columns))
+        col_names = []
+        for sarea_col in sarea_cols:
+            if sarea_col.startswith('ST'):
+                sarea_case = sarea_col.split('_')[0] + ' ' + sarea_col.split('_')[-1]
+            elif sarea_col.startswith('GO') or sarea_col.startswith('GC'):
+                sarea_case = sarea_col.split('_')[0]
+            
+            converted_col_name = f'area (km2) [case: {sarea_case}]'
+            col_names.append(converted_col_name)
+            sarea_df[converted_col_name] = sarea_df[sarea_col]
+        sarea_df = sarea_df[['date', *col_names]]
+        final_sarea_dir.mkdir(parents=True, exist_ok=True)
+        sarea_df.to_csv(sarea_savefp, index=False)
+
+
 def forecast(config, rat_logger):
     """Function to run the forecasting plugin.
 
@@ -837,13 +914,18 @@ def forecast(config, rat_logger):
     inflow_dst_dir = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
     basin_reservoir_shpfile_path = Path(basin_data_dir) / 'gee' / 'gee_basin_params' / 'basin_reservoirs.shp'
     final_inflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
-    final_inflow_out_dir.mkdir(exist_ok=True, parents=True,)
     final_evap_out_dir = basin_data_dir / 'final_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
-    final_evap_out_dir.mkdir(exist_ok=True, parents=True)
     evap_dir = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
-    rule_curve_dir = Path('/cheetah2/pdas47/rat3_mekong/global_data/rc')
+    rule_curve_dir = Path('/cheetah2/pdas47/rat3_mekong/global_data/rc')    # TODO: change to dynamic
+    outflow_forecast_dir = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}'
+    final_outflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}'
+    final_dels_out_dir = basin_data_dir / 'final_outputs' / 'forecast_dels' / f'{basedate:%Y%m%d}'
+    final_sarea_out_dir = basin_data_dir / 'final_outputs' / 'forecast_sarea' / f'{basedate:%Y%m%d}'
 
-    for d in [raw_gefs_chirps_dir, processed_gefs_chirps_dir, raw_gfs_dir, extracted_gfs_dir, processed_gfs_dir]:
+    for d in [
+        raw_gefs_chirps_dir, processed_gefs_chirps_dir, raw_gfs_dir, extracted_gfs_dir, processed_gfs_dir, outflow_forecast_dir,
+        final_evap_out_dir, final_inflow_out_dir, final_outflow_out_dir
+    ]:
         d.mkdir(parents=True, exist_ok=True)
 
     # cleanup previous runs
@@ -896,5 +978,6 @@ def forecast(config, rat_logger):
     # RAT STEP-14 (Forecasting) convert forecast inflow and evaporation
     convert_forecast_inflow(inflow_dst_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_inflow_out_dir, basedate)
     convert_forecast_evaporation(evap_dir, final_evap_out_dir)
+    convert_forecast_outflow_states(outflow_forecast_dir, final_outflow_out_dir, final_dels_out_dir, final_sarea_out_dir)
 
     return no_errors
