@@ -18,3 +18,7 @@ dependencies:
   - gdown
   - conda-build
   - cfgrib
+  - google-auth
+  - google-auth-oauthlib
+  - pip:
+    - oath2client
