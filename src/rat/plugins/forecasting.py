@@ -767,7 +767,7 @@ def convert_forecast_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_col
             df.to_csv(savepath, index=False)
             print(df.tail())
         else:
-            print(f"Currently not displayed in website: {res_name}")
+            print(f"Skipping {res_name} as its inflow file is not available.")
 
 
 def convert_forecast_evaporation(evap_dir, evap_web_dir):
