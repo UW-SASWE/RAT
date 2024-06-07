@@ -33,6 +33,8 @@ from rat.core.run_postprocessing import run_postprocessing
 
 from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files
 
+from rat.plugins.uh_altimetry import uh_altimetry_routine, replace_aec_file, get_uh_altimetry, uh_altimetry_convert_outflow, uh_altimetry_convert_dels
+
 # Step-(-1): Reading Configuration settings to run RAT
 # Step-0: Creating required directory structure for RAT
 # Step-1: Downloading and Pre-processing of meteorolgical data
@@ -317,6 +319,17 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             aec_dir_path = config['POST_PROCESSING'].get('aec_dir')
         else:
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
+        extrapolated_aec_dir = config['PLUGINS']['uh_altimetry_extrapolated_aec_dir']
+        if extrapolated_aec_dir is None:
+            extrapolated_aec_dir = aec_dir_path
+
+        raw_s6_dir = config['PLUGINS']['uh_altimetry_s6_savedir']
+        if raw_s6_dir is None:
+            raw_s6_dir = aec_dir_path
+        raw_s6_dir = Path(raw_s6_dir)
+        uh_altimetry_dels_savedir = create_directory(os.path.join(basin_data_dir, 'rat_outputs', 'altimetry_dels'), True)
+        uh_altimetry_outflow_savedir = create_directory(os.path.join(basin_data_dir, 'rat_outputs', 'rat_altimetry_outflow'), True)
+
         ## Paths for storing post-processed data and in webformat data
         if forecast_mode:
             evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{config['BASIN']['start']:%Y%m%d}"), True)
@@ -647,6 +660,30 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             # Altimeter
             latest_altimetry_cycle = run_altimetry(config, 'ALTIMETER', basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, 
                                                                                     basin_name, basin_data_dir, altimetry_savepath)
+            # run UH altimetry
+            replace_aec_file(
+                extrapolated_aec_dir, 
+                aec_dir_path
+            )
+            get_uh_altimetry(
+                save_dir=raw_s6_dir, 
+                secret_file_fn=config['PLUGINS']['uh_altimetry_token']
+            )
+
+            reservoirs_in_uh_altimetry =['Lam_Pao', 'Lamtakhong', 'Nam_Leuk', 'Nam_Ngum_2', 'Se_San_IV', 'Sirindhorn']
+            uh_altimetry_routine(
+                reservoirs_in_uh_altimetry, 
+                raw_s6_dir=Path(raw_s6_dir),
+                rat_aec_dir=Path(aec_dir_path),
+                dels_savedir=Path(uh_altimetry_dels_savedir),
+                outflow_savedir=Path(uh_altimetry_outflow_savedir),
+                inflow_savedir=Path(inflow_dst_dir),
+                evap_savedir=Path(evap_savedir)
+            )
+
+            # convert to final format
+            uh_altimetry_convert_dels(uh_altimetry_dels_savedir, final_output_path)
+            uh_altimetry_convert_outflow(uh_altimetry_outflow_savedir, final_output_path)
             ALTIMETER_STATUS = 1
         except:
             no_errors = no_errors+1
