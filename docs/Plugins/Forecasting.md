@@ -9,10 +9,11 @@ To run the forecast plugin, set the value of the `forecast` option in the PLUGIN
 PLUGINS: 
 	forecast: True 
 	forecast_lead_time: 15
-	forecast_start_time: end_date     # can either be “end_date” or a date in YYYY-MM-DD format 
+	forecast_start_time: end_date     # can either be “end_date” or a date in YYYY-MM-DD format
+	forecast_rule_curve_dir: /path/to/rule_curve
 ```
 
-The `forecast_start_time` option controls when the forecast will begin. If the value is set to `end_date`, the forecast will begin on the end date of RAT’s normal mode of running, i.e., in nowcast mode, which are controlled by `start_date` and `end_date` options in the BASIN section. Alternatively, a date in the YYYY-MM-DD format can also be provided to start the forecast from that date. The forecast window or the number of days ahead for which the forecast is generated is controlled by the `forecast_lead_time` option, with a maximum of 15 days ahead. 
+The `forecast_start_time` option controls when the forecast will begin. If the value is set to `end_date`, the forecast will begin on the end date of RAT’s normal mode of running, i.e., in nowcast mode, which are controlled by `start_date` and `end_date` options in the BASIN section. Alternatively, a date in the YYYY-MM-DD format can also be provided to start the forecast from that date. The forecast window or the number of days ahead for which the forecast is generated is controlled by the `forecast_lead_time` option, with a maximum of 15 days ahead. The `forecast_rule_curve_dir` option should point to the directory containing the rule curve files for the reservoir. These files can be downloaded [here](https://www.dropbox.com/scl/fi/jtquzasjdv2tz1vtupgq5/rc.zip?rlkey=4svbutjd3aup255pnrlgnxbkl&dl=0). The rule curve files should be in `.csv` format with the following columns - `Month,S/Smax`, corresponding to the month and the storage level as a fraction of the maximum storage level.
 
 ## Forecasted inflow and evaporation 
 - The inflow to the reservoir is simulated using forecasted precipitation from Climate Hazards Center InfraRed Precipitation with Stations-Global Ensemble Forecasting System [(CHIRPS-GEFS)](https://chc.ucsb.edu/data/chirps-gefs) and forecasted temperature and wind data from Global Forecasting System [(GFS)](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast). CHIRPS-GEFS uses satellite and observations of precipitation (CHIRPS) for bias correction and downscaling of the Global Ensemble Forecasting System (GEFS) precipitation forecasts. The Global Forecasting System (GFS) is a Numerical Weather Prediction system for operational weather prediction which forecasts meteorological variables, including temperature and wind.
