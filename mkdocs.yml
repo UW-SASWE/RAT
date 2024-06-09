@@ -59,9 +59,12 @@ nav:
     - 'Multiple Basin Run': 'Configuration/basins_metadata.md'
 - Plugins:
     - 'Forecasting': 'Plugins/Forecasting.md'
+    - 'ResORR': 'Plugins/Resorr.md'
 - Data Description:
     - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
     - 'Global Database': 'RAT_Data/GlobalDatabase.md'
+- Tutorials:
+    - 'Kickstart RAT for Beginners': 'Tutorials/KarnatakaFloods.md' 
 - Application:
     - 'Web App': 'Applications/WebApp.md'
 - Development:

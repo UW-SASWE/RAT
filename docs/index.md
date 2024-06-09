@@ -7,7 +7,7 @@ The [Reservoir Assessment Tool (RAT)](https://depts.washington.edu/saswe/rat) us
 !!! note
     You are reading documentation for RAT version 3 (RAT-3). RAT 3.0 makes numerous improvements to the code structure, performance optimizations, added configurations, ability to run RAT for multiple basins, among some introduced features. It also introduces packaging of RAT as a conda package, allowing for quick and easy installation.
 
-It was originally developed by Biswas et al. (2021) at SASWE, University of Washington. The RAT framework developed by Biswas et al. (2021) was a first-of-its-kind open-source reservoir monitoring tool, it is referred to as the version 1 of RAT, or RAT 1.0. It currently runs for 3 regions - (1) South and South East Asia, (2) Africa, and (3) South America, and can be accessed [here](http://depts.washington.edu/saswe/rat_beta).
+It was originally developed by Biswas et al. (2021) at SASWE, University of Washington. The RAT framework developed by Biswas et al. (2021) was a first-of-its-kind open-source reservoir monitoring tool, it is referred to as the version 1 of RAT, or RAT 1.0. It currently runs for 3 regions - (1) South and South East Asia, (2) Africa, and (3) South America, and can be accessed [here](http://depts.washington.edu/saswe/rat_retired).
 
 The Reservoir Assessment Tool (RAT) 2.0 was introduced with numerous improvements over the RAT 1.0. Such as weekly satellite observations (every 1-5 days) using a combination of multiple satellites (Sentinel-2, landsat-8, landsat-9 and Sentinel-1), usage of VIC hydrological model (VIC 5, Hamman et al. (2018)) and MetSim in parallel computation mode, data storage using NetCDF format and explicit representation of Evaporation using the Penman Combination method.
 

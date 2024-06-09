@@ -800,7 +800,23 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                         rat_logger.info("Converted Area Elevation Curve to the Output Format.")
                 else:
                     rat_logger.info("Converted Area Elevation Curve to the Output Format.")
-            
+           
+            ## Plugins: RESORR
+            if config.get('PLUGINS', {}).get('resorr'):
+                # Importing ResORR
+                try:
+                    from rat.plugins.resorr.runResorr import runResorr
+                except:
+                    rat_logger.exception("Failed to import ResORR due to missing package(s). Please check for geonetworkx package. You can install it using 'pip install geonetworkx'.")
+                resorr_startDate = config['BASIN']['start']
+                resorr_endDate = config['BASIN']['end']
+                # check if basin_station_latlon_file exists:
+                if os.path.exists(basin_station_latlon_file):  
+                    rat_logger.info("Running RESORR")
+                    runResorr(basin_data_dir,basin_station_latlon_file,resorr_startDate,resorr_endDate)
+                else:
+                    rat_logger.warning("No station latlon file found to run RESORR. Try running Step-8 or provide station_latlon_path in routing section of config file.")
+                    
             # Clearing out memory space as per user input 
             if(config['CLEAN_UP'].get('clean_metsim')):
                 rat_logger.info("Clearing up memory space: Removal of metsim output files")

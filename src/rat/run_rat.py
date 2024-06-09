@@ -14,7 +14,6 @@ from dask.distributed import Client, LocalCluster
 from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
 import rat.ee_utils.ee_config as ee_configuration
 from rat.rat_basin import rat_basin
-from rat.plugins.forecasting import forecast
 
 #------------ Define Variables ------------#
 def run_rat(config_fn, operational_latency=None):
@@ -90,8 +89,13 @@ def run_rat(config_fn, operational_latency=None):
             config_copy = copy.deepcopy(config)
             # Run RAT for basin
             no_errors, latest_altimetry_cycle = rat_basin(config, log)
-            # Run RAT forecast for basin if forecast is True
-            if config['PLUGINS']['forecast']:
+            # Run RAT forecast for basin if forecast is True           
+            if config.get('PLUGINS', {}).get('forecasting'):
+                # Importing the forecast module
+                try:
+                    from rat.plugins.forecasting import forecast
+                except:
+                    log.exception("Failed to import Forecast plugin due to missing package(s).")
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
                 forecast_no_errors = forecast(config, log)
                 if(forecast_no_errors>0):
@@ -160,7 +164,7 @@ def run_rat(config_fn, operational_latency=None):
             basin_info = basins_metadata[basins_metadata['BASIN']['basin_name']==basin]
             config_copy = copy.deepcopy(config)
             for col in basin_info.columns:
-                if(not np.isnan(basin_info[col[0]][col[1]].values[0])):
+                if(not pd.isna(basin_info[col[0]][col[1]].values[0])):
                     config_copy[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
             # Running RAT if start < end date
             if (config_copy['BASIN']['start'] >= config_copy['BASIN']['end']):
@@ -172,7 +176,12 @@ def run_rat(config_fn, operational_latency=None):
                 ryaml_client.dump(config, config_fn.open('w'))
                 no_errors, latest_altimetry_cycle = rat_basin(config_copy, log)
                 # Run RAT forecast for basin if forecast is True
-                if config['PLUGINS']['forecast']:
+                if config.get('PLUGINS', {}).get('forecasting'):
+                    # Importing the forecast module
+                    try:
+                        from rat.plugins.forecasting import forecast
+                    except:
+                        log.exception("Failed to import Forecast plugin due to missing package(s).")
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
                     forecast_no_errors = forecast(config, log)
                     if(forecast_no_errors>0):

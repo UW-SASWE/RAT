@@ -15,7 +15,7 @@ import numpy as np
 from datetime import date
 from rat.utils.run_command import run_command
 import ruamel_yaml as ryaml
-import cfgrib
+# import cfgrib
 from rat.data_processing.metsim_input_processing import CombinedNC
 from rat.rat_basin import rat_basin
 from rat.toolbox.config import update_config

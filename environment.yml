@@ -16,9 +16,12 @@ dependencies:
   - ruamel_yaml
   - yaml
   - gdown
+  - cfgrib
   - conda-build
   - cfgrib
   - google-auth
   - google-auth-oauthlib
+  - pip
   - pip:
     - oath2client
+    - geonetworkx
