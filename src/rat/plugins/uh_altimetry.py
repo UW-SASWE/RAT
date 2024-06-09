@@ -129,7 +129,7 @@ def get_uh_altimetry(
             q = "'" + id + "' in parents", pageSize=1e3, fields="nextPageToken, files(id, name)").execute()
         items = results.get('files', [])
         df = pd.DataFrame(columns = ['id', 'name'], data=items)
-        df['time'] = pd.to_datetime(df['name'], format="%d-%m-%Y")
+        df['time'] = pd.to_datetime(df['name'], format="%Y-%m-%d")
         df = df.set_index('time')
         
         for f in range(0, len(items)):
