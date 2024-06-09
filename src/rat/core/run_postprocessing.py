@@ -21,8 +21,9 @@ def calc_dels(aecpath, sareapath, savepath):
     df = pd.read_csv(sareapath, parse_dates=['date'])
 
     df = df.drop_duplicates('date')
-
-    get_elev = lambda area: np.interp(area, aec['CumArea'], aec['Elevation'])
+    area_column = 'area' if 'area' in aec.columns else 'CumArea'  # patch to handle either CumArea or area as column name. 
+    elevation_column = 'elevation' if 'elevation' in aec.columns else 'Elevation'
+    get_elev = lambda area: np.interp(area, aec[area_column], aec[elevation_column])
 
     df['wl (m)'] = df['area'].apply(get_elev)
 
