@@ -17,7 +17,7 @@ theme:
       admonition:
         success: fontawesome/solid/check
         warning: fontawesome/solid/triangle-exclamation
-copyright: Written and maintained by <a href="https://www.linkedin.com/in/sanchitminochaiitr/">Sanchit Minocha</a> <br> Copyright &copy; 2023, <a href="https://saswe.net/">University of Washington SASWE Research Group</a> 
+copyright: Written and maintained by <a href="https://www.linkedin.com/in/sanchitminochaiitr/">Sanchit Minocha</a> <br> Copyright &copy; 2023, <a href="https://saswe.net/">University of Washington SASWE Research Group</a> ; <a href="https://rat-satellitedams.readthedocs.io/en/latest/Disclaimer/disclaimer/"> Disclaimer </a>
 docs_dir: docs
 site_dir: site
 use_directory_urls: true
@@ -49,7 +49,7 @@ nav:
     - 'Computational Model': 'Model/ComputationalModel.md'
 - Quick Start: 
     - 'Getting Ready': 'QuickStart/GettingReady.md'
-    - 'User Guide': 'QuickStart/UserGuide.md'
+    - 'Download Guide': 'QuickStart/UserGuide.md'
 - Commands:
     - 'Command Line Interface': 'Commands/cli_commands.md'
     - 'Python': 'Commands/python_commands.md'
