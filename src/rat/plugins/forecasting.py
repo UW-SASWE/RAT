@@ -574,7 +574,7 @@ def forecast_outflow_for_res(
         Lead time of forecast in days.
     forecast_inflow_fp: str
         Path to forecasted inflow file in `rat_outputs` format (in .csv format with streamflow and date as header).
-    evap_sp: str
+    evap_fp: str
         Path to evaporation data file in `rat_outputs` format (in .csv format with OUT_EVAP and date as header).
     sarea_fp: str
         Path to surface area data file in `rat_outputs` format (in .csv format with area and date as header).
@@ -694,7 +694,7 @@ def forecast_outflow(
             res_scenarios.remove('RC')
             rule_curve_fp = None
         else:
-            rule_curve_fp = rule_curve_dir / f'{int(reservoir_id):04}.txt'
+            rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
 
         for scenario in res_scenarios:       
             forecast_outflow_for_res(
