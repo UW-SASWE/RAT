@@ -568,12 +568,18 @@ def forecast_outflow_for_res(
     
     Parameters
     ----------
-    forecast_inflow_fp: str
-        Path to forecasted inflow netcdf file
     base_date: str or datetime object
         Start date of forecasted outflow estimation. This is typically the end date of hindcast RAT run + 1.
-    rat_folder: str
-        Path to current working RAT folder. For obtaining ancillary data such as evaporation, surface area, Area Elevation Curve.
+    forecast_lead_time: int
+        Lead time of forecast in days.
+    forecast_inflow_fp: str
+        Path to forecasted inflow file in `rat_outputs` format (in .csv format with streamflow and date as header).
+    evap_fp: str
+        Path to evaporation data file in `rat_outputs` format (in .csv format with OUT_EVAP and date as header).
+    sarea_fp: str
+        Path to surface area data file in `rat_outputs` format (in .csv format with area and date as header).
+    aec_fp: str
+        Path to area-elevation curve data file (in .csv format with area and elevation).
     dels_scenario: str
         Specifies the delS scenario to use. If None, returns results for all scenarios
         values: 
@@ -662,7 +668,7 @@ def forecast_outflow_for_res(
 
 def forecast_outflow(
     basedate, lead_time, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict,
-    rule_curve_dir,
+    forecast_reservoir_shpfile_column_dict, rule_curve_dir,
     scenarios = ['GC', 'GO', 'RC', 'ST'],
     st_percSmaxes = [0.5, 1, 2.5],
 ):
@@ -678,17 +684,17 @@ def forecast_outflow(
         output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
         output_fp.parent.mkdir(parents=True, exist_ok=True)
 
-        s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name]['CAP_MCM'].values[0]
-        grand_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name]['GRAND_ID'].values[0]
+        s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
+        reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0]
 
         if np.isnan(s_max):
             res_scenarios.remove('ST')
 
-        if np.isnan(grand_id):
+        if np.isnan(reservoir_id):
             res_scenarios.remove('RC')
             rule_curve_fp = None
         else:
-            rule_curve_fp = rule_curve_dir / f'{int(grand_id):04}.txt'
+            rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
 
         for scenario in res_scenarios:       
             forecast_outflow_for_res(
@@ -723,6 +729,8 @@ def generate_forecast_state_and_inputs(
         forecast_combined_data['tmin'],
         forecast_combined_data['tmax']
     )
+
+    hindcast_combined_data = hindcast_combined_data.sel(time=slice(None, forecast_startdate))
 
     combined_data = xr.concat([
         hindcast_combined_data, forecast_combined_data
@@ -767,10 +775,10 @@ def convert_forecast_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_col
             df.to_csv(savepath, index=False)
             print(df.tail())
         else:
-            print(f"Currently not displayed in website: {res_name}")
+            print(f"Skipping {res_name} as its inflow file is not available.")
 
 
-def convert_forecast_evaporation(evap_dir, evap_web_dir):
+def convert_forecast_evaporation(evap_dir, final_evap_dir):
     # Evaporation
     evap_paths = [os.path.join(evap_dir, f) for f in os.listdir(evap_dir) if f.endswith(".csv")]
     evap_dir.mkdir(exist_ok=True)
@@ -779,7 +787,7 @@ def convert_forecast_evaporation(evap_dir, evap_web_dir):
         res_name = os.path.splitext(os.path.split(evap_path)[-1])[0]
         savename = res_name
 
-        savepath = os.path.join(evap_web_dir , f"{savename}.csv")
+        savepath = os.path.join(final_evap_dir , f"{savename}.csv")
 
         df = pd.read_csv(evap_path)
         df = df[['time', 'OUT_EVAP']]
@@ -885,7 +893,9 @@ def forecast(config, rat_logger):
     basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
     basin_bounds = np.array(basin_bounds)[0]
     basin_data_dir = Path(config['GLOBAL']['data_dir']) / region_name / 'basins' / basin_name
+    rule_curve_dir = Path(config['PLUGINS']['forecast_rule_curve_dir'])
     reservoirs_gdf_column_dict = config['GEE']['reservoir_vector_file_columns_dict']
+    forecast_reservoir_shpfile_column_dict = config['PLUGINS']['forecast_reservoir_shpfile_column_dict']
     if (config['ROUTING']['station_global_data']):
         reservoirs_gdf_column_dict['unique_identifier'] = 'uniq_id'
     else:
@@ -916,7 +926,6 @@ def forecast(config, rat_logger):
     final_inflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
     final_evap_out_dir = basin_data_dir / 'final_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
     evap_dir = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
-    rule_curve_dir = Path('/cheetah2/pdas47/rat3_mekong/global_data/rc')    # TODO: change to dynamic
     outflow_forecast_dir = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}'
     final_outflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}'
     final_dels_out_dir = basin_data_dir / 'final_outputs' / 'forecast_dels' / f'{basedate:%Y%m%d}'
@@ -970,7 +979,7 @@ def forecast(config, rat_logger):
 
     # generate outflow forecast
     forecast_outflow(
-        basedate, lead_time, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, rule_curve_dir,
+        basedate, lead_time, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, forecast_reservoir_shpfile_column_dict, rule_curve_dir,
         scenarios = ['GC', 'GO', 'RC', 'ST'],
         st_percSmaxes = [0.5, 1, 2.5]
     )
