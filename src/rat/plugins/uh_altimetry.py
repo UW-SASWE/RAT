@@ -11,6 +11,7 @@ from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
@@ -93,24 +94,24 @@ def downloadfiles(service, dowid, name,dfilespath):
 
 # Download sentinel-6 altimetry data from UH
 def get_uh_altimetry(
-      save_dir = Path('/cheetah2/pdas47/rat3_mekong/data/SE-Asia/basins/mekong/altimetry/s6'),
-      secret_file_fn = Path("/cheetah2/pdas47/rat3_mekong/secrets/token.json"),
-      overwrite=False
+        save_dir = Path('/cheetah2/pdas47/rat3_mekong/data/SE-Asia/basins/mekong/altimetry/s6'),
+        service_acc_fn = Path("/cheetah2/pdas47/rat3_mekong/secrets/rat3-mekong-2931415a163b.json"),
+        overwrite=False
     ):
     """
     Downloads newly available altimetry data from google drive
     """
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
-    secret_file_fn = Path(secret_file_fn)
+    service_acc_fn = Path(service_acc_fn)
 
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if secret_file_fn.exists():
-        creds = Credentials.from_authorized_user_file(
-            secret_file_fn, SCOPES
+    if service_acc_fn.exists():
+        creds = service_account.Credentials.from_service_account_file(
+            filename=service_acc_fn, scopes=SCOPES
         )
 
     try:
