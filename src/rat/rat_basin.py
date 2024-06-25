@@ -667,7 +667,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             )
             get_uh_altimetry(
                 save_dir=raw_s6_dir, 
-                secret_file_fn=config['PLUGINS']['uh_altimetry_token']
+                service_acc_fn=config['PLUGINS']['uh_altimetry_token']
             )
 
             reservoirs_in_uh_altimetry =['Lam_Pao', 'Lamtakhong', 'Nam_Leuk', 'Nam_Ngum_2', 'Se_San_IV', 'Sirindhorn']

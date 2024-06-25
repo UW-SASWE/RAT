@@ -106,9 +106,9 @@ def get_uh_altimetry(
     service_acc_fn = Path(service_acc_fn)
 
     creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
+    # The service account file is needed for authentication. The service account email should also
+    # need to have access to the google drive folder, which can be given by sharing the folder with
+    # the email.
     if service_acc_fn.exists():
         creds = service_account.Credentials.from_service_account_file(
             filename=service_acc_fn, scopes=SCOPES
