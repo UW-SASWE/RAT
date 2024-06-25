@@ -167,7 +167,7 @@ def get_uh_altimetry(
             # pbar1.set_description_str(f'Downloading {row["name"]}')
             print(f'Downloading {row["name"]}')
             Folder_id = row['id']  # Enter The Downloadable folder ID From Shared Link
-            date = pd.to_datetime(row['name'], format="%d-%m-%Y")
+            date = pd.to_datetime(row['name'], format="%Y-%m-%d")
 
             results = service.files().list(
                 q = "'" + Folder_id + "' in parents", 
@@ -297,25 +297,29 @@ def uh_altimetry_routine(
 
         # get data of latest date
         latest_date = sorted([pd.to_datetime(f.name) for f in raw_s6_dir.glob("*")])[-1]
-        altim_fp = list(Path(raw_s6_dir / f'{latest_date:%Y-%m-%d}/timeseries_output_{uh_name}/').glob("*iqr.txt"))[0]
-        aec_fp = rat_aec_dir / f'{reservoir}.csv'
+        try:
+            altim_fp = list(Path(raw_s6_dir / f'{latest_date:%Y-%m-%d}/timeseries_output_{uh_name}/').glob("*iqr.txt"))[0]
+            aec_fp = rat_aec_dir / f'{reservoir}.csv'
 
-        dels_savedir = Path(dels_savedir)
-        dels_savefp = dels_savedir / f"{reservoir}.csv"
-        # calcualte ∆S
-        dels = calc_dels_s6(altim_fp, aec_fp, geoid_diff=GEOID_DIFF[reservoir], savefp=dels_savefp)
+            dels_savedir = Path(dels_savedir)
+            dels_savefp = dels_savedir / f"{reservoir}.csv"
+            # calcualte ∆S
+            dels = calc_dels_s6(altim_fp, aec_fp, geoid_diff=GEOID_DIFF[reservoir], savefp=dels_savefp)
 
-        outflow_savedir = Path(outflow_savedir)
-        outflow_savefp = outflow_savedir / f"{reservoir}.csv"
+            outflow_savedir = Path(outflow_savedir)
+            outflow_savefp = outflow_savedir / f"{reservoir}.csv"
 
-        # calculate outflow
-        outflow = calc_outflow(
-            inflowpath = Path(inflow_savedir) / f'{reservoir}.csv',
-            dels = dels,
-            epath = Path(evap_savedir) / f'{reservoir}.csv',
-            area = dels['area (km2)'], savepath = outflow_savefp
-        )
-        outflows[reservoir] = outflow
+            # calculate outflow
+            outflow = calc_outflow(
+                inflowpath = Path(inflow_savedir) / f'{reservoir}.csv',
+                dels = dels,
+                epath = Path(evap_savedir) / f'{reservoir}.csv',
+                area = dels['area (km2)'], savepath = outflow_savefp
+            )
+            outflows[reservoir] = outflow
+        except Exception as e:
+            print(f"UH altimetry: {reservoir} failed. {e}")
+            continue
 
     return outflow
 
@@ -365,7 +369,7 @@ if __name__ == "__main__":
     date = pd.to_datetime('2024-06-03')
     extrapolated_aec_dir = Path(f'/cheetah2/pdas47/rat3_mekong/data/extrapolated-aec')
     raw_s6_dir = Path('/cheetah2/pdas47/rat3_mekong/data/SE-Asia/basins/mekong/altimetry/s6')
-    secret_file_fn = Path("/cheetah2/pdas47/rat3_mekong/secrets/token.json")
+    secret_file_fn = Path("/cheetah2/pdas47/rat3_mekong/secrets/rat3-mekong-2931415a163b.json")
 
     rat_aec_dir = Path('/cheetah2/pdas47/rat3_mekong/data/SE-Asia/basins/mekong/rat_outputs/aec')
     inflow_dir = Path('/cheetah2/pdas47/rat3_mekong/data/SE-Asia/basins/mekong/rat_outputs/inflow')
