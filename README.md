@@ -65,6 +65,15 @@ It was originally developed by [Biswas et al. (2021)](https://doi.org/10.1016/j.
 
 The [Reservoir Assessment Tool (RAT) 2.0](https://depts.washington.edu/saswe/mekong/) was introduced with numerous improvements over the RAT 1.0. Such as weekly satellite observations (every 1-5 days) using a combination of multiple satellites (Sentinel-2, landsat-8, landsat-9 and Sentinel-1), usage of [VIC hydrological model](https://github.com/UW-Hydro/VIC) (VIC 5, [Hamman et al. (2018)](https://doi.org/10.5194/gmd-11-3481-2018)) and [MetSim](https://github.com/UW-Hydro/MetSim) in parallel computation mode, data storage using NetCDF format and explicit representation of Evaporation using the Penman Combination method.
 
+## CITATION
+If you use this software, please cite the following depending on the context of the work:
+
+1. Minocha, S., Hossain, F., Das, P., Suresh, S., Khan, S., Darkwah, G., Lee, H., Galelli, S., Andreadis, K. and Oddo, P., 2023. Reservoir Assessment Tool version 3.0: a scalable and user-friendly software platform to mobilize the global water management community. Geoscientific Model Development Discussions, 2023, pp.1-23.
+
+2. Das, P., Hossain, F., Khan, S., Biswas, N.K., Lee, H., Piman, T., Meechaiya, C., Ghimire, U. and Hosen, K., 2022. Reservoir Assessment Tool 2.0: Stakeholder driven improvements to satellite remote sensing based reservoir monitoring. Environmental Modelling & Software, 157, p.105533.
+
+3. Biswas, N.K., Hossain, F., Bonnema, M., Lee, H. and Chishtie, F., 2021. Towards a global Reservoir Assessment Tool for predicting hydrologic impacts and operating patterns of existing and planned reservoirs. Environmental Modelling & Software, 140, p.105043.
+
 ## LICENSE
 RAT 3.0 is distributed under the GPL v3 license. You may copy, distribute and modify the software as long as you track changes/dates in sourcefiles. Any modifications to or software including GPL-licensed code must also be made available under the GPL along with build & install instructions.
 For more information, please see [LICENSE](./LICENSE).

@@ -807,7 +807,7 @@ This section of the configuration file describes the parameters defined by `rout
     !!!note
          If `clean_previous_outputs` is `True`, the previous outputs are cleaned before executing any step in `steps`.
          
-    !!!tip_note Tip
+    !!! tip_note "Tip"
         You should use `clean_previous_outputs` if you want to have fresh outputs of RAT for a river basin. Otherwise, by default RAT will keep appending the new outputs to the same files and will concatenate data by calendar dates.
 
 ### Confidential
