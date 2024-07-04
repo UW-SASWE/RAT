@@ -33,27 +33,32 @@ In this release, we have added rat.toolbox module to contain helpful and utility
 
 ### v3.0.7
 
-In this release, we have added the BOT Filter for surface area time series, which filters the optical derived surface area with SAR surface area as the reference.
-The BOT Filter can be used to have granular control over the filtering applied to surface area (SA) time series.
-To use the filter, set 'apply' in the config file to 'true' and set the three thresholds.
-Bias_threshold: The intensity of filtering out optical SA values that has a bias from SAR value.
-Outlier_threshold: The intensity of filtering out outlier values in the Optical SA time series
-Trend_threshold: The intensity of filtering out optical SA values whose trend differs from SAR trend
-Threshold ranges: (Off: 0 - 9: MAX)
-Eg. Relatively Aggressive filtering set: [8,8,8]
+In this release, we have:
+
+1. Added the BOT Filter for surface area time series, which filters the optical derived surface area with SAR surface area as the reference.
+
+!!! tip_note "Tip"
+    The BOT Filter can be used to have granular control over the filtering applied to surface area (SA) time series. To use the filter, set 'apply' in the config file to 'true' and set the three thresholds.  
+    Bias_threshold: The intensity of filtering out optical SA values that has a bias from SAR value.  
+    Outlier_threshold: The intensity of filtering out outlier values in the Optical SA time series.  
+    Trend_threshold: The intensity of filtering out optical SA values whose trend differs from SAR trend  
+    Threshold ranges: (Off: 0 - 9: MAX)  
+    Eg. Relatively Aggressive filtering set: [8,8,8]  
 
 ### v3.0.6
+In this release, we have:
 
-Bug Fixes:
+1. Fixed the following bugs:
 
-TMS-OS will work after 2019
-TMS-OS will make use of Optical data to estimate surface area of reservoirs if SAR is not available or if Optical is much more than SAR.
-To further smoothen and remove the erroneous peaks rising due to use of optical data, Savitzky-Golay filter is applied for cases mentioned in [2].
-TMS-OS will not produce error if end date is before the start of Landsat-9 mission.
+    - TMS-OS will work after 2019
+    - TMS-OS will make use of Optical data to estimate surface area of reservoirs if SAR is not available or if Optical is much more than SAR.
+    - To further smoothen and remove the erroneous peaks rising due to use of optical data, Savitzky-Golay filter is applied for cases mentioned in [2].
+    - TMS-OS will not produce error if end date is before the start of Landsat-9 mission.
 
-Improvements:
-Tests will now be matched for numeric data and will be considered as match if the error percent between each value is less than threshold (default - 5) %.
-State init files (vic and Routing) can now be provided as optional to dates. Earlier RAT used to assume that the state init files will be existing in a particular directory structure. This will not be true if someone is working on tutorial or want to use state files not produced by RAT.
+2. Added the following enhancements:
+
+    - Tests will now be matched for numeric data and will be considered as match if the error percent between each value is less than threshold (default - 5) %.
+    - State init files (vic and Routing) can now be provided as optional to dates. Earlier RAT used to assume that the state init files will be existing in a particular directory structure. This will not be true if someone is working on tutorial or want to use state files not produced by RAT.
 
 ### v3.0.2
 First stable release version of RAT 3.0.
