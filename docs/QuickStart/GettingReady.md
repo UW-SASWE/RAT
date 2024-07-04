@@ -86,7 +86,7 @@ Enter 'Service account name' and Click on ‘CREATE AND CONTINUE’.
 <span class="preparation_step">Step 4:</span> <br>
 Choose ‘Earth Engine’ > ‘Earth Engine Resource Admin’ for first role and choose ‘Service Usage’ > ‘Service Usage Consumer’ as another role.After selecting both roles, click on ‘CONTINUE’. And then click on ‘Done’.<br>
 ![Service Account role screenshot](../images/gee/ss8.jpg)
-![Service Account role screenshot](../images/gee/ss14.jpg)
+![Service Account role screenshot](../images/gee/ss14.png)
 <span class="preparation_step">Step 5:</span> <br>
 Click on ‘Actions’ > ‘Manage Keys’ for the service account you created.<br>
 ![managing service account key screenshot](../images/gee/ss9.jpg)
@@ -99,17 +99,17 @@ Click on ‘Add KEY’ > ‘Create new key’ and select json.<br>
 Click [here](https://developers.google.com/earth-engine) to register the created google cloud project to use earth engine API and sign-in using the user ID used to create cloud project. <br>
 <span class="preparation_step">Step 2:</span> <br>
 Click on ‘Register for Earth Engine’ (and select your email address if not signed in already). Then click on 'Register a Noncommercial or Commercial Cloud project'.<br>
-![Register google account EE screenshot](../images/gee/ss15.jpg)
-![Register google account EE screenshot](../images/gee/ss16.jpg)
+![Register google account EE screenshot](../images/gee/ss15.png)
+![Register google account EE screenshot](../images/gee/ss16.png)
 <span class="preparation_step">Step 3:</span> <br>
 Select “Unpaid usage” if using for non-commercial activity. Select a suitable ‘Project type’ and click on ‘NEXT’.<br>
-![Register google account EE screenshot](../images/gee/ss17.jpg)
+![Register google account EE screenshot](../images/gee/ss17.png)
 <span class="preparation_step">Step 4:</span> <br>
 Select “Choose an existing Google Cloud Project” and select the cloud project that you created in Task 1. Click on “Continue to Summary”.<br>
-![Register google account EE screenshot](../images/gee/ss18.jpg)
+![Register google account EE screenshot](../images/gee/ss18.png)
 <span class="preparation_step">Step 5:</span> <br>
 Click on ‘Confirm’ and you can close the window.  
-![Register google account EE screenshot](../images/gee/ss19.jpg)
+![Register google account EE screenshot](../images/gee/ss19.png)
 
 <span class="preparation_task">Task 4B (If Task 4A not done) : Register the service account to use Earth Engine.</span> <br><br>
 <span class="preparation_step">Step 1:</span> <br>
