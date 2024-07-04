@@ -17,7 +17,7 @@ The Reservoir Assessment Tool (RAT) 2.0 was introduced with numerous improvement
 !!! note
     If you use this software, please cite the following depending on the context:
 
-    1. [Minocha, S., Hossain, F., Das, P., Suresh, S., Khan, S., Darkwah, G., Lee, H., Galelli, S., Andreadis, K. and Oddo, P., 2023. Reservoir Assessment Tool version 3.0: a scalable and user-friendly software platform to mobilize the global water management community. Geoscientific Model Development Discussions, 2023, pp.1-23.](https://doi.org/10.5194/gmd-17-3137-2024)  <br><br>
+    1. [Minocha, S., Hossain, F., Das, P., Suresh, S., Khan, S., Darkwah, G., Lee, H., Galelli, S., Andreadis, K., and Oddo, P.: Reservoir Assessment Tool version 3.0: a scalable and user-friendly software platform to mobilize the global water management community, Geosci. Model Dev., 17, 3137–3156, https://doi.org/10.5194/gmd-17-3137-2024, 2024.](https://doi.org/10.5194/gmd-17-3137-2024)  <br><br>
 
     2. [Das, P., Hossain, F., Khan, S., Biswas, N.K., Lee, H., Piman, T., Meechaiya, C., Ghimire, U. and Hosen, K., 2022. Reservoir Assessment Tool 2.0: Stakeholder driven improvements to satellite remote sensing based reservoir monitoring. Environmental Modelling & Software, 157, p.105533.](https://doi.org/10.1016/j.envsoft.2022.105533)  <br><br>
 
