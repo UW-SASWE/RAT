@@ -40,7 +40,7 @@ Fill out the registration form shown below. Please make sure to check **'Near-Re
 Click on Save. You will get a confirmation email and use that to complete the process.
 
 ### GEE Credentials
-RAT requires [google service account](https://cloud.google.com/iam/docs/service-account-overview), which is associated with a cloud project and both the project and service account should have access to earth engine api. It is free to create with a google user account (gmail account). Complete the listed tasks by following the instructions to set up a GEE service account.
+RAT requires [google service account](https://cloud.google.com/iam/docs/service-account-overview), which is associated with a cloud project and both the project and service account should have access to earth engine api. It is free to create with a google user account (gmail account). Complete the listed tasks by following the instructions to set up a GEE service account. 
 
 <span class="preparation_task">Task 1 : Create a google cloud project</span> <br><br>
 <span class="preparation_step">Step 1:</span> <br>
@@ -84,8 +84,9 @@ Enter 'Service account name' and Click on ‘CREATE AND CONTINUE’.
     2. Description can be about who will be using this service account and for what.
 
 <span class="preparation_step">Step 4:</span> <br>
-Choose ‘Earth Engine’ > ‘Earth Engine Resource Admin’ and click on ‘CONTINUE’. After that click on ‘Done’.<br>
+Choose ‘Earth Engine’ > ‘Earth Engine Resource Admin’ for first role and choose ‘Service Usage’ > ‘Service Usage Consumer’ as another role.After selecting both roles, click on ‘CONTINUE’. And then click on ‘Done’.<br>
 ![Service Account role screenshot](../images/gee/ss8.jpg)
+![Service Account role screenshot](../images/gee/ss14.png)
 <span class="preparation_step">Step 5:</span> <br>
 Click on ‘Actions’ > ‘Manage Keys’ for the service account you created.<br>
 ![managing service account key screenshot](../images/gee/ss9.jpg)
@@ -93,7 +94,24 @@ Click on ‘Actions’ > ‘Manage Keys’ for the service account you created.<
 Click on ‘Add KEY’ > ‘Create new key’ and select json.<br>
 ![Adding service account key screenshot](../images/gee/ss10.jpg)
 
-<span class="preparation_task">Task 4 : Register the service account to use Earth Engine.</span> <br><br>
+<span class="preparation_task">Task 4A (Recommended, in place of Task 4B) : Register the google cloud project to use Earth Engine.</span> <br><br>
+<span class="preparation_step">Step 1:</span> <br>
+Click [here](https://developers.google.com/earth-engine) to register the created google cloud project to use earth engine API and sign-in using the user ID used to create cloud project. <br>
+<span class="preparation_step">Step 2:</span> <br>
+Click on ‘Register for Earth Engine’ (and select your email address if not signed in already). Then click on 'Register a Noncommercial or Commercial Cloud project'.<br>
+![Register google account EE screenshot](../images/gee/ss15.png)
+![Register google account EE screenshot](../images/gee/ss16.png)
+<span class="preparation_step">Step 3:</span> <br>
+Select “Unpaid usage” if using for non-commercial activity. Select a suitable ‘Project type’ and click on ‘NEXT’.<br>
+![Register google account EE screenshot](../images/gee/ss17.png)
+<span class="preparation_step">Step 4:</span> <br>
+Select “Choose an existing Google Cloud Project” and select the cloud project that you created in Task 1. Click on “Continue to Summary”.<br>
+![Register google account EE screenshot](../images/gee/ss18.png)
+<span class="preparation_step">Step 5:</span> <br>
+Click on ‘Confirm’ and you can close the window.  
+![Register google account EE screenshot](../images/gee/ss19.png)
+
+<span class="preparation_task">Task 4B (If Task 4A not done) : Register the service account to use Earth Engine.</span> <br><br>
 <span class="preparation_step">Step 1:</span> <br>
 Click [here](https://developers.google.com/earth-engine/guides/service_account#register-the-service-account-to-use-earth-engine) to register the service account created to use earth engine API. <br>
 <span class="preparation_step">Step 2:</span> <br>

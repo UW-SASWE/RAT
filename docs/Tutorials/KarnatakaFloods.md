@@ -22,7 +22,7 @@ On [this](https://www.dropbox.com/scl/fo/fpl6as11pq87sfjzbue71/h?rlkey=fv88x7oqe
 3.	Login credentials for [IMERG user-account](https://registration.pps.eosdis.nasa.gov/registration/) (for accessing precipitation data for hydrologic model)
 4.	Login credentials for [Earth Engine](https://developers.google.com/earth-engine/cloud/earthengine_cloud_project_setup) using service account (for reservoir storage change calculation)
 
-!!! tip "Tip"
+!!! tip_note "Tip"
     To get the three set of credentials (requirement 2,3 and 4), follow the steps mentioned [here in Getting Ready section](../../QuickStart/GettingReady) and create a secrets file accordingly.
 
 ## Installation
@@ -109,7 +109,7 @@ You can further read about the entire directory structure that usually exists in
 
 Navigate to ***params/rat_config.yml*** in project directory. This file is a partially complete configuration file where you can observe the paths for model (or Python environment) and parameter files in the Metsim, VIC, and Routing sections. These paths were configured during RAT initialization, with the initialization command populating these paths. It's important to note that global data hasn't been downloaded, which is why these paths remain unpopulated. It's worth mentioning that within the params directory, there are two additional configuration files: 'rat_config_template.yml' functions as a template, while 'test_config.yml' was employed by RAT for conducting RAT tests. 
 
-!!! tip "Tip"
+!!! tip_note "Tip"
     If you are curious what these terms “Metsim, VIC” or ‘routing’ mean, you should refer to the [conceptual model of RAT](../../Model/ConceptualModel). However, here, we can safely treat these terms and components as ‘blackbox’ as the goal here is to set up RAT for Hidkal dam and focus on the reservoir operations.
 
 !!! note

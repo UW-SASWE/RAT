@@ -68,6 +68,8 @@ nav:
 - Application:
     - 'Web App': 'Applications/WebApp.md'
 - Development:
+    - 'Recent Adjustments': 'Development/RecentAdjustments.md'
+    - 'Patch Notes': 'Development/PatchNotes.md'
     - 'Dev Version': 'Development/DeveloperVersion.md'
 - Contact:
     - 'Contact': 'Contact/contact.md'
