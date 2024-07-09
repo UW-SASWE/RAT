@@ -15,6 +15,7 @@ notebooks/metsim_sample
 .git*/
 _send_files.py
 _send_files_adpc.py
+conda_dist/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,data
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,visualstudiocode,data
