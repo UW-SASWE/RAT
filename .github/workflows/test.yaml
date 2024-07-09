@@ -66,7 +66,7 @@ jobs:
       - name: Run tests
         shell: bash -l {0}
         env:
-          GA: ${{ secrets.GA }}
+          IMERG_SECRETS: ${{ secrets.IMERG_SECRETS }}
           KEY_FILE: ${{ secrets.KEY_FILE }}
         run: |
           pytest -s tests/

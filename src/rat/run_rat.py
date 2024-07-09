@@ -58,8 +58,8 @@ def run_rat(config_fn, operational_latency=None):
         secrets = configparser.ConfigParser()
         if config['CONFIDENTIAL']['secrets'] == 'GA':
             log.info('USING GITHUB ACTIONS SECRETS')
-            secrets.read_string(os.environ['GA'])
-            log.info(os.environ['GA'])
+            secrets.read_string(os.environ['IMERG_SECRETS'])
+            log.info(secrets.sections())
             temp_key_file = NamedTemporaryFile(delete=True)
             temp_key_file.write(os.environ['KEY_FILE'].encode())
             secrets['ee']['key_file'] = temp_key_file.name
