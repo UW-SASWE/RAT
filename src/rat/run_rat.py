@@ -64,6 +64,7 @@ def run_rat(config_fn, operational_latency=None):
             temp_key_file = NamedTemporaryFile(delete=True)
             temp_key_file.write(os.environ['KEY_FILE'].encode())
             secrets['ee']['key_file'] = temp_key_file.name
+            log.info(secrets['ee']['key_file'])
         else:
             secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]
