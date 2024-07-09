@@ -678,7 +678,8 @@ def get_newdata(basin_name,basin_bounds,data_dir, basin_data_dir,startdate, endd
     
     secrets = configparser.ConfigParser()
     if secrets_file == 'GA':
-        secrets.read_string(os.environ['GA'])
+        secrets.read_string(os.environ['IMERG_SECRETS'])
+        log.info("Secrets read from IMERG_SECRETS")
     else:
         secrets.read(secrets_file)  # assuming there's a secret ini file with user/pwd
 
