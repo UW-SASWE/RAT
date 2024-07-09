@@ -113,3 +113,51 @@ h6.parameter_heading>em>code{
   background-color:rgb(250, 255, 216);
   color:rgb(250, 0, 33);
 }
+
+span.preparation_step{
+  font-size: 18px;
+  font-weight: 700;
+  background-color:rgb(220, 250, 202);
+  color:rgb(99, 13, 249);
+}
+
+span.preparation_task{
+  font-size: 19px;
+  font-weight: 800;
+  /* background-color:rgb(220, 250, 202); */
+  color:rgb(249, 162, 13);
+}
+
+span.step_property{
+  font-size: 17px;
+  font-weight: 500;
+  /* background-color:rgb(220, 250, 202); */
+  color:rgb(249, 13, 103);
+}
+
+sup.step_heading{
+  font-size: 20px;
+  /* background-color:rgb(220, 250, 202); */
+  color:rgb(12, 120, 203);
+}
+
+span.data_folder{
+  font-size: 19px;
+  color:rgb(14, 152, 215);
+}
+
+span.data_file{
+  font-size: 18px;
+  color:rgb(152, 68, 231);
+}
+
+p.folder_file_description{
+  margin-left: 30px;
+  margin-bottom: 0;
+  font-size: 16px;
+  color:rgb(4, 133, 73);
+}
+
+ul{
+  margin-left: 20px;
+}

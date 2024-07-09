@@ -5,7 +5,7 @@ repo_url: https://github.com/UW-SASWE/RAT
 site_url: https://rat-satellitedams.readthedocs.io/
 theme:
     name: readthedocs
-    logo: logos/RAT_Logo_white.png
+    logo: 'logos/Rat_Logo_white.png'
     highlightjs: true
     hljs_languages:
         - yaml
@@ -17,12 +17,13 @@ theme:
       admonition:
         success: fontawesome/solid/check
         warning: fontawesome/solid/triangle-exclamation
-copyright: Written and maintained by <a href="https://www.linkedin.com/in/sanchitminochaiitr/">Sanchit Minocha</a> <br> Copyright &copy; 2023, <a href="https://saswe.net/">University of Washington SASWE Research Group</a> 
+copyright: Written and maintained by <a href="https://www.linkedin.com/in/sanchitminochaiitr/">Sanchit Minocha</a> <br> Copyright &copy; 2023, <a href="https://saswe.net/">University of Washington SASWE Research Group</a> ; <a href="https://rat-satellitedams.readthedocs.io/en/latest/Disclaimer/disclaimer/"> Disclaimer </a>
 docs_dir: docs
 site_dir: site
 use_directory_urls: true
 markdown_extensions:
   - admonition
+  - mdx_math
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -42,16 +43,45 @@ nav:
 # Main pages
 - Home:
     - 'RAT': 'index.md'
+    - 'Motivation': 'Motivation/motivation.md'
+- Model:
+    - 'Conceptual Model': 'Model/ConceptualModel.md'
+    - 'Computational Model': 'Model/ComputationalModel.md'
 - Quick Start: 
-    - 'User Guide': 'QuickStart/UserGuide.md'
+    - 'Getting Ready': 'QuickStart/GettingReady.md'
+    - 'Download Guide': 'QuickStart/UserGuide.md'
+- Commands:
+    - 'Command Line Interface': 'Commands/cli_commands.md'
+    - 'Python': 'Commands/python_commands.md'
 - RAT Configuration:
     - 'Configuration File': 'Configuration/rat_config.md'
     - 'Secrets File': 'Configuration/secrets.md'
+    - 'Multiple Basin Run': 'Configuration/basins_metadata.md'
+- Plugins:
+    - 'Forecasting': 'Plugins/Forecasting.md'
+    - 'ResORR': 'Plugins/Resorr.md'
+- Data Description:
+    - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
+    - 'Global Database': 'RAT_Data/GlobalDatabase.md'
+- Tutorials:
+    - 'Kickstart RAT for Beginners': 'Tutorials/KarnatakaFloods.md' 
+- Application:
+    - 'Web App': 'Applications/WebApp.md'
 - Development:
-    - 'Development Guide': 'Development/DevelopmentGuide.md'    
+    - 'Recent Adjustments': 'Development/RecentAdjustments.md'
+    - 'Patch Notes': 'Development/PatchNotes.md'
+    - 'Dev Version': 'Development/DeveloperVersion.md'
+- Contact:
+    - 'Contact': 'Contact/contact.md'
+- Disclaimer:
+    - 'Disclaimer': 'Disclaimer/disclaimer.md'
 
 
 extra_css: [css/extra.css]
+
+extra_javascript: 
+    - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+    
 extra:
   homepage: https://depts.washington.edu/saswe/rat/
   rat_version:

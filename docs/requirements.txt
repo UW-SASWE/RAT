@@ -22,6 +22,7 @@ packaging==23.0
 pip==23.0.1
 pycparser==2.21
 Pygments==2.14.0
+python-markdown-math==0.8
 pymdown-extensions==9.10
 pyOpenSSL==23.1.0
 PySocks==1.7.1

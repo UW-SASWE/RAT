@@ -1,6 +1,4 @@
-# Development guide
-
-## Installing RAT in development mode
+# Guide to install RAT's Dev Version
 
 1. First create project directory structure.
 ```

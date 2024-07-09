@@ -58,7 +58,7 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-5 step-13 outflow (mass-balance)
 #RAT using all modules and step-14 to produce final outputs
 
-def rat_basin(config, rat_logger):
+def rat_basin(config, rat_logger, forecast_mode=False):
     """Runs RAT as per configuration defined in `config_fn` for one single basin.
 
     parameters:
@@ -80,6 +80,13 @@ def rat_basin(config, rat_logger):
     try:
         rat_logger.info("Reading Configuration settings to run RAT")
         ##--------------------- Reading and initialising global parameters ----------------------##
+
+        ##TEMP: Temporary Code for deprecating use of 'vic_init_state_date'
+        if (config['BASIN'].get('vic_init_state_date')):
+            warn_message = "The parameter 'vic_init_state_date' has been deprecated and will not be supported in future versions. Please use 'vic_init_state' instead."
+            warnings.warn(warn_message, DeprecationWarning, stacklevel=2)
+            rat_logger.warning(warn_message)
+            config['vic_init_state'] = config['BASIN'].get('vic_init_state_date')
 
         # Reading steps to be executed in RAT otherwise seting default value
         if config['GLOBAL'].get('steps'):
@@ -117,26 +124,43 @@ def rat_basin(config, rat_logger):
         rout_init_state_save_date = config['BASIN']['end']
 
         if(not config['BASIN']['spin_up']):
-            if(config['BASIN'].get('vic_init_state_date')):
-                config['BASIN']['vic_init_state_date'] = datetime.datetime.combine(config['BASIN']['vic_init_state_date'], datetime.time.min)
+            if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):  # If vic_init_state is a datetime.date instance and not a file path
+                config['BASIN']['vic_init_state'] = datetime.datetime.combine(config['BASIN']['vic_init_state'], datetime.time.min)
         
-        # Changing start date if running RAT for first time for the particular basin to give VIC and MetSim to have their spin off periods
+        # Changing particular dates if running RAT for first time or if init_states are provided or if spin_up is True.
         if(config['BASIN']['spin_up']):
             user_given_start = config['BASIN']['start']
             config['BASIN']['start'] = user_given_start-datetime.timedelta(days=800)  # Running RAT for extra 800 days before the user-given start date for VIC to give reliable results starting from user-given start date
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
-            vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
+            vic_init_state = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            use_previous_data = False   # Previous Combined Nc file won't be used
+            rout_init_state = None      # No initial state of Routing is present as running RAT for first time in this basin 
             gee_start_date = user_given_start  # Run gee from the date provided by user and not spin-off start date.
-        elif(config['BASIN'].get('vic_init_state_date')):
-            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from
-            vic_init_state_date = config['BASIN']['vic_init_state_date'] # Date of which initial state of VIC for the particular basin exists
+        elif(config['BASIN'].get('vic_init_state')):
+            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from [will be changed if vic_init_state is ot Date]
+            vic_init_state = config['BASIN']['vic_init_state'] # Date or File path of the vic_init_state
             use_state = True           # Routing state file will be used
+            ## Assuming that if vic_init_state is file then the user doesn't have previous data to use
+            if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):
+                use_previous_data = True   # Previous Combined Nc file will be used
+            else:
+                use_previous_data = False # Previous Combined Nc file won't be used
+                data_download_start = config['BASIN']['start']-datetime.timedelta(days=90) # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state as won't be using previous data
+            ## Assuming rout_init_state (if not provided) as same date as vic_init_state if it is a date else assigning it the start date
+            if(config['BASIN'].get('rout_init_state')):
+                rout_init_state = config['BASIN'].get('rout_init_state') # Routing Init State Date or File path
+            elif(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):
+                rout_init_state = config['BASIN'].get('vic_init_state') # If Routing Init State Date or File path not provided, will use vic init stateif it's a date
+            else:
+                rout_init_state = config['BASIN']['start'] # If Routing Init State Date or File path not provided and vic init state is not a date, use start date
             gee_start_date = config['BASIN']['start'] # Run gee from the date provided by user.
         else:
             data_download_start = config['BASIN']['start']-datetime.timedelta(days=90)    # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state
-            vic_init_state_date = None    # No initial state of VIC is present as running RAT for first time in this basin
+            vic_init_state = None    # No initial state of VIC is present as running RAT for first time in this basin
             use_state = False            # Routing state file won't be used
+            use_previous_data = False   # Previous Combined Nc file won't be used
+            rout_init_state = None      # No initial state of Routing will be used.
             gee_start_date = config['BASIN']['start']  # Run gee from the date provided by user.
 
         # Defining logger
@@ -193,23 +217,50 @@ def rat_basin(config, rat_logger):
         basingridfile_path= create_directory(os.path.join(basin_data_dir, 'basin_grid_data',''), True)
         basingridfile_path= os.path.join(basingridfile_path, basin_name+'_grid_mask.tif')
         #Creating metsim input directory for basin if not exist
-        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
         #Defining paths for metsim input data, metsim state and metsim domain
-        ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
-        ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
+        metsim_inputs_dir = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_inputs', ''),True)
+        #Creating metsim output directory for basin if not exist.
+        if forecast_mode:
+            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'forecast_metsim_outputs',''), True)
+            ms_state = os.path.join(metsim_inputs_dir, 'forecast_state.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir,'forecast_metsim_input.nc')
+        else:
+            metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
+            ms_state = os.path.join(metsim_inputs_dir, 'state.nc')
+            ms_input_data = os.path.join(metsim_inputs_dir,'metsim_input.nc')
         domain_nc_path = os.path.join(metsim_inputs_dir,'domain.nc')
-        #Creating metsim output directory for basin if not exist
-        metsim_output_path = create_directory(os.path.join(basin_data_dir, 'metsim', 'metsim_outputs',''), True)
         #Creating vic input directory for basin if not exist
-        vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'vic_inputs',''), True)
+        if forecast_mode:
+            vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'forecast_vic_inputs',''), True)
+        else:
+            vic_input_path = create_directory(os.path.join(basin_data_dir, 'vic', 'vic_inputs',''), True)
         #----------- Paths Necessary for running of METSIM  -----------#
 
         #----------- Paths Necessary for running of VIC  -----------#
         vic_input_forcing_path = os.path.join(vic_input_path,'forcing_')
-        vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
-        rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
-        rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
-        rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
+        if forecast_mode:
+            vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','forecast_vic_outputs',''), True)
+            rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','forecast_in',''), True)
+            rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','forecast_rout_state_file',''), True)
+            rout_hindcast_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+            init_state_out_dir = 'forecast_vic_init_states'
+        else:
+            vic_output_path = create_directory(os.path.join(basin_data_dir,'vic','vic_outputs',''), True)
+            rout_input_path = create_directory(os.path.join(basin_data_dir,'ro','in',''), True)
+            rout_input_state_folder = create_directory(os.path.join(basin_data_dir,'ro','rout_state_file',''), True)
+            init_state_out_dir = 'vic_init_states'
+        init_state_in_dir = 'vic_init_states'
+        # Defining path of routing state file to use
+        if(isinstance(rout_init_state, str)):
+            rout_input_state_file = Path(rout_init_state).resolve()
+        elif(isinstance(rout_init_state,datetime.date)):
+            if forecast_mode:
+                rout_input_state_file = os.path.join(rout_hindcast_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
+            else:
+                rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state.strftime("%Y-%m-%d")+'.nc')
+        else:
+            rout_input_state_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+config['BASIN']['start'].strftime("%Y-%m-%d")+'.nc')
+         # Defining path of routing state file to save
         rout_init_state_save_file = os.path.join(rout_input_state_folder,'ro_init_state_file_'+rout_init_state_save_date.strftime("%Y-%m-%d")+'.nc')
         #----------- Paths Necessary for running of VIC  -----------#
 
@@ -221,9 +272,13 @@ def rat_basin(config, rat_logger):
         # Creating routing and its inflow directory
         rout_dir = Path(config['GLOBAL']['data_dir']) / f'{config["BASIN"]["region_name"]}' / 'basins' / f'{config["BASIN"]["basin_name"]}' / 'ro'
         rout_dir.mkdir(parents=True, exist_ok=True)
-        routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+        if forecast_mode:
+            routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','forecast_ou')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecast_inflow', f"{config['BASIN']['start']:%Y%m%d}")
+        else:
+            routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         routing_output_dir.mkdir(parents=True, exist_ok=True)
-        inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
         inflow_dst_dir.mkdir(parents=True, exist_ok=True)
         # Defining path and name for basin flow direction file
         basin_flow_dir_file = os.path.join(rout_param_dir,'fl.asc')
@@ -263,7 +318,10 @@ def rat_basin(config, rat_logger):
         else:
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
         ## Paths for storing post-processed data and in webformat data
-        evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "Evaporation"), True)
+        if forecast_mode:
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{config['BASIN']['start']:%Y%m%d}"), True)
+        else:
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'Evaporation'), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
         aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
@@ -321,9 +379,10 @@ def rat_basin(config, rat_logger):
                 start= data_download_start,
                 end= config['BASIN']['end'],
                 datadir= processed_datadir,
+                forecast_dir=None,
                 basingridpath= basingridfile_path,
                 outputdir= combined_datapath,
-                use_previous= use_state,
+                use_previous= use_previous_data,
                 climatological_data=config['METSIM'].get('historical_precipitation')
             )
             #----------- Process Data End and combined data created -----------#
@@ -371,13 +430,13 @@ def rat_basin(config, rat_logger):
                 rat_logger.info("Starting Step-4: Running MetSim & preparation of VIC input")
                 ##-------------- Metsim Begin & Pre-processing for VIC --------------##
                 with MSParameterFile(
-                    start= config['BASIN']['start'],
-                    end= config['BASIN']['end'],
-                    init_param= config['METSIM']['metsim_param_file'],
-                    out_dir= metsim_output_path, 
-                    forcings= ms_input_data, 
-                    state= ms_state,
-                    domain= domain_nc_path
+                        start= config['BASIN']['start'],
+                        end= config['BASIN']['end'],
+                        init_param= config['METSIM']['metsim_param_file'],
+                        out_dir= metsim_output_path, 
+                        forcings=ms_input_data,
+                        state=ms_state,
+                        domain= domain_nc_path
                     ) as m:
                     
                     ms = MetSimRunner(
@@ -412,7 +471,7 @@ def rat_basin(config, rat_logger):
                 create_directory(vic_param_dir)
 
                 # Creating vic soil param and domain file if not present
-                if not os.path.exists(os.path.join(vic_param_dir,'vic_param.nc')):
+                if not os.path.exists(os.path.join(vic_param_dir,'vic_soil_param.nc')):
                     global_vic_param_file = os.path.join(config['VIC']['vic_global_param_dir'],config['VIC']['vic_basin_continent_param_filename'])
                     global_vic_domain_file = os.path.join(config['VIC']['vic_global_param_dir'],config['VIC']['vic_basin_continent_domain_filename'])
 
@@ -441,7 +500,9 @@ def rat_basin(config, rat_logger):
                     enddate = config['BASIN']['end'],
                     vic_output_path = vic_output_path,
                     forcing_prefix = vic_input_forcing_path,
-                    init_state_date = vic_init_state_date
+                    init_state = vic_init_state,
+                    init_state_dir=init_state_in_dir,
+                    init_state_out_dir=init_state_out_dir
                 ) as p:
                     vic = VICRunner(
                         vic_env= config['VIC']['vic_env'],
@@ -451,10 +512,10 @@ def rat_basin(config, rat_logger):
                     )
                     vic.run_vic(np=config['GLOBAL']['multiprocessing'])
                     vic.generate_routing_input_state(ndays=365, rout_input_state_file=rout_input_state_file, 
-                                                                                        save_path=rout_init_state_save_file, use_rout_state=use_state) # Start date of routing state file will be returned
+                        save_path=rout_init_state_save_file, use_rout_state=use_state) # Start date of routing state file will be returned
                     if(config['BASIN']['spin_up']):
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If spin_up, use vic result file
-                    elif(config['BASIN'].get('vic_init_state_date')):                      # If vic_state file exists
+                    elif(config['BASIN'].get('vic_init_state')):                      # If vic_state file exists
                         vic.disagg_results(rout_input_state_file=rout_init_state_save_file)    # If not spin_up, use rout_init_state_save file just creates as it contains the recent vic outputs.
                     else:
                         vic.disagg_results(rout_input_state_file=p.vic_result_file)       # If spin_up is false and vic state file does not exist, use vic result file
@@ -505,7 +566,7 @@ def rat_basin(config, rat_logger):
                 ### Extracting routing start date ###
                 if(config['BASIN']['spin_up']):
                     rout_input_state_start_date = config['BASIN']['start']
-                elif(config['BASIN'].get('vic_init_state_date')): 
+                elif(config['BASIN'].get('vic_init_state')): 
                     rout_state_data = xr.open_dataset(rout_init_state_save_file).load()
                     rout_input_state_start_date = rout_state_data.time[0].values.astype('datetime64[us]').astype(datetime.datetime)
                     rout_state_data.close()
@@ -519,6 +580,7 @@ def rat_basin(config, rat_logger):
                     end = config['BASIN']['end'],
                     basin_flow_direction_file = basin_flow_dir_file,
                     rout_input_path_prefix = rout_input_path_prefix,
+                    forecast_mode=forecast_mode,
                     clean=False,
                     inflow_dir = inflow_dst_dir,
                     station_path_latlon = basin_station_latlon_file,
@@ -566,9 +628,10 @@ def rat_basin(config, rat_logger):
                 else: 
                     raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             # Get Sarea
+            filt_options = config['GEE'].get('bot_filter') 
             run_sarea(gee_start_date.strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
-                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict)
-            GEE_STATUS = 1
+                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,filt_options)
+            GEE_STATUS = 1         
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-10: TMS-OS Surface Area Calculation from GEE")
@@ -598,6 +661,11 @@ def rat_basin(config, rat_logger):
             from rat.ee_utils.ee_aec_file_creator import aec_file_creator
             rat_logger.info("Starting Step-12: Generating Area Elevation Curves for reservoirs")
             ##--------------------------------Area Elevation Curves Extraction begins ------------------- ##
+            if (not os.path.exists(basin_reservoir_shpfile_path)):
+                if (not config['ROUTING']['station_global_data']):
+                    basin_reservoir_shpfile_path = config['GEE']['reservoir_vector_file']
+                else: 
+                    raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             ## Creating AEC files if not present for post-processing dels calculation
             AEC_STATUS = aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path)
         except:
@@ -624,7 +692,7 @@ def rat_basin(config, rat_logger):
                 rat_logger.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
             #Generating evaporation, storage change and outflow.    
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
-                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS)
+                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS, forecast_mode=forecast_mode)
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
@@ -695,7 +763,23 @@ def rat_basin(config, rat_logger):
                         rat_logger.info("Converted Area Elevation Curve to the Output Format.")
                 else:
                     rat_logger.info("Converted Area Elevation Curve to the Output Format.")
-            
+           
+            ## Plugins: RESORR
+            if config.get('PLUGINS', {}).get('resorr'):
+                # Importing ResORR
+                try:
+                    from rat.plugins.resorr.runResorr import runResorr
+                except:
+                    rat_logger.exception("Failed to import ResORR due to missing package(s). Please check for geonetworkx package. You can install it using 'pip install geonetworkx'.")
+                resorr_startDate = config['BASIN']['start']
+                resorr_endDate = config['BASIN']['end']
+                # check if basin_station_latlon_file exists:
+                if os.path.exists(basin_station_latlon_file):  
+                    rat_logger.info("Running RESORR")
+                    runResorr(basin_data_dir,basin_station_latlon_file,resorr_startDate,resorr_endDate)
+                else:
+                    rat_logger.warning("No station latlon file found to run RESORR. Try running Step-8 or provide station_latlon_path in routing section of config file.")
+                    
             # Clearing out memory space as per user input 
             if(config['CLEAN_UP'].get('clean_metsim')):
                 rat_logger.info("Clearing up memory space: Removal of metsim output files")

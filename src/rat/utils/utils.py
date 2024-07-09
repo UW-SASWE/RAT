@@ -1,5 +1,7 @@
 import os
 import math
+import numpy as np
+from scipy.signal import savgol_filter
 from datetime import datetime
 
 def days_between(d1, d2):
@@ -59,3 +61,27 @@ def clip_ts(*tss, which='left'):
         raise Exception(f'Unknown option passed: {which}, expected "left", "right" or "both"./')
 
     return clipped_tss
+
+def weighted_moving_average(data, weights, window_size):
+    if window_size % 2 == 0 or window_size < 1:
+        raise ValueError("Window size must be an odd positive integer.")
+
+    data = np.array(data)
+    weights = np.array(weights)
+
+    if data.shape != weights.shape:
+        raise ValueError("Data and weights must have the same shape.")
+
+    half_window = window_size // 2
+    smoothed_data = np.zeros_like(data)
+
+    for i in range(len(data)):
+        start = max(0, i - half_window)
+        end = min(len(data), i + half_window + 1)
+
+        weighted_values = data[start:end] * weights[start:end]
+
+        # Calculate the weighted moving average
+        smoothed_data[i] = np.sum(weighted_values) / np.sum(weights[start:end])
+
+    return smoothed_data

@@ -8,7 +8,7 @@ Essentially, RAT {{rat_version.major}}.{{rat_version.minor}} requires only the b
 
 ## Requirements
 
-+ Linux based operating system with [miniconda(recommended)/anaconda] (https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html) installed. 
++ Linux based operating system with [miniconda(recommended)/anaconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html) installed. 
 + Login credentials for [AVISO user-account](https://www.aviso.altimetry.fr/en/data/data-access/registration-form.html)(for reservoir height data)
 + Login credentials for [IMERG user-account](https://registration.pps.eosdis.nasa.gov/registration/)
 (for accessing precipitation data for hydrologic model)
@@ -29,7 +29,13 @@ Essentially, RAT {{rat_version.major}}.{{rat_version.minor}} requires only the b
     ```bash
     conda activate ./rat_project/.rat_env
     ```
-4. Install RAT {{rat_version.major}}.{{rat_version.minor}} using conda
+4. Install RAT {{rat_version.major}}.{{rat_version.minor}} either using mamba (recommended) or conda.<br><br>
+   Using mamba:
+    ```
+    conda install mamba –c conda-forge
+    mamba install rat –c conda-forge
+    ```
+   Using conda:
     ```
     conda install rat –c conda-forge
     ```
@@ -47,7 +53,7 @@ RAT {{rat_version.major}}.{{rat_version.minor}} can be initialized using `rat in
 rat init –d ./rat_project/ –g 
 ```
 !!! warning_note "Warning"
-    Default global-database is 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space initialize without downloading global-database using `rat init -d ./rat_project/`
+    Default global-database is 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space in rat_project directory, you can use `-gp or --global_data_dir` or initialize without downloading global-database using `rat init -d ./rat_project/`. Check [initialisation command](../../Commands/cli_commands/#initialization).
 
 !!! note
     Fill the [login credentials](#Requirements) for AVISO, IMERG and Earth-Engine accounts in the `secrets` file downloaded using `rat init` at the path `./rat_project/params/secrets_template.ini` and rename the file as `secrets.ini`.

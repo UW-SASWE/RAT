@@ -74,7 +74,6 @@ from scipy import io
 from scipy import stats
 from scipy import interpolate
 from scipy.cluster.vq import kmeans2
-import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
 import configparser

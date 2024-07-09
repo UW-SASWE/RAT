@@ -32,6 +32,7 @@ def run_rat(config_fn, operational_latency=None):
 
     # Logging this run
     log_dir = os.path.join(config['GLOBAL']['data_dir'],'runs','logs','')
+    print(f"Logging this run at {log_dir}")
     log = init_logger(
         log_dir,
         verbose=False,
@@ -80,7 +81,8 @@ def run_rat(config_fn, operational_latency=None):
             try:
                 log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
                 config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
-                config['BASIN']['vic_init_state_date'] = copy.deepcopy(config['BASIN']['end'])
+                config['BASIN']['vic_init_state'] = copy.deepcopy(config['BASIN']['end'])
+                config['BASIN']['rout_init_state'] = None
                 config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
             except:
                 log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
@@ -97,6 +99,21 @@ def run_rat(config_fn, operational_latency=None):
             config_copy = copy.deepcopy(config)
             # Run RAT for basin
             no_errors, latest_altimetry_cycle = rat_basin(config, log)
+            # Run RAT forecast for basin if forecast is True           
+            if config.get('PLUGINS', {}).get('forecasting'):
+                # Importing the forecast module
+                try:
+                    from rat.plugins.forecasting import forecast
+                except:
+                    log.exception("Failed to import Forecast plugin due to missing package(s).")
+                log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
+                forecast_no_errors = forecast(config, log)
+                if(forecast_no_errors>0):
+                    log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
+                elif(forecast_no_errors==0):
+                    log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                else:
+                    log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
         # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
         if(latest_altimetry_cycle):
             config_copy['ALTIMETER']['last_cycle_number'] = latest_altimetry_cycle
@@ -120,22 +137,36 @@ def run_rat(config_fn, operational_latency=None):
             if operational_latency:
                 try:
                     log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
+                    ## If end date is not in basins metadata.columns then it is in config file.
                     if ('BASIN','end') not in basins_metadata.columns:
-                        config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
-                        config['BASIN']['vic_init_state_date'] = copy.deepcopy(config['BASIN']['end'])
+                        ## Adding [Basin][start] to metadata.columns if not there with with None value 
+                        if ('BASIN','start') not in basins_metadata.columns:
+                            basins_metadata['BASIN','start'] = None
+                        ## Changning [Basin][start] in metadata.columns to previous end value from config file 
+                        basins_metadata['BASIN','start'] = copy.deepcopy(config['BASIN']['end'])
                         config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
+                    ## Else it is in metadata.columns
                     else:
                         # Updating start
+                        ## Adding [Basin][start] to metadata.columns if not there with None value
                         if ('BASIN','start') not in basins_metadata.columns:
                             basins_metadata['BASIN','start'] = None    
+                        ## Changning [Basin][start] in metadata.columns to previous end value from metadata
                         basins_metadata['BASIN','start'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','end'], inplace=True)
                         # Updating end
                         operational_end_date = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
                         basins_metadata['BASIN','end'].where(basins_metadata['BASIN','basin_name']!= basin, operational_end_date, inplace=True)
-                        # Updating vic_init_state_date
-                        if ('BASIN','vic_init_state_date') not in basins_metadata.columns:
-                            basins_metadata['BASIN','vic_init_state_date'] = None    
-                        basins_metadata['BASIN','vic_init_state_date'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','start'], inplace=True)
+                    ### We can add vic_init_state and rout_init_state to metadata as it will override the values in config anyway.
+                    # Updating vic_init_state
+                    ## Adding [Basin][vic_init_state] to metadata.columns if not there with None value
+                    if ('BASIN','vic_init_state') not in basins_metadata.columns:
+                        basins_metadata['BASIN','vic_init_state'] = None    
+                    basins_metadata['BASIN','vic_init_state'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','start'], inplace=True)
+                    # Updating rout_init_state to None for all.
+                    ## Adding [Basin][vic_init_state] to metadata.columns if not there with None value
+                    if ('BASIN','rout_init_state') not in basins_metadata.columns:
+                        basins_metadata['BASIN','rout_init_state'] = None
+                    basins_metadata['BASIN','rout_init_state'] = None
                 except:
                     log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
                     return None
@@ -143,7 +174,7 @@ def run_rat(config_fn, operational_latency=None):
             basin_info = basins_metadata[basins_metadata['BASIN']['basin_name']==basin]
             config_copy = copy.deepcopy(config)
             for col in basin_info.columns:
-                if(not np.isnan(basin_info[col[0]][col[1]].values[0])):
+                if(not pd.isna(basin_info[col[0]][col[1]].values[0])):
                     config_copy[col[0]][col[1]] = basin_info[col[0]][col[1]].values[0]
             # Running RAT if start < end date
             if (config_copy['BASIN']['start'] >= config_copy['BASIN']['end']):
@@ -154,6 +185,21 @@ def run_rat(config_fn, operational_latency=None):
                 basins_metadata.to_csv(config['GLOBAL']['basins_metadata'], index=False)
                 ryaml_client.dump(config, config_fn.open('w'))
                 no_errors, latest_altimetry_cycle = rat_basin(config_copy, log)
+                # Run RAT forecast for basin if forecast is True
+                if config.get('PLUGINS', {}).get('forecasting'):
+                    # Importing the forecast module
+                    try:
+                        from rat.plugins.forecasting import forecast
+                    except:
+                        log.exception("Failed to import Forecast plugin due to missing package(s).")
+                    log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
+                    forecast_no_errors = forecast(config, log)
+                    if(forecast_no_errors>0):
+                        log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
+                    elif(forecast_no_errors==0):
+                        log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                    else:
+                        log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
             # Displaying and storing RAT function outputs
             if(latest_altimetry_cycle):
                 # If column doesn't exist in basins_metadata, create one

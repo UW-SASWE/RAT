@@ -1,6 +1,7 @@
 # import geemap as gee
 import ee
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from datetime import date as datetime_date
 import pandas as pd
 import time
 import os
@@ -51,6 +52,7 @@ start_date = ee.Date('2019-01-01')
 end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 16
 RESULTS_PER_ITER = 5
+MISSION_START_DATE = (2022,1,1) # Rough start date for mission/satellite data
 
 
 # s2_subset = s2.filterBounds(aoi).filterDate(start_date, end_date)
@@ -322,8 +324,11 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
     # Extracting reservoir geometry 
     global aoi
     aoi = poly2feature(res_polygon,BUFFER_DIST).geometry()
+    ## Checking if time interval is before 2022 then the image collection should not be empty in GEE
+    if(datetime.strptime(end, "%Y-%m-%d").date()<datetime_date(*MISSION_START_DATE)):
+        number_of_images = l9.filterBounds(aoi).filterDate(start, end).size().getInfo()
     ## Checking if time interval is small then the image collection should not be empty in GEE
-    if (days_between(start,end) < 30):     # less than a month difference
+    elif (days_between(start,end) < 30):     # less than a month difference
         number_of_images = l9.filterBounds(aoi).filterDate(start, end).size().getInfo()
     else:
         number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
