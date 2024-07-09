@@ -22,7 +22,7 @@ jobs:
       run: |
         # from refs/tags/v1.2.3 get 1.2.3
         VERSION=$(echo $GITHUB_REF | sed 's#.*/##')
-        PLACEHOLDER='version = \"develop\"'
+        PLACEHOLDER='version = \"0.0\"'
         VERSION_FILE1='setup.py'
         VERSION_FILE2='pyproject.toml'
 
@@ -47,7 +47,7 @@ jobs:
         name: dist
         path: dist/
         retention-days: 5
-        if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`    
+        if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
 
   publish:
     name: Publish distribution to PyPI

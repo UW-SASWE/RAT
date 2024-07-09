@@ -1,0 +1,72 @@
+name: build-and-test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build package
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    - name: Install pypa/build
+      run: >-
+        python -m pip install build --user
+    - name: Build a binary wheel and a source tarball
+      run: >-
+        python -m build --sdist --wheel --outdir dist/ .
+    - name: Upload artifact to GA
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        retention-days: 5
+        if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
+    
+  test:
+    name: Test package
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup environment with conda
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: test_env.yml
+          environment-name: rat_test_env
+          init-shell: bash
+          create-args: >-
+            python=${{ matrix.python-version }}
+      - name: Test conda
+        shell: bash -l {0}
+        run: |
+          which conda
+          conda info
+          conda env list
+          conda env export --from-history
+      - name: Build RAT conda package
+        shell: bash -l {0}
+        run: |
+          mkdir conda_dist
+          conda-build .github/workflows/ --output-folder conda_dist
+      - name: Install RAT
+        shell: bash -l {0}
+        run: |
+          conda install rat -c ./conda_dist/ 
+      - name: Run tests
+        shell: bash -l {0}
+        env:
+          IMERG_SECRETS: ${{ secrets.IMERG_SECRETS }}
+          KEY_FILE: ${{ secrets.KEY_FILE }}
+        run: |
+          pytest -s tests/
