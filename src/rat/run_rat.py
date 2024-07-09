@@ -57,7 +57,9 @@ def run_rat(config_fn, operational_latency=None):
         log.info("Checking earth engine credentials")
         secrets = configparser.ConfigParser()
         if config['CONFIDENTIAL']['secrets'] == 'GA':
+            print('USING GITHUB ACTIONS SECRETS')
             secrets.read_string(os.environ['GA'])
+            print(os.environ['GA'])
             temp_key_file = NamedTemporaryFile(delete=True)
             temp_key_file.write(os.environ['KEY_FILE'].encode())
             secrets['ee']['key_file'] = temp_key_file.name
