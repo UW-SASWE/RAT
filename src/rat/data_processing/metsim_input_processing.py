@@ -224,6 +224,22 @@ class CombinedNC:
         #Restoring original values outside basin extent. This ensures that ocean tiles remain to be NaN/-9999
         combine_nomiss_data = combine_nomiss_data.where(combined_data['extent']==1,combined_data)
         return combine_nomiss_data
+    
+    def _min_max_temperature_check(self, combined_data):
+        # Create a mask where tmax is less than tmin
+        mask = combined_data['tmax'] < combined_data['tmin']
+
+        # Use the mask to interchange tmax and tmin values efficiently
+        # Apply the swap using xarray's where function to avoid temporary arrays
+
+        tmax_swapped = xr.where(mask, combined_data['tmin'], combined_data['tmax'])
+        tmin_swapped = xr.where(mask, combined_data['tmax'], combined_data['tmin'])
+
+        # Assign the swapped arrays back to the original dataset
+        combined_data['tmax'] = tmax_swapped
+        combined_data['tmin'] = tmin_swapped
+
+        return combined_data
 
     def _write(self):
         precip_da = xr.DataArray(
@@ -280,11 +296,13 @@ class CombinedNC:
                 # ds = ds.isel(time=slice(1, None))
                 write_ds = xr.merge([existing_to_append, ds])
                 ds = self._impute_basin_missing_data(write_ds)
+                ds = self._min_max_temperature_check(ds)
             else:
                 raise Exception('Previous combined dataset not found. Please run RAT without state files first.')
         else:
             log.debug(f"Creating new file at {self._outputpath}")
             ds = self._impute_basin_missing_data(ds)
+            ds = self._min_max_temperature_check(ds)
         ds.to_netcdf(self._outputpath)
         # log.debug(f"Saving {len(paths)} files at {self._outputdir}")
         # xr.save_mfdataset(datasets, paths)
