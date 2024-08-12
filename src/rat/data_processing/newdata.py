@@ -214,7 +214,7 @@ def download_tmax(year, outputpath):
         log.info("File already exists tmax: %s", year)
         # Checking days in year and in file. 
         days_in_year=366 if calendar.isleap(int(year)) else 365
-        with xr.open_dataset(outputpath) as nc_data:
+        with xr.open_dataset(outputpath, engine='netcdf4') as nc_data:
             days_in_file = len(nc_data['time'])
         if(days_in_file<days_in_year):
             log.info(f"The file has only data for {days_in_file} days which is less than the days in the year ({days_in_year}).So, updating the tmax file: {year}")
