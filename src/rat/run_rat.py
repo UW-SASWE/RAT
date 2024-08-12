@@ -123,18 +123,18 @@ def run_rat(config_fn, operational_latency=None):
         except:
             raise("Please provide the proper path of a csv file in basins_metadata in the Global section of RAT's config file")
         if ('BASIN','run') in basins_metadata.columns:
-            basins_metadata = basins_metadata[basins_metadata['BASIN','run']==1]
+            basins_metadata_filtered = basins_metadata[basins_metadata['BASIN','run']==1]
         ####### Remove in future version : Deprecation (start)########
         elif (config['GLOBAL'].get('basins_to_process')):
             DeprecationWarning("'basins_to_process' in Global section of RAT has been deprecated and will be removed in future versions. Please use 'run' in BASIN section in basins_metadata file for each basin.")
             if ('BASIN','basin_name') in basins_metadata.columns:
-                basins_metadata = basins_metadata[basins_metadata['BASIN','basin_name'].isin(config['GLOBAL']['basins_to_process'])]
+                basins_metadata_filtered = basins_metadata[basins_metadata['BASIN','basin_name'].isin(config['GLOBAL']['basins_to_process'])]
             else:
                 raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
         ####### Remove in future version : Deprecation (end) ########
         
         if ('BASIN','basin_name') in basins_metadata.columns:
-            basins_to_process = basins_metadata['BASIN','basin_name'].tolist()
+            basins_to_process = basins_metadata_filtered['BASIN','basin_name'].tolist()
         else:
             raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
 
