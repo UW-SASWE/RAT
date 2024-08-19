@@ -27,7 +27,7 @@ class MetSimRunner():
     
     def convert_to_vic_forcings(self, forcings_dir):
         # The results have to be converted to VIC readable yearly netcdf files.
-        ds = xr.open_dataset(self.results_path).load()
+        ds = xr.open_dataset(self.results_path)#.load()
         
         years, dataset = zip(*ds.groupby('time.year'))
         paths = [os.path.join(forcings_dir, f'forcing_{y}.nc') for y in years]
@@ -38,7 +38,7 @@ class MetSimRunner():
         log.debug(f"Will create {len(years)} forcing files")
         for year, ds, p in zip(years, dataset, paths):
             if os.path.isfile(p):
-                existing = xr.open_dataset(p).load()
+                existing = xr.open_dataset(p)#.load()
                 existing.close()
 
                 log.debug(f"Writing file for year {year}: {p} -- Updating existing")
