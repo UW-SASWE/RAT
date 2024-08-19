@@ -173,46 +173,6 @@ class CombinedNC:
             self.winds[day, :, :] = wind
             # pbar.update(1)
 
-    def _read(self):
-        self.precips = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.tmaxes = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.tmins = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.winds = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
-        self.dates = pd.date_range(self._start, self._end)
-
-        for day, date in enumerate(self.dates):
-            fileDate = date
-            reqDate = fileDate.strftime("%Y-%m-%d")
-            log.debug("Combining data: %s", reqDate)
-            # pbar.set_description(reqDate)
-
-            precipfilepath = os.path.join(self._datadir, f'precipitation/{reqDate}_IMERG.asc')
-            precipitation = rio.open(precipfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
-
-            #Reading Maximum Temperature ASCII file contents
-            tmaxfilepath = os.path.join(self._datadir, f'tmax/{reqDate}_TMAX.asc')
-            tmax = rio.open(tmaxfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
-
-            #Reading Minimum Temperature ASCII file contents
-            tminfilepath = os.path.join(self._datadir, f'tmin/{reqDate}_TMIN.asc')
-            tmin = rio.open(tminfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
-
-            #Reading Average Wind Speed ASCII file contents
-            uwndfilepath = os.path.join(self._datadir, f'uwnd/{reqDate}_UWND.asc')
-            uwnd = rio.open(uwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
-
-            # #Reading Average Wind Speed ASCII file contents
-            vwndfilepath = os.path.join(self._datadir, f'vwnd/{reqDate}_VWND.asc')
-            vwnd = rio.open(vwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
-            wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))#.flatten()[self.gridvalue==0.0]
-
-            # self.dates.append(fileDate)
-            self.precips[day, :, :] = precipitation
-            self.tmaxes[day, :, :] = tmax
-            self.tmins[day, :, :] = tmin
-            self.winds[day, :, :] = wind
-            # pbar.update(1)
-
     # Imputes missing data by interpolation in the order of dimensions time, lon, lat.
     def _impute_basin_missing_data(self, combined_data):
         combine_nomiss_data = combined_data
