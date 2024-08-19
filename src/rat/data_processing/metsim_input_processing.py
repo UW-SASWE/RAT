@@ -4,13 +4,14 @@ import os
 from logging import getLogger
 import numpy as np
 import rasterio as rio
+import rioxarray as rxr
 import numpy as np
-import xarray as xr
 import os
 import pandas as pd
 import shutil
 import dask
 from pathlib import Path
+from dateutil.relativedelta import relativedelta
 
 from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 
@@ -43,9 +44,12 @@ class CombinedNC:
 
         if forecast_dir:
             self.read_forecast(forecast_dir, forecast_basedate)
+            self._write()
         else:
-            self._read()
-        self._write()
+            self._read_and_write_in_chunks()
+            # self._read()
+            # self._write()
+        
         # If climatological data is passed, then run the climatological data correction
         if climatological_data:
             self._climatological_data = climatological_data
@@ -287,7 +291,7 @@ class CombinedNC:
                 log.debug(f"Found existing file at {self._outputpath} -- Updating in-place")
                 # Assuming the existing file structure is same as the one generated now. Basically
                 #   assuming that the previous file was also created by MetSimRunner
-                existing = xr.open_dataset(self._outputpath).load()
+                existing = xr.open_dataset(self._outputpath)#.load()
                 existing.close()
                 last_existing_time = existing.time[-1]
                 log.debug("Existing data: %s", last_existing_time)
@@ -306,6 +310,172 @@ class CombinedNC:
         ds.to_netcdf(self._outputpath)
         # log.debug(f"Saving {len(paths)} files at {self._outputdir}")
         # xr.save_mfdataset(datasets, paths)
+
+
+    def _read_chunk(self,chunk_start,chunk_end):
+        dates = pd.date_range(chunk_start, chunk_end)
+
+        ds_list=[]
+
+        for day, date in enumerate(dates):
+            fileDate = date
+            reqDate = fileDate.strftime("%Y-%m-%d")
+            log.debug("Combining data: %s", reqDate)
+            # pbar.set_description(reqDate)
+
+            precipfilepath = os.path.join(self._datadir, f'precipitation/{reqDate}_IMERG.asc')
+            precipitation = rxr.open_rasterio(precipfilepath,masked=True).sel(band=1, drop=True).astype(np.float32)
+            # Replace no-data values with NaN
+            precipitation = precipitation.where(precipitation != precipitation.rio.nodata, np.nan)
+            # Create additional dimension to concatenate
+            precip_da = precipitation.expand_dims(time=[date])
+
+            #Reading Maximum Temperature ASCII file contents
+            tmaxfilepath = os.path.join(self._datadir, f'tmax/{reqDate}_TMAX.asc')
+            tmax = rxr.open_rasterio(tmaxfilepath,masked=True).sel(band=1, drop=True).astype(np.float32)
+            # Replace no-data values with NaN
+            tmax = tmax.where(tmax != tmax.rio.nodata, np.nan)
+            # Create additional dimension to concatenate
+            tmax_da = tmax.expand_dims(time=[date])
+
+            #Reading Minimum Temperature ASCII file contents
+            tminfilepath = os.path.join(self._datadir, f'tmin/{reqDate}_TMIN.asc')
+            tmin = rxr.open_rasterio(tminfilepath,masked=True).sel(band=1, drop=True).astype(np.float32)
+            # Replace no-data values with NaN
+            tmin = tmin.where(tmin != tmin.rio.nodata, np.nan)
+            # Create additional dimension to concatenate
+            tmin_da = tmin.expand_dims(time=[date])
+
+            #Reading Average Wind Speed ASCII file contents
+            uwndfilepath = os.path.join(self._datadir, f'uwnd/{reqDate}_UWND.asc')
+            uwnd = rxr.open_rasterio(uwndfilepath,masked=True).sel(band=1, drop=True).astype(np.float32)
+
+            # #Reading Average Wind Speed ASCII file contents
+            vwndfilepath = os.path.join(self._datadir, f'vwnd/{reqDate}_VWND.asc')
+            vwnd = rxr.open_rasterio(vwndfilepath,masked=True).sel(band=1, drop=True).astype(np.float32)
+            wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))
+            # Replace no-data values with NaN
+            wind = wind.where(wind != wind.rio.nodata, np.nan)
+            # Create additional dimension to concatenate
+            wind_da = wind.expand_dims(time=[date])
+
+            ## Making an xarray dataset with all the above variables
+            ds_day = xr.Dataset(
+                data_vars={
+                    'precip': precip_da,
+                    'tmax': tmax_da,
+                    'tmin': tmin_da,
+                    'wind': wind_da
+                }
+            )
+            ds_list.append(ds_day)
+
+        return ds_list 
+
+    def _write_chunk(self, ds_list, existing_to_append=None, last_existing_time=None, first_loop=False):
+        
+        ds_chunk = xr.concat(ds_list, dim='time')
+        # Rename dimensions & coordinates from 'x' and 'y' to 'lon' and 'lat'
+        ds_chunk = ds_chunk.rename({'x': 'lon', 'y': 'lat'})
+        # Set latitude and longitude as required by metsim
+        ds_chunk.coords['lat'] = np.flip(self._latitudes1d) 
+        ds_chunk.coords['lon'] = self._longitudes1d
+        # Drop unwanted coordinates or variables
+        ds_chunk = ds_chunk.drop('spatial_ref')
+
+        # If existing data is there  and we're not starting from scratch, append data to the existing data 
+        if existing_to_append:
+            ## Select dates starting from last existing time and write it after merging with existing data
+            ds_chunk_sel = ds_chunk.sel(time=slice(last_existing_time + np.timedelta64(1,'D') , ds_chunk.time[-1]))
+            # Separate the non-time-dependent variable
+            if 'extent' in existing_to_append.data_vars:
+                # Drop the extent variable from existing_to_append if it already exists in the file for concat operation with other chunks. It will be added after writing all chunks in _apply_dataset_operations
+                ds_chunk = ds_chunk.drop_vars('extent')
+            write_ds_chunk = xr.concat([existing_to_append, ds_chunk_sel], dim='time')
+            write_ds_chunk.to_netcdf(self._outputpath, mode='w', unlimited_dims=['time']) 
+        # Else just write the chunk in file (by creating new if first chunk, otherwise append)
+        else:
+            ## Write the chunk
+            if first_loop:
+                write_ds_chunk = ds_chunk
+                write_ds_chunk.to_netcdf(self._outputpath, mode='w', unlimited_dims=['time'])
+            else:
+                appending_ds = xr.open_dataset(self._outputpath, mode='a')
+                # Concatenate the existing and new data along the time dimension
+                combined_ds = xr.concat([appending_ds, ds_chunk], dim='time')
+                appending_ds.close()
+                # Write the combined dataset back to the file
+                combined_ds.to_netcdf(self._outputpath, mode='w', unlimited_dims=['time'])
+    
+    def _read_and_write_in_chunks(self):
+
+        start_date = pd.to_datetime(self._start).to_pydatetime()
+        start_date_pd = pd.to_datetime(self._start)
+        end_date = pd.to_datetime(self._end).to_pydatetime()
+        
+        chunk_start = start_date
+        # use_previous = False
+
+        loop_number = 0
+
+        while chunk_start < end_date:
+            # Calculate the chunk end date (5 years later)
+            chunk_end = min(chunk_start + relativedelta(years=5), end_date)
+
+            # Convert chunk dates back to string format for passing to CombinedNC
+            chunk_start_str = chunk_start.strftime("%Y-%m-%d")
+            chunk_end_str = chunk_end.strftime("%Y-%m-%d")
+            print(f"Running combinedNC for {chunk_start_str} and {chunk_end_str}")
+            
+            # read chunk data
+            ds_list = self._read_chunk(chunk_start,chunk_end)
+            # For first chunk
+            if loop_number==0:
+                # If using previously stored data, merege last 120 days from the start date to the chunk_data
+                if self._use_previous:
+                    if os.path.isfile(self._outputpath):
+                        log.debug(f"Found existing file at {self._outputpath} -- Updating in-place")
+                        # Assuming the existing file structure is same as the one generated now. Basically
+                        #   assuming that the previous file was also created by MetSimRunner
+                        existing = xr.open_dataset(self._outputpath)
+                        existing.close()
+                        last_existing_time = existing.time[-1]
+                        log.debug("Existing data: %s", last_existing_time)
+                        existing_to_append = existing.sel(time=slice(start_date_pd.to_datetime64() - np.timedelta64(120,'D') , last_existing_time))
+                        self._write_chunk(ds_list, existing_to_append, last_existing_time, first_loop=True)
+                    else:
+                        raise Exception('Previous combined dataset not found. Please run RAT with spin-up or use state file paths.')
+                # Else simply write a chunk in write mode
+                else:
+                    self._write_chunk(ds_list, first_loop=True)
+            # For all other chunks, just write them in append mode
+            else:
+                self._write_chunk(ds_list)
+            
+            # Increase loop number
+            loop_number += 1
+            # Move to the next chunk
+            chunk_start = chunk_end + relativedelta(days=1)
+            print("Chunk written.")
+        
+        print("Written complete CombinedNC and now applying data imputation and other operations like min-max temperature check.")
+        self._apply_dataset_operations()
+    
+    def _apply_dataset_operations(self):
+        da = xr.open_dataset(self._outputpath)
+        ### create extent variable to be added in the dataset
+        extent_da = xr.DataArray(
+                data=self._ar,
+                coords={'lat': np.flip(self._latitudes1d), 'lon': self._longitudes1d},
+                dims=['lat', 'lon'],
+                name='extent'  
+            )
+        ### Add extent DataArray to dataset as a variable
+        da['extent'] = extent_da
+        clean_da = self._impute_basin_missing_data(da)
+        clean_da = self._min_max_temperature_check(clean_da)
+        da.close()
+        clean_da.to_netcdf(self._outputpath)
 
 def generate_state_and_inputs(forcings_startdate, forcings_enddate, combined_datapath, out_dir):
     # Generate state. Assuming `nc_fmt_data` contains all the data, presumably containing enough data
