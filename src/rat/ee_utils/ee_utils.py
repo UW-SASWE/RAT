@@ -6,7 +6,7 @@ def poly2feature(polygon,buffer_distance):
     '''
     Returns an earth engine feature with the same geometry as the polygon object with buffer_distance added. buffer_distance is in meters.
     '''
-    if(polygon.type=='MultiPolygon'):
+    if(polygon.geom_type=='MultiPolygon'):
         all_cords=[]
         for poly in polygon.geoms:
             x,y = poly.exterior.coords.xy
