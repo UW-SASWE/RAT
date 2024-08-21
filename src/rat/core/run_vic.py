@@ -41,7 +41,7 @@ class VICRunner():
     def generate_routing_input_state(self, ndays, rout_input_state_file, save_path, use_rout_state):
         if os.path.isfile(rout_input_state_file) and (use_rout_state):
             print('Routing input state fle exists at '+str(rout_input_state_file))
-            new_vic_output = xr.open_mfdataset(self.vic_result).load()
+            new_vic_output = xr.open_mfdataset(self.vic_result)#.load()
             first_existing_time = new_vic_output.time[0]
             new_vic_output.close()
 
@@ -72,7 +72,7 @@ class VICRunner():
 
     def disagg_results(self, rout_input_state_file):
         log.log(NOTIFICATION, "Started disaggregating VIC results")
-        fluxes = xr.open_dataset(rout_input_state_file).load()
+        fluxes = xr.open_dataset(rout_input_state_file)#.load()
 
         fluxes_subset = fluxes[['OUT_PREC', 'OUT_EVAP', 'OUT_RUNOFF', 'OUT_BASEFLOW']]
 
@@ -98,6 +98,8 @@ class VICRunner():
                     da = fluxes_subset.isel(lat=lat, lon=lon).to_dataframe().reset_index()
 
                     da.to_csv(fname, sep=' ', header=False, index=False, float_format="%.5f", quotechar="", quoting=csv.QUOTE_NONE, date_format="%Y %m %d", escapechar=" ")
+            
+            print(f"All files for {lat} have been written.")
                         # pbar.update(1)
         # See how many files were created
         disagg_n = len(os.listdir(self.rout_input))

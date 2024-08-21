@@ -106,6 +106,10 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         basin_name = config['BASIN']['basin_name']              # Basin name used to save basin related data
         basin_id = config['BASIN']['basin_id']                  # Unique identifier for each basin used to map basin polygon in basins_shapefile
         basin_data = basins_shapefile[basins_shapefile[basins_shapefile_column_dict['id']]==basin_id] # Getting the particular basin related information corresponding to basin_id
+        if(len(basin_data)>1):
+            raise(f"More than one basins have the same ID which is {basin_id}.")
+        elif( len(basin_data)==0):
+            raise(f"No basin was found for the {basin_id}.")
         basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
         basin_bounds = np.array(basin_bounds)[0]
         basin_geometry = basin_data.geometry                      # Obtaining geometry of the particular basin
