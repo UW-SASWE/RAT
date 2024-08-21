@@ -851,13 +851,13 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                     
             # Clearing out memory space as per user input 
             if(config['CLEAN_UP'].get('clean_metsim')):
-                rat_logger.info("Clearing up memory space: Removal of metsim output files")
+                rat_logger.info("Clearing up memory space: Removal of metsim input and output files")
                 cleaner.clean_metsim()
             if(config['CLEAN_UP'].get('clean_vic')):
-                rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
+                rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files older than 20 days.")
                 cleaner.clean_vic()
             if(config['CLEAN_UP'].get('clean_routing')):
-                rat_logger.info("Clearing up memory space: Removal of routing input and output files")
+                rat_logger.info("Clearing up memory space: Removal of routing input, output files and previous rout_state_files older than 20 days.")
                 cleaner.clean_routing()
             if(config['CLEAN_UP'].get('clean_gee')):
                 rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
