@@ -808,7 +808,7 @@ This section of the configuration file describes the parameters defined by `rout
          If `clean_previous_outputs` is `True`, the previous outputs are cleaned before executing any step in `steps`.
          
     !!! tip_note "Tip"
-        You should use `clean_previous_outputs` if you want to have fresh outputs of RAT for a river basin. Otherwise, by default RAT will keep appending the new outputs to the same files and will concatenate data by calendar dates.
+        You should use `clean_previous_outputs` if you want to have fresh outputs of RAT for a river basin. Otherwise, by default RAT will keep appending the new outputs to the same files and will concatenate data by calendar dates. In case the new outputs and previous outputs have some coinciding dates, RAT will replace the previous outputs with the new outputs for these dates.
 
 ### Confidential
 * <h6 class="parameter_heading">*`secrets:`* :</h6> 

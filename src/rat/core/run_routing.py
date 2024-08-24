@@ -152,7 +152,7 @@ def generate_inflow(src_dir, dst_dir):
                 # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
                 complement = pd.concat([existing_data, new_data], ignore_index=True)
                 # Remove all duplicates:
-                complement.drop_duplicates(subset=['date'], inplace=True, keep='first')
+                complement.drop_duplicates(subset=['date'], inplace=True, keep='last')
                 complement.sort_values(by='date', inplace=True)
                 complement.to_csv(outpath, index=False)
             else:
