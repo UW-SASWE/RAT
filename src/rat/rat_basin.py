@@ -16,8 +16,10 @@ from rat.utils.files_creator import create_basin_station_latlon_csv, create_basi
 from rat.utils.clean import Clean
 
 from rat.data_processing.newdata import get_newdata
+from rat.data_processing.newdata_low_latency import get_newdata_low_latency
 
 from rat.data_processing.metsim_input_processing import CombinedNC,generate_state_and_inputs
+from plugins.forecasting.forecasting import generate_forecast_state_and_inputs
 from rat.utils.metsim_param_reader import MSParameterFile
 from rat.core.run_metsim import MetSimRunner
 
@@ -58,12 +60,15 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-5 step-13 outflow (mass-balance)
 #RAT using all modules and step-14 to produce final outputs
 
-def rat_basin(config, rat_logger, forecast_mode=False):
+def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
     """Runs RAT as per configuration defined in `config_fn` for one single basin.
 
     parameters:
-        config_fn (str): Path to the configuration file for one basin and not for multiple basins. To run rat for multiple basins use run_rat()
-    
+        config_fn (str): Path to the configuration file for one basin and not for multiple basins. To run rat for multiple basins use run_rat().
+        rat_logger (logging object): Logger to use for logging of level 2 file with complete details.
+        forecast_mode (bool): Run rat_basin in forecast mode if True.
+        gfs_days (int): Number of most recent days for which GFS data will be used due to low latency.
+
     returns:
         no_errors (int): Number of errors/exceptions occurred while running rat
         latest_altimetry_cycle (int): Latest altimetry jason3 cycle number if rat runs step 11
@@ -74,7 +79,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
     no_errors = 0
 
     # Tracking latest altimetry cycle number if step 11 is run, otherwise return None
-    latest_altimetry_cycle = None
+    latest_altimetry_cycle = None 
 
     ######### Step -1 Mandatory Step
     try:
@@ -86,7 +91,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             warn_message = "The parameter 'vic_init_state_date' has been deprecated and will not be supported in future versions. Please use 'vic_init_state' instead."
             warnings.warn(warn_message, DeprecationWarning, stacklevel=2)
             rat_logger.warning(warn_message)
-            config['vic_init_state'] = config['BASIN'].get('vic_init_state_date')
+            config['BASIN']['vic_init_state'] = config['BASIN'].get('vic_init_state_date')
 
         # Reading steps to be executed in RAT otherwise seting default value
         if config['GLOBAL'].get('steps'):
@@ -142,14 +147,14 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             rout_init_state = None      # No initial state of Routing is present as running RAT for first time in this basin 
             gee_start_date = user_given_start  # Run gee from the date provided by user and not spin-off start date.
         elif(config['BASIN'].get('vic_init_state')):
-            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from [will be changed if vic_init_state is ot Date]
+            data_download_start = config['BASIN']['start']    # Downloading data from the same date as we want to run RAT from [will be changed if vic_init_state is a Date]
             vic_init_state = config['BASIN']['vic_init_state'] # Date or File path of the vic_init_state
             use_state = True           # Routing state file will be used
             ## Assuming that if vic_init_state is file then the user doesn't have previous data to use
             if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):
                 use_previous_data = True   # Previous Combined Nc file will be used
             else:
-                use_previous_data = False # Previous Combined Nc file won't be used
+                use_previous_data = False # Previous Combined Nc  file won't be used
                 data_download_start = config['BASIN']['start']-datetime.timedelta(days=90) # Downloading 90 days of extra meteorological data for MetSim to prepare it's initial state as won't be using previous data
             ## Assuming rout_init_state (if not provided) as same date as vic_init_state if it is a date else assigning it the start date
             if(config['BASIN'].get('rout_init_state')):
@@ -166,6 +171,18 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             use_previous_data = False   # Previous Combined Nc file won't be used
             rout_init_state = None      # No initial state of Routing will be used.
             gee_start_date = config['BASIN']['start']  # Run gee from the date provided by user.
+        
+        # Defining dates based on gfs_days. Vic init state date and data download will happend for observed data
+        vic_init_state_save_date = config['BASIN']['end'] - datetime.timedelta(days=gfs_days)
+        data_download_end = config['BASIN']['end'] - datetime.timedelta(days=gfs_days)
+        # Defining dates if gfs_days is not zero.
+        if gfs_days:
+            gfs_data_download_start = config['BASIN']['end'] - datetime.timedelta(days=gfs_days-1)
+            gfs_data_download_end = config['BASIN']['end']
+        
+
+
+            
 
         # Defining logger
         log = init_logger(
@@ -202,8 +219,14 @@ def rat_basin(config, rat_logger, forecast_mode=False):
     else:
         rat_logger.info("Read Configuration settings to run RAT.")
         ##--------------------- Read and initialised global parameters ----------------------##
-
-    rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']} which might include spin-up.")
+    if (config['BASIN']['spin_up']):
+        rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']} which includes spin-up.")
+    else:
+        rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']}.")
+    if gfs_days:
+            rat_logger.info(f"Note 1: Due to low latency availability, GFS daily forecasted data will be used for {gfs_days} most recent days.")
+            rat_logger.info(f"Note 2: The GFS data will be removed and replaced in next RAT run by observed data, if available.")
+            rat_logger.info(f"Note 3: Vic init state will be saved for {vic_init_state_save_date}.") 
 
     ######### Step-0 Mandatory Step
     try:
@@ -330,8 +353,18 @@ def rat_basin(config, rat_logger, forecast_mode=False):
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
         aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
         final_output_path = create_directory(os.path.join(basin_data_dir,'final_outputs',''),True)
-        ## End of defining paths for storing post-processed data and webformat data
         #----------- Paths Necessary for running of Post-Processing-----------#
+        
+        #----------------------- Paths Necessary for running of Low latency Mode using GFS & GEFS data ------------------#
+        if gfs_days:
+            low_latency_data_dir = create_directory(Path(basin_data_dir) / 'low_latency', True)
+            raw_gefs_chirps_dir = create_directory(Path(low_latency_data_dir) / 'gefs-chirps' / 'raw', True)
+            processed_gefs_chirps_dir = create_directory(Path(low_latency_data_dir) / 'gefs-chirps' / 'processed',True)
+            gfs_dir = create_directory(Path(low_latency_data_dir) / 'gfs',True)
+            low_latency_combined_nc_path = Path(basin_data_dir) / 'pre_processing' / 'nc' / 'low_latency_combined.nc'
+        #----------------------- Paths Necessary for running of Low latency Mode using GFS & GEFS data ------------------#
+
+        ## End of defining paths for storing post-processed data and webformat data
     except:
         no_errors = -1
         rat_logger.exception("Error in creating required directory structure for RAT")
@@ -352,11 +385,20 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                 data_dir= config['GLOBAL']['data_dir'],
                 basin_data_dir= basin_data_dir,
                 startdate= data_download_start,
-                enddate= config['BASIN']['end'],
+                enddate= data_download_end,
                 secrets_file= config['CONFIDENTIAL']['secrets'],
                 download= True,
                 process= True
             )
+            if gfs_days:
+                get_newdata_low_latency(
+                    start=gfs_data_download_start,
+                    end=gfs_data_download_end,
+                    basin_bounds=basin_bounds,
+                    raw_low_latency_dir=raw_gefs_chirps_dir,
+                    processed_low_latency_dir=processed_gefs_chirps_dir,
+                    low_latency_gfs_dir=gfs_dir
+                )    
             ##---------- Download Data End -----------# 
             NEW_DATA_STATUS = 1   #Data downloaded successfully
         except:
@@ -381,7 +423,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
             #----------- Process Data Begin to combine all var data -----------#
             CombinedNC(
                 start= data_download_start,
-                end= config['BASIN']['end'],
+                end= data_download_end,
                 datadir= processed_datadir,
                 forecast_dir=None,
                 basingridpath= basingridfile_path,
@@ -389,16 +431,39 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                 use_previous= use_previous_data,
                 climatological_data=config['METSIM'].get('historical_precipitation')
             )
+            if gfs_days:
+                CombinedNC(
+                    start= gfs_data_download_start,
+                    end= gfs_data_download_end,
+                    datadir= None,
+                    forecast_dir=None,
+                    basingridpath= basingridfile_path,
+                    outputdir= low_latency_combined_nc_path,
+                    use_previous=False,
+                    low_latency_dir=low_latency_data_dir
+                )
             #----------- Process Data End and combined data created -----------#
 
             #------ MetSim Input Data Preparation Begin ------#
-            # Prepare data to metsim input format
-            ms_state, ms_input_data = generate_state_and_inputs(
-                forcings_startdate= config['BASIN']['start'],
-                forcings_enddate= config['BASIN']['end'],
-                combined_datapath= combined_datapath, 
-                out_dir= metsim_inputs_dir
-            )
+            # Prepare data to metsim input format in case of non-low latency
+            if gfs_days==0:
+                ms_state, ms_input_data = generate_state_and_inputs(
+                    forcings_startdate= config['BASIN']['start'],
+                    forcings_enddate= config['BASIN']['end'],
+                    combined_datapath= combined_datapath, 
+                    out_dir= metsim_inputs_dir
+                )
+
+            # Prepare data to metsim input format in case of low latency
+            else:        
+                ms_state, ms_input_data = generate_forecast_state_and_inputs(
+                    forecast_startdate= gfs_data_download_start,
+                    forcings_enddate= gfs_data_download_end,
+                    hindcast_combined_datapath= combined_datapath, 
+                    forecast_combined_datapath= low_latency_combined_nc_path,
+                    out_dir= metsim_inputs_dir,
+                    forcings_startdate= config['BASIN']['start']
+                )
             #------- MetSim Input Data Preparation End -------#
         except:
             no_errors = no_errors+1
@@ -437,10 +502,10 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                         start= config['BASIN']['start'],
                         end= config['BASIN']['end'],
                         init_param= config['METSIM']['metsim_param_file'],
-                        out_dir= metsim_output_path, 
-                        forcings=ms_input_data,
-                        state=ms_state,
-                        domain= domain_nc_path
+                        out_dir= str(metsim_output_path), 
+                        forcings=str(ms_input_data),
+                        state=str(ms_state),
+                        domain= str(domain_nc_path)
                     ) as m:
                     
                     ms = MetSimRunner(
@@ -506,6 +571,7 @@ def rat_basin(config, rat_logger, forecast_mode=False):
                     forcing_prefix = vic_input_forcing_path,
                     init_state = vic_init_state,
                     init_state_dir=init_state_in_dir,
+                    init_state_save_date= vic_init_state_save_date,
                     init_state_out_dir=init_state_out_dir
                 ) as p:
                     vic = VICRunner(
