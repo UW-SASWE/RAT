@@ -19,7 +19,7 @@ log = getLogger(LOG_NAME)
 log.setLevel(LOG_LEVEL)
 
 class CombinedNC:
-    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous, forecast_dir=None, forecast_basedate=None, climatological_data=None, z_lim=3):
+    def __init__(self, start, end, datadir, basingridpath, outputdir, use_previous, forecast_dir=None, forecast_basedate=None, climatological_data=None, z_lim=3, low_latency_dir=None):
         """
         Parameters:
             start: Start date in YYYY-MM-DD format
@@ -43,7 +43,12 @@ class CombinedNC:
         self._latitudes, self._longitudes = self._get_lat_long_meshgrid()
 
         if forecast_dir:
+            log.debug("Combining forcing data for forecasting mode.")
             self.read_forecast(forecast_dir, forecast_basedate)
+            self._write()
+        elif low_latency_dir:
+            log.debug("Combining forcing data for low latency mode.")
+            self.read_low_latency(low_latency_dir)
             self._write()
         else:
             self._read_and_write_in_chunks()
@@ -163,6 +168,52 @@ class CombinedNC:
 
             # #Reading Average Wind Speed ASCII file contents
             vwndfilepath = forecast_dir / f'gfs/processed/{basedate:%Y%m%d}/vwnd/{date:%Y%m%d}.asc'
+            vwnd = rio.open(vwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
+            wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))#.flatten()[self.gridvalue==0.0]
+
+            # self.dates.append(fileDate)
+            self.precips[day, :, :] = precipitation
+            self.tmaxes[day, :, :] = tmax
+            self.tmins[day, :, :] = tmin
+            self.winds[day, :, :] = wind
+            # pbar.update(1)
+
+    def read_low_latency(self, low_latency_dir):
+        low_latency_dir = Path(low_latency_dir)
+        start = self._start
+        end = self._end
+
+        # define data arrays
+        self.precips = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        self.tmaxes = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        self.tmins = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+        self.winds = np.zeros((self._total_days+1, self._rast.height, self._rast.width))
+
+        self.dates = pd.date_range(start, end)
+
+        for day, date in enumerate(self.dates):
+            fileDate = date
+            reqDate = fileDate.strftime("%Y-%m-%d")
+            log.debug("Combining data: %s", reqDate)
+            # pbar.set_description(reqDate)
+
+            precipfilepath = low_latency_dir / f'gefs-chirps/processed' / f'{date:%Y%m%d}' / f'{date:%Y%m%d}.asc'
+            precipitation = rio.open(precipfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
+
+            #Reading Maximum Temperature ASCII file contents
+            tmaxfilepath = low_latency_dir / f'gfs/processed/{date:%Y%m%d}/tmax/{date:%Y%m%d}.asc'
+            tmax = rio.open(tmaxfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
+
+            #Reading Minimum Temperature ASCII file contents
+            tminfilepath = low_latency_dir / f'gfs/processed/{date:%Y%m%d}/tmin/{date:%Y%m%d}.asc'
+            tmin = rio.open(tminfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)#.flatten()[self.gridvalue==0.0]
+
+            #Reading Average Wind Speed ASCII file contents
+            uwndfilepath = low_latency_dir / f'gfs/processed/{date:%Y%m%d}/uwnd/{date:%Y%m%d}.asc'
+            uwnd = rio.open(uwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
+
+            # #Reading Average Wind Speed ASCII file contents
+            vwndfilepath = low_latency_dir / f'gfs/processed/{date:%Y%m%d}/vwnd/{date:%Y%m%d}.asc'
             vwnd = rio.open(vwndfilepath).read(1, masked=True).astype(np.float32).filled(np.nan)
             wind = (0.75*np.sqrt(uwnd**2 + vwnd**2))#.flatten()[self.gridvalue==0.0]
 
@@ -350,7 +401,7 @@ class CombinedNC:
             # Separate the non-time-dependent variable
             if 'extent' in existing_to_append.data_vars:
                 # Drop the extent variable from existing_to_append if it already exists in the file for concat operation with other chunks. It will be added after writing all chunks in _apply_dataset_operations
-                ds_chunk = ds_chunk.drop_vars('extent')
+                existing_to_append = existing_to_append.drop_vars('extent')
             write_ds_chunk = xr.concat([existing_to_append, ds_chunk_sel], dim='time')
             write_ds_chunk.to_netcdf(self._outputpath, mode='w', unlimited_dims=['time']) 
         # Else just write the chunk in file (by creating new if first chunk, otherwise append)
