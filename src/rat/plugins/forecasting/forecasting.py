@@ -507,6 +507,8 @@ def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data,
         curr_sa = initial_sa
         curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
         cum_netInflow = forecast_outflow['inflow'].sum() - forecast_outflow['evaporation'].sum()
+        dels_remaining = vol
+        dels_stored = 0
         for iter,inflow in enumerate(forecast_outflow['inflow'].values):
             if(cum_netInflow < vol):
                 delS.append(inflow - forecast_outflow['evaporation'].values[iter])
@@ -518,9 +520,22 @@ def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data,
                 sarea.append(curr_sa)
                 outflow.append(0)
             else:
-                net_delS = cum_netInflow - vol
-                outflow.append(net_delS/15)
-                delS.append(inflow - outflow[-1])
+                I_E = inflow - forecast_outflow['evaporation'].values[iter]
+                if dels_remaining > 0:
+                    if I_E <= dels_remaining:
+                        O = 0
+                        dels_stored = I_E
+                        dels_remaining = dels_remaining - dels_stored
+                    else:
+                        O = I_E - dels_remaining
+                        dels_stored = dels_remaining
+                        dels_remaining = 0
+                else:
+                    # If no remaining storage capacity, release all incoming water minus evaporation
+                    O = I_E
+                    dels_stored = 0  # No water is stored
+                outflow.append(O)
+                delS.append(dels_stored)
                 delH.append(delS[-1]/(curr_sa*1E6))
                 curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
                 new_elevation = curr_elevation + delH[-1]
