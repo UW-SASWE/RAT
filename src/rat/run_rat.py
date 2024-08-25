@@ -26,7 +26,7 @@ def run_rat(config_fn, operational_latency=None ):
     """
 
     # IMERG Latency (in days) that works fine
-    imerg_latency = 3
+    low_latency_limit = 3
 
     # Reading config with comments
     config_fn = Path(config_fn).resolve()
@@ -75,7 +75,7 @@ def run_rat(config_fn, operational_latency=None ):
             operational_latency = int(operational_latency)
             ## Calculation of gfs_days
             # If running for more than a latency of 3 days, IMERG data will be there. So data for gfs days is 0.
-            if operational_latency>imerg_latency:
+            if operational_latency>low_latency_limit:
                 gfs_days = 0
             # If running for a lower latency of 0-3 days, GFS data will have to be used for 3-0 days.
             else:
@@ -87,7 +87,7 @@ def run_rat(config_fn, operational_latency=None ):
                 # Record the previous end date
                 previous_end_date = copy.deepcopy(config['BASIN']['end'])
                 # Find vic_init_state_date from last run
-                config['BASIN']['vic_init_state'] = get_vic_init_state_date(previous_end_date, imerg_latency, config['GLOBAL']['data_dir'],
+                config['BASIN']['vic_init_state'] = get_vic_init_state_date(previous_end_date, low_latency_limit, config['GLOBAL']['data_dir'],
                                                                              config['BASIN']['region_name'], config['BASIN']['basin_name'])
                 if not(config['BASIN']['vic_init_state']):
                     raise Exception('No vic init state file was found from last run.')
@@ -105,14 +105,14 @@ def run_rat(config_fn, operational_latency=None ):
             end_date_diff_from_today = datetime.datetime.now().date() - config['BASIN']['end']
             start_date_diff_from_today = datetime.datetime.now().date() - config['BASIN']['start']
             # If difference is more than 3 days, gfs_days will be 0.
-            if end_date_diff_from_today > datetime.timedelta(days=int(imerg_latency)):
+            if end_date_diff_from_today > datetime.timedelta(days=int(low_latency_limit)):
                 gfs_days = 0
             # Else if start date and today has less than 3 days difference, gfs_days will be start-end
-            elif (start_date_diff_from_today<datetime.timedelta(days=int(imerg_latency))):
+            elif (start_date_diff_from_today<datetime.timedelta(days=int(low_latency_limit))):
                 gfs_days = (config['BASIN']['start']- config['BASIN']['end']).days
-            # Else gfs_days will be imerg_latency - difference of end_date from today
+            # Else gfs_days will be low_latency_limit - difference of end_date from today
             else:
-                gfs_days = imerg_latency - end_date_diff_from_today.days
+                gfs_days = low_latency_limit - end_date_diff_from_today.days
 
 
         # Running RAT (if start < end date)
@@ -184,7 +184,7 @@ def run_rat(config_fn, operational_latency=None ):
                 operational_latency = int(operational_latency)
                 ## Calculation of gfs_days
                 # If running for more than a latency of 3 days, IMERG data will be there. So data for gfs days is 0.
-                if operational_latency>imerg_latency:
+                if operational_latency>low_latency_limit:
                     gfs_days = 0
                 # If running for a lower latency of 0-3 days, GFS data will have to be used for 3-0 days.
                 else:
@@ -216,7 +216,7 @@ def run_rat(config_fn, operational_latency=None ):
                     if ('BASIN','vic_init_state') not in basins_metadata.columns:
                         basins_metadata['BASIN','vic_init_state'] = None
                     # Find vic_init_state
-                    vic_init_state_date = get_vic_init_state_date(previous_end_date, imerg_latency, data_dir,region_name, basin_name)
+                    vic_init_state_date = get_vic_init_state_date(previous_end_date, low_latency_limit, data_dir,region_name, basin_name)
                     # Check if vic init state is not none, else raise error
                     if not(config['BASIN']['vic_init_state']):
                         raise Exception('No vic init state file was found from last run.')
@@ -254,14 +254,14 @@ def run_rat(config_fn, operational_latency=None ):
                 end_date_diff_from_today = datetime.datetime.now().date() - end_date_value
                 start_date_diff_from_today = datetime.datetime.now().date() - start_date_value
                 # If difference is more than 3 days, gfs_days will be 0.
-                if end_date_diff_from_today > datetime.timedelta(days=int(imerg_latency)):
+                if end_date_diff_from_today > datetime.timedelta(days=int(low_latency_limit)):
                     gfs_days = 0
                 # Else if start date and today has less than 3 days difference, gfs_days will be start-end
-                elif (start_date_diff_from_today<datetime.timedelta(days=int(imerg_latency))):
+                elif (start_date_diff_from_today<datetime.timedelta(days=int(low_latency_limit))):
                     gfs_days = (start_date_value- end_date_value).days
-                # Else gfs_days will be imerg_latency - difference of end_date from today
+                # Else gfs_days will be low_latency_limit - difference of end_date from today
                 else:
-                    gfs_days = imerg_latency - end_date_diff_from_today.days
+                    gfs_days = low_latency_limit - end_date_diff_from_today.days
 
             
             # Extracting basin information and populating it in config if it's not NaN
