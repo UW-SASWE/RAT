@@ -18,8 +18,7 @@ from rat.utils.clean import Clean
 from rat.data_processing.newdata import get_newdata
 from rat.data_processing.newdata_low_latency import get_newdata_low_latency
 
-from rat.data_processing.metsim_input_processing import CombinedNC,generate_state_and_inputs
-from plugins.forecasting.forecasting import generate_forecast_state_and_inputs
+from rat.data_processing.metsim_input_processing import CombinedNC,generate_state_and_inputs, generate_metsim_state_and_inputs_with_multiple_nc_files
 from rat.utils.metsim_param_reader import MSParameterFile
 from rat.core.run_metsim import MetSimRunner
 
@@ -60,7 +59,7 @@ from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, co
 #module-5 step-13 outflow (mass-balance)
 #RAT using all modules and step-14 to produce final outputs
 
-def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
+def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_basedate=None):
     """Runs RAT as per configuration defined in `config_fn` for one single basin.
 
     parameters:
@@ -68,7 +67,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
         rat_logger (logging object): Logger to use for logging of level 2 file with complete details.
         forecast_mode (bool): Run rat_basin in forecast mode if True.
         gfs_days (int): Number of most recent days for which GFS data will be used due to low latency.
-
+        forecast_basedate (datetime.datetime): Date on which forecasts are being generated. It does not need to be same as RAT start date.
     returns:
         no_errors (int): Number of errors/exceptions occurred while running rat
         latest_altimetry_cycle (int): Latest altimetry jason3 cycle number if rat runs step 11
@@ -130,7 +129,6 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
         #config['BASIN']['begin'] = datetime.datetime.combine(config['BASIN']['begin'], datetime.time.min)
         config['BASIN']['start'] = datetime.datetime.combine(config['BASIN']['start'], datetime.time.min)
         config['BASIN']['end'] = datetime.datetime.combine(config['BASIN']['end'], datetime.time.min)
-        rout_init_state_save_date = config['BASIN']['end']
 
         if(not config['BASIN']['spin_up']):
             if(isinstance(config['BASIN'].get('vic_init_state'), datetime.date)):  # If vic_init_state is a datetime.date instance and not a file path
@@ -174,6 +172,8 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
         
         # Defining dates based on gfs_days. Vic init state date and data download will happend for observed data
         vic_init_state_save_date = config['BASIN']['end'] - datetime.timedelta(days=gfs_days)
+        rout_init_state_save_date = config['BASIN']['end'] - datetime.timedelta(days=gfs_days)
+
         data_download_end = config['BASIN']['end'] - datetime.timedelta(days=gfs_days)
         # Defining dates if gfs_days is not zero.
         if gfs_days:
@@ -301,7 +301,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
         rout_dir.mkdir(parents=True, exist_ok=True)
         if forecast_mode:
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','forecast_ou')
-            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecast_inflow', f"{config['BASIN']['start']:%Y%m%d}")
+            inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'forecast_inflow', f"{forecast_basedate:%Y%m%d}")
         else:
             routing_output_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'ro','ou')
             inflow_dst_dir = Path(config['GLOBAL']['data_dir']).joinpath(config['BASIN']['region_name'], 'basins', basin_name, 'rat_outputs', 'inflow')
@@ -346,7 +346,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
         ## Paths for storing post-processed data and in webformat data
         if forecast_mode:
-            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{config['BASIN']['start']:%Y%m%d}"), True)
+            evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{forecast_basedate:%Y%m%d}"), True)
         else:
             evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'Evaporation'), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
@@ -456,13 +456,12 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0):
 
             # Prepare data to metsim input format in case of low latency
             else:        
-                ms_state, ms_input_data = generate_forecast_state_and_inputs(
-                    forecast_startdate= gfs_data_download_start,
-                    forcings_enddate= gfs_data_download_end,
-                    hindcast_combined_datapath= combined_datapath, 
-                    forecast_combined_datapath= low_latency_combined_nc_path,
+                ms_state, ms_input_data = generate_metsim_state_and_inputs_with_multiple_nc_files(
+                    nc_file_paths=[combined_datapath, low_latency_combined_nc_path],
+                    start_dates=[gfs_data_download_start],
                     out_dir= metsim_inputs_dir,
-                    forcings_startdate= config['BASIN']['start']
+                    forcings_start_date= config['BASIN']['start'],
+                    forcings_end_date= gfs_data_download_end
                 )
             #------- MetSim Input Data Preparation End -------#
         except:
