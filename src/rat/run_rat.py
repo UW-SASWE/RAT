@@ -131,11 +131,11 @@ def run_rat(config_fn, operational_latency=None ):
             if config.get('PLUGINS', {}).get('forecasting'):
                 # Importing the forecast module
                 try:
-                    from plugins.forecasting.forecasting import forecast
+                    from plugins.forecasting.forecast_basin import forecast
                 except:
                     log.exception("Failed to import Forecast plugin due to missing package(s).")
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
-                forecast_no_errors = forecast(config, log)
+                forecast_no_errors = forecast(config, log, low_latency_limit)
                 if(forecast_no_errors>0):
                     log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                 elif(forecast_no_errors==0):
@@ -283,11 +283,11 @@ def run_rat(config_fn, operational_latency=None ):
                 if config.get('PLUGINS', {}).get('forecasting'):
                     # Importing the forecast module
                     try:
-                        from plugins.forecasting.forecasting import forecast
+                        from plugins.forecasting.forecast_basin import forecast
                     except:
                         log.exception("Failed to import Forecast plugin due to missing package(s).")
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
-                    forecast_no_errors = forecast(config, log)
+                    forecast_no_errors = forecast(config, log, low_latency_limit)
                     if(forecast_no_errors>0):
                         log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                     elif(forecast_no_errors==0):
