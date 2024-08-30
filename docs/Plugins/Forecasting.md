@@ -9,12 +9,17 @@ To run the forecast plugin, set the value of the `forecast` option in the PLUGIN
 PLUGINS: 
 	forecast: True 
 	forecast_lead_time: 15
-	forecast_start_time: end_date     # can either be “end_date” or a date in YYYY-MM-DD format
-	forecast_rule_curve_dir: /path/to/rule_curve
+	forecast_gen_start_date: end_date     # can either be “end_date” or a date in YYYY-MM-DD format
+	forecast_gen_end_date: 				# a date in YYYY-MM-DD format (Optional)
+	forecast_rule_curve_dir: /path/to/rule_curve   (Optional)
 	forecast_reservoir_shpfile_column_dict: {column_id: GRAND_ID, column_capacity: CAP_MCM}
+	forecast_vic_init_state: 			# path of VIC state file or date in YYYY-MM-DD format (Optional)
+	forecast_rout_init_state: 			# path of Routing state file or date in YYYY-MM-DD format (Optional)
+	forecast_storage_scenario: [ST, GO, CO]
+  	forecast_storage_change_percent_of_smax: [20, 10, 5]
 ```
 
-The `forecast_start_time` option controls when the forecast will begin. If the value is set to `end_date`, the forecast will begin on the end date of RAT’s normal mode of running, i.e., in nowcast mode, which are controlled by `start_date` and `end_date` options in the BASIN section. Alternatively, a date in the YYYY-MM-DD format can also be provided to start the forecast from that date. The forecast window or the number of days ahead for which the forecast is generated is controlled by the `forecast_lead_time` option, with a maximum of 15 days ahead. The `forecast_rule_curve_dir` option should point to the directory containing the rule curve files for the reservoir. The `forecast_reservoir_shpfile_column_dict` option specifies the names of the columns that correspond to the ID and capacity of the reservoir, named `column_id` and `column_capacity`. These columns should be present in the [`reservoir_vector_file` in the GEE section](../../Configuration/rat_config/#gee) in the configuration file for running the forecasting plugin. 
+The `forecast_gen_start_date` option controls when the generation of forecast will begin. If the value is set to `end_date`, the forecast will begin on the end date of RAT’s normal mode of running, i.e., in nowcast mode, which are controlled by `start_date` and `end_date` options in the BASIN section. Alternatively, a date in the YYYY-MM-DD format can also be provided to start the generation of forecast from that date. The `forecast_gen_end_date` option defines the end date for which forecasts will be generated. The forecast window for each date when the forecast is being generated or the number of days ahead for which the forecast is generated is controlled by the `forecast_lead_time` option, with a maximum of 15 days ahead.  The `forecast_rule_curve_dir` option should point to the directory containing the rule curve files for the reservoir. The `forecast_reservoir_shpfile_column_dict` option specifies the names of the columns that correspond to the ID and capacity of the reservoir, named `column_id` and `column_capacity`. These columns should be present in the [`reservoir_vector_file` in the GEE section](../../Configuration/rat_config/#gee) in the configuration file for running the forecasting plugin. The `forecast_vic_init_state` option can be used to define the date of vic init file (if any) or path of the vic init state file. If the path is provided, it is assumed as the state file corresponding to `forecast_gen_start_date` and `forecast_rout_init_state` becomes a required parameter.
 
 !!!note
 	The files in the `forecast_rule_curve_dir` should be named according to their IDs, corresponding to the values in `column_id`. For instance, if the id of a reservoir is 7001, then the file name of the reservoir's rule curve should be `7001.txt`. The rule curve files should be in `.txt` format with the following columns - `Month,S/Smax`, corresponding to the month and the storage level as a fraction of the maximum storage level. Rule curve files for reservoirs in the [GRAND](https://www.globaldamwatch.org/grand) database can be downloaded [here](https://www.dropbox.com/scl/fi/jtquzasjdv2tz1vtupgq5/rc.zip?rlkey=4svbutjd3aup255pnrlgnxbkl&dl=0). 
