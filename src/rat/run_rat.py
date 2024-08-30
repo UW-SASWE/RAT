@@ -79,7 +79,7 @@ def run_rat(config_fn, operational_latency=None ):
                 gfs_days = 0
             # If running for a lower latency of 0-3 days, GFS data will have to be used for 3-0 days.
             else:
-                gfs_days = 3-operational_latency
+                gfs_days = low_latency_limit-operational_latency
 
             try:
                 # RAT has to be run for one overlapping day of IMERG(1) + one new day for IMERG(1) + GFS days
@@ -109,7 +109,7 @@ def run_rat(config_fn, operational_latency=None ):
                 gfs_days = 0
             # Else if start date and today has less than 3 days difference, gfs_days will be start-end
             elif (start_date_diff_from_today<datetime.timedelta(days=int(low_latency_limit))):
-                gfs_days = (config['BASIN']['start']- config['BASIN']['end']).days
+                gfs_days = (config['BASIN']['end']-config['BASIN']['start']).days
             # Else gfs_days will be low_latency_limit - difference of end_date from today
             else:
                 gfs_days = low_latency_limit - end_date_diff_from_today.days
@@ -248,8 +248,15 @@ def run_rat(config_fn, operational_latency=None ):
             
             else:
                 ## Calculation of gfs_days
-                start_date_value = basins_metadata['BASIN','start'].loc[basins_metadata['BASIN','basin_name']== basin]
-                end_date_value = basins_metadata['BASIN','end'].loc[basins_metadata['BASIN','basin_name']== basin]
+                # Read start and end date from metadata if there, otherwise from config.
+                if ('BASIN','start') not in basins_metadata.columns:
+                    start_date_value = config['BASIN']['start']
+                else:
+                    start_date_value = basins_metadata['BASIN','start'].loc[basins_metadata['BASIN','basin_name']== basin]
+                if ('BASIN','end') not in basins_metadata.columns:
+                    end_date_value = config['BASIN']['end']
+                else:
+                    end_date_value = basins_metadata['BASIN','end'].loc[basins_metadata['BASIN','basin_name']== basin]
                 #If not running operationally, check end date and start date's difference from today
                 end_date_diff_from_today = datetime.datetime.now().date() - end_date_value
                 start_date_diff_from_today = datetime.datetime.now().date() - start_date_value
@@ -258,7 +265,7 @@ def run_rat(config_fn, operational_latency=None ):
                     gfs_days = 0
                 # Else if start date and today has less than 3 days difference, gfs_days will be start-end
                 elif (start_date_diff_from_today<datetime.timedelta(days=int(low_latency_limit))):
-                    gfs_days = (start_date_value- end_date_value).days
+                    gfs_days = (end_date_value - start_date_value).days
                 # Else gfs_days will be low_latency_limit - difference of end_date from today
                 else:
                     gfs_days = low_latency_limit - end_date_diff_from_today.days
