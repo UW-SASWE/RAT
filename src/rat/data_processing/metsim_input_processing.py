@@ -448,11 +448,17 @@ class CombinedNC:
                         log.debug(f"Found existing file at {self._outputpath} -- Updating in-place")
                         # Assuming the existing file structure is same as the one generated now. Basically
                         #   assuming that the previous file was also created by MetSimRunner
-                        existing = xr.open_dataset(self._outputpath)
-                        existing.close()
-                        last_existing_time = existing.time[-1]
-                        log.debug("Existing data: %s", last_existing_time)
-                        existing_to_append = existing.sel(time=slice(start_date_pd.to_datetime64() - np.timedelta64(120,'D') , last_existing_time))
+
+                        # Open the existing NetCDF file
+                        with xr.open_dataset(self._outputpath) as existing:
+                            last_existing_time = existing.time[-1]
+                            log.debug("Existing data: %s", last_existing_time)
+                            
+                            # Select the time slice you need before closing the dataset
+                            existing_to_append = existing.sel(
+                                time=slice(start_date_pd.to_datetime64() - np.timedelta64(120, 'D'), last_existing_time)
+                            ).load() # Load the data into memory
+                        # Now that the dataset is closed, pass the sliced data to the write function
                         self._write_chunk(ds_list, existing_to_append, last_existing_time, first_loop=True)
                     else:
                         raise Exception('Previous combined dataset not found. Please run RAT with spin-up or use state file paths.')
@@ -507,4 +513,70 @@ def generate_state_and_inputs(forcings_startdate, forcings_enddate, combined_dat
     log.debug(f"Saving forcings: {forcings_outpath}")
     forcings_ds.to_netcdf(forcings_outpath)
 
+    return state_outpath, forcings_outpath
+
+def generate_metsim_state_and_inputs_with_multiple_nc_files(
+        nc_file_paths,         # List of paths to NetCDF files to concatenate
+        start_dates,           # List of start dates for each subsequent file in nc_file_paths
+        out_dir,               # Output directory
+        forcings_start_date,   # Start date for forcings
+        forcings_end_date,     # End date for forcings
+        forecast_mode=False    # Flag to indicate forecast mode
+    ):
+    """
+    Generate MetSim state and input files by concatenating multiple NetCDF files along the time dimension.
+
+    Parameters:
+    - nc_file_paths (list of str): Paths to the NetCDF files to be concatenated.
+    - start_dates (list of datetime.datetime): Start dates for each file in nc_file_paths from the second file onwards.
+      The list should have one fewer elements than nc_file_paths.
+    - out_dir (str): Directory where the output NetCDF files will be saved.
+    - forcings_start_date (datetime.datetime): Start date for the forcings time slice.
+    - forcings_end_date (datetime.datetime): End date for the forcings time slice.
+    - forecast_mode (bool): If True, output files are prefixed with 'forecast_'.
+
+    Returns:
+    - state_outpath (Path): Path to the generated state NetCDF file.
+    - forcings_outpath (Path): Path to the generated MetSim input NetCDF file.
+    """
+
+    out_dir = Path(out_dir)
+    nc_datasets = []
+    
+    # Load and slice the datasets
+    for i, nc_file_path in enumerate(nc_file_paths):
+        ds = xr.open_dataset(nc_file_path)
+        
+        if i == 0:
+            # First dataset: Slice from the start to the first start_date
+            ds = ds.sel(time=slice(None, start_dates[0] - pd.Timedelta(days=1)))
+        else:
+            # Subsequent datasets: Slice from the day after the previous start_date
+            if i < len(start_dates):
+                ds = ds.sel(time=slice(start_dates[i-1], start_dates[i] - pd.Timedelta(days=1)))
+            else:
+                ds = ds.sel(time=slice(start_dates[i-1], None))
+        
+        nc_datasets.append(ds)
+    
+    # Concatenate all datasets along the time dimension
+    combined_data = xr.concat(nc_datasets, dim="time")
+    
+    # Generate state NetCDF file
+    state_startdate = forcings_start_date - pd.Timedelta(days=90)
+    state_enddate = forcings_start_date - pd.Timedelta(days=1)
+    state_ds = combined_data.sel(time=slice(state_startdate, state_enddate))
+
+    state_filename = "forecast_state.nc" if forecast_mode else "state.nc"
+    state_outpath = out_dir / state_filename
+    state_ds.to_netcdf(state_outpath)
+    
+    # Generate MetSim input NetCDF file
+    forcings_ds = combined_data.sel(time=slice(forcings_start_date, forcings_end_date))
+
+    forcings_filename = "forecast_metsim_input.nc" if forecast_mode else "metsim_input.nc"
+    forcings_outpath = out_dir / forcings_filename
+    print(f"Saving forcings: {forcings_outpath}")
+    forcings_ds.to_netcdf(forcings_outpath)
+    
     return state_outpath, forcings_outpath
