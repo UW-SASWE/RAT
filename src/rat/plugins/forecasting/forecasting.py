@@ -12,6 +12,7 @@ import shutil
 import numpy as np
 from datetime import date
 from rat.utils.run_command import run_command
+from rat.toolbox.MiscUtil import get_quantile_from_area
 
 # Obtain GEFS precip data
 def download_gefs_chirps(basedate, lead_time, save_dir, low_latency=False):
@@ -490,7 +491,7 @@ def forecast_scenario_gates_closed(forecast_outflow, initial_sa, aec_data):
 def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data, st_percSmax):
     #Creating positive and negative values for permissible storage cases
     st_percSmax = np.array(st_percSmax)
-    st_percSmax = np.append(st_percSmax, -st_percSmax)
+    # st_percSmax = np.append(st_percSmax, -st_percSmax)
 
     #Converting storage cases from %Smax to absolute volumes
     st_volumes = np.array(st_percSmax)/100*s_max*1E6
@@ -574,7 +575,8 @@ def forecast_outflow_for_res(
         rule_curve = None, 
         st_percSmax = [0.5, 1, 2.5], 
         cust_st = None, 
-        output_path = None
+        output_path = None,
+        actual_st_left = False
     ):
     ''' 
     Generates forecasted outflow for RAT given forecasted inflow time series data based on specific delS scenarios.
@@ -615,8 +617,14 @@ def forecast_outflow_for_res(
     output_path: str
         If provided, generates a netcdf file at the specified path containing the forecasted outflow results.
     '''
+    # If actual_st_left is true
+    if actual_st_left and 'ST' in dels_scenario:
+        actual_st_left_percent = np.round(100*(1-get_quantile_from_area(sarea_fp)),1)
+        st_percSmax.append(actual_st_left_percent)
+
     # Reading forecasted inflow data, computing forecasting period as base date to base date + 15 days
     forecast_inflow = pd.read_csv(forecast_inflow_fp, parse_dates=['date']).set_index('date').rename({'streamflow': 'inflow'}, axis=1).to_xarray()
+    forecast_inflow = forecast_inflow*86400 # convert m3/s to m3/day
     base_date = pd.to_datetime(base_date)
     base_date_15lead = base_date + pd.Timedelta(days=forecast_lead_time)
 
@@ -685,122 +693,73 @@ def forecast_outflow(
     forecast_reservoir_shpfile_column_dict, rule_curve_dir,
     scenarios = ['GC', 'GO', 'RC', 'ST'],
     st_percSmaxes = [0.5, 1, 2.5],
+    actual_st_left = False
 ):
     reservoirs = gpd.read_file(reservoir_shpfile)
     reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
 
     for res_name in reservoirs['Inflow_filename'].tolist():
         res_scenarios = scenarios.copy()
-        forecast_inflow_fp = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
-        forecast_evap_fp = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
-        sarea_fp = basin_data_dir / 'gee' / 'gee_sarea_tmsos' / f'{res_name}.csv'
-        aec_fp = basin_data_dir / 'final_outputs' / 'aec' / f'{res_name}.csv'
-        output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
-        output_fp.parent.mkdir(parents=True, exist_ok=True)
+        observed_outflow_fp = basin_data_dir / 'final_outputs' / 'outflow' / f'{res_name}.csv'
+        # Calculate forecast outflow only if observed outflow exists. Will skip for guages.
+        if (observed_outflow_fp.exists()):
 
-        s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
-        reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0]
+            forecast_inflow_fp = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+            forecast_evap_fp = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+            sarea_fp = basin_data_dir / 'gee' / 'gee_sarea_tmsos' / f'{res_name}.csv'
+            aec_fp = basin_data_dir / 'final_outputs' / 'aec' / f'{res_name}.csv'
+            output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+            output_fp.parent.mkdir(parents=True, exist_ok=True)
 
-        if np.isnan(s_max):
-            res_scenarios.remove('ST')
+            s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
+            reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0]
 
-        if np.isnan(reservoir_id):
-            res_scenarios.remove('RC')
-            rule_curve_fp = None
-        else:
-            rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
+            if np.isnan(s_max) and 'ST' in res_scenarios:
+                res_scenarios.remove('ST')
 
-        for scenario in res_scenarios:       
-            forecast_outflow_for_res(
-                base_date = basedate,
-                forecast_lead_time = lead_time,
-                forecast_inflow_fp = forecast_inflow_fp,
-                evap_fp = forecast_evap_fp,
-                sarea_fp = sarea_fp,
-                aec_fp = aec_fp,
-                dels_scenario = scenario,
-                s_max = s_max,
-                rule_curve = rule_curve_fp,
-                st_percSmax = st_percSmaxes,
-                output_path = output_fp
-            )
+            if (np.isnan(reservoir_id) or rule_curve_dir) and 'RC' in res_scenarios:
+                res_scenarios.remove('RC')
+                rule_curve_fp = None
+            else:
+                rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
 
+            for scenario in res_scenarios:       
+                forecast_outflow_for_res(
+                    base_date = basedate,
+                    forecast_lead_time = lead_time,
+                    forecast_inflow_fp = forecast_inflow_fp,
+                    evap_fp = forecast_evap_fp,
+                    sarea_fp = sarea_fp,
+                    aec_fp = aec_fp,
+                    dels_scenario = scenario,
+                    s_max = s_max,
+                    rule_curve = rule_curve_fp,
+                    st_percSmax = st_percSmaxes[:],
+                    output_path = output_fp,
+                    actual_st_left = actual_st_left
+                )
 
-def generate_forecast_state_and_inputs(
-        forecast_startdate, # forecast start date
-        forcings_enddate, # forecast end date
-        hindcast_combined_datapath, 
-        forecast_combined_datapath, 
-        out_dir,
-        forcings_startdate = None
-    ):
-    # If metsim start date is no provided, then start from forecast start date
-    if not forcings_startdate:
-        forcings_startdate = forecast_startdate
-    
-    out_dir = Path(out_dir)
-    hindcast_combined_data = xr.open_dataset(hindcast_combined_datapath)
-    forecast_combined_data = xr.open_dataset(forecast_combined_datapath)
-    
-    # # check if tmin < tmax. If not, set tmin = tmax
-    # forecast_combined_data['tmin'] = xr.where(
-    #     forecast_combined_data['tmin'] < forecast_combined_data['tmax'],
-    #     forecast_combined_data['tmin'],
-    #     forecast_combined_data['tmax']
-    # )
-
-    hindcast_combined_data = hindcast_combined_data.sel(time=slice(None, forecast_startdate))
-
-    combined_data = xr.concat([
-        hindcast_combined_data, forecast_combined_data
-    ], dim="time")
-
-    state_startdate = forcings_startdate - pd.Timedelta(days=90)
-    state_enddate = forcings_startdate - pd.Timedelta(days=1)
-
-    state_ds = combined_data.sel(time=slice(state_startdate, state_enddate))
-    if not forcings_startdate: 
-        state_outpath = out_dir / "forecast_state.nc"
-    else:
-        state_outpath = out_dir / "state.nc"
-    state_ds.to_netcdf(state_outpath)
-
-    # # Generate the metsim input
-    forcings_ds = combined_data.sel(time=slice(forcings_startdate, forcings_enddate))
-    if not forcings_startdate:
-        forcings_outpath = out_dir / "forecast_metsim_input.nc"
-    else:
-        forcings_outpath = out_dir / "metsim_input.nc"
-    print(f"Saving forcings: {forcings_outpath}")
-    forcings_ds.to_netcdf(forcings_outpath)
-
-    return state_outpath, forcings_outpath
-
-
-def convert_forecast_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  final_out_inflow_dir, basedate):
+def convert_forecast_inflow(forecast_inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  final_out_forecast_inflow_dir, basedate):
     # Inflow
     reservoirs = gpd.read_file(reservoir_shpfile)
     reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
 
-    inflow_paths = list(Path(inflow_dir).glob('*.csv'))
-    final_out_inflow_dir.mkdir(exist_ok=True)
+    forecast_inflow_paths = list(Path(forecast_inflow_dir).glob('*.csv'))
+    final_out_forecast_inflow_dir.mkdir(exist_ok=True)
 
-    for inflow_path in inflow_paths:
-        res_name = os.path.splitext(os.path.split(inflow_path)[-1])[0]
+    for forecast_inflow_path in forecast_inflow_paths:
+        res_name = os.path.splitext(os.path.split(forecast_inflow_path)[-1])[0]
 
-        if res_name in reservoirs['Inflow_filename'].tolist():
-            savepath = final_out_inflow_dir / inflow_path.name
+        savepath = final_out_forecast_inflow_dir / forecast_inflow_path.name
 
-            df = pd.read_csv(inflow_path, parse_dates=['date'])
-            df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
-            df = df[['date', 'inflow (m3/d)']]
+        forecast_df = pd.read_csv(forecast_inflow_path, parse_dates=['date'])
+        forecast_df['inflow (m3/d)'] = forecast_df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+        forecast_df = forecast_df[['date', 'inflow (m3/d)']]
 
-            print(f"Converting [Inflow]: {res_name}")
-            df = df[df['date'] > basedate]
-            df.to_csv(savepath, index=False)
-            print(df.tail())
-        else:
-            print(f"Skipping {res_name} as its inflow file is not available.")
+        print(f"Converting [Inflow]: {res_name}")
+        forecast_df = forecast_df[forecast_df['date'] >= basedate]
+        forecast_df.to_csv(savepath, index=False)
+        print(forecast_df.tail())
 
 
 def convert_forecast_evaporation(evap_dir, final_evap_dir):
@@ -857,7 +816,7 @@ def convert_forecast_outflow_states(outflow_dir, final_outflow_dir, final_dels_d
             converted_col_name = f'outflow (m3/d) [case: {outflow_case}]'
             col_names.append(converted_col_name)
             outflow_df.loc[outflow_df[outflow_col]<0, outflow_col] = 0
-            outflow_df[converted_col_name] = outflow_df[outflow_col] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+            outflow_df[converted_col_name] = outflow_df[outflow_col] # Units are already in m3/d
         outflow_df = outflow_df[['date', *col_names]]
         final_outflow_dir.mkdir(parents=True, exist_ok=True)
         outflow_df.to_csv(outflow_savefp, index=False)
