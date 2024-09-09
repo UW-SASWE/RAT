@@ -1,7 +1,7 @@
 # Recent Adjustments
 
-### September8, 2024
-From June 1 in 2024,all the historical IMERG data has been revised to Version 07B along with the current IMERG data being generated daily. In the last patch we updated the link to download IMERG for recent and current data while the link for the past historic data was not updated to V07B. This was raising the 'Connection Reset' error if one tries to run RAT from say 2020 to 2024. The problem has been resolved in the [developer version](../../Development/DeveloperVersion/) of RAT. It has been released in the version of RAT [v3.0.14](../../Development/PatchNotes/#v3014). To [update](https://conda.io/projects/conda/en/latest/commands/update.html) RAT, please use `conda update rat` in your RAT environment. 
+### September 8, 2024
+From June 1 in 2024, all the historical IMERG data has been revised to Version 07B along with the current IMERG data being generated daily. In the last patch we updated the link to download IMERG for recent and current data while the link for the past historic data was not updated to V07B. This was raising the 'Connection Reset' error if one tries to run RAT from say 2020 to 2024. The problem has been resolved in the [developer version](../../Development/DeveloperVersion/) of RAT. It has been released in the version of RAT [v3.0.14](../../Development/PatchNotes/#v3014). To [update](https://conda.io/projects/conda/en/latest/commands/update.html) RAT, please use `conda update rat` in your RAT environment. 
 
 Due to the non-availability of IMERG data for April and May 2024 on the IMERG web server, users may encounter issues when running RAT for time periods that include these months. This issue is on the IMERG data provider's side, and we are hopeful it will be resolved soon.
 
