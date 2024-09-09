@@ -10,6 +10,7 @@ from pathlib import Path
 import datetime
 import copy
 from dask.distributed import Client, LocalCluster
+from tempfile import NamedTemporaryFile
 
 from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
 from rat.utils.vic_init_state_finder import get_vic_init_state_date
@@ -53,13 +54,25 @@ def run_rat(config_fn, operational_latency=None ):
 
     log.debug(f"Started client with {config['GLOBAL']['multiprocessing']} workers. Dashboard link: {client.dashboard_link}")
 
+    temp_key_file = None
+
     # Trying the ee credentials given by user
     try:
         log.info("Checking earth engine credentials")
         secrets = configparser.ConfigParser()
-        secrets.read(config['CONFIDENTIAL']['secrets'])
+        if config['CONFIDENTIAL']['secrets'] == 'GA':
+            log.info('USING GITHUB ACTIONS SECRETS')
+            secrets.read_string(os.environ['IMERG_SECRETS'])
+            log.info(os.environ['IMERG_SECRETS'])
+            log.info('checking if secret is present: ', 'dummy' in os.environ['IMERG_SECRETS'])
+            temp_key_file = NamedTemporaryFile(delete=True)
+            temp_key_file.write(os.environ['KEY_FILE'].encode())
+            secrets['ee']['key_file'] = temp_key_file.name
+        else:
+            secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]
         ee_configuration.key_file = secrets["ee"]["key_file"]
+        print(f"{secrets['ee']['service_account']}")
         ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
         ee.Initialize(ee_credentials)
         log.info("Connected to earth engine succesfully.")

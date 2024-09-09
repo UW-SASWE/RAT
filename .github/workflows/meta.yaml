@@ -1,0 +1,35 @@
+{% set name = "rat" %}
+{% set version = "0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ../../
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv
+  number: 0
+  entry_points:
+    - rat = rat.cli.rat_cli:main
+
+requirements:
+  host:
+    - python >=3.6
+    - setuptools >=61.0
+    - pip
+  run:
+    - python >=3.6
+
+about:
+  home: https://github.com/UW-SASWE/RAT
+  summary: Resevoir Monitoring using Satellite Remote Sensing
+  license: GPL-3.0-or-later
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - pritamd47
+    - SanchitMinocha
