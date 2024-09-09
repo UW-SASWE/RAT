@@ -22,7 +22,7 @@ The workflow diagram shown below summarizes the comprehensive process employed b
 
 ## Step-1 
 <sup class='step_heading'>Downloading and Pre-processing of meteorological data</sup> <br>
-<span class='step_property'> Task: </span> Downloading of real-time raw meteorlogical data from different servers (precipitation from IMERG, and temperature and wind data from NOAA). The downloaded data is then pre-processed (scaled, aligned and clipped to basin - shown in the figure below) for further use. <br><br>
+<span class='step_property'> Task: </span> Downloading of real-time raw meteorlogical data from different servers (precipitation from IMERG or GEFS, and temperature and wind data from NOAA or GFS). The downloaded data is then pre-processed (scaled, aligned and clipped to basin - shown in the figure below) for further use. <br><br>
 <span class='step_property'> Input Files: </span> No input file is required. <br><br>
 <span class='step_property'> Output Files: </span> 1. Global data for daily precipitation in geotif format. (<b>`data_dir`>raw>precipitation</b>) <br>
 2. Global data for minimum and maximum temperature, and wind speed at daily frequency with a NetCDF file for each year and each variable. (<b>`data_dir`>raw>tmax/tmin/uwnd/vwnd</b>)<br>

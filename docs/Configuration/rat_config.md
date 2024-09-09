@@ -238,6 +238,10 @@ RAT config file has 12 major sections that defines several parameters which are 
         end: 2022-08-31
     ```
 
+    !!! note
+        1. Starting from [v3.0.14](../../Development/PatchNotes/#v3014), the end date can now be set to a date on or before the current day.
+        2. For RAT runs that overlap with the period from three days prior to the current day up to the current day, meteorological data is sourced as nowcasts—precipitation data from the GEFS server and temperature and wind data from the GFS server.
+
 * <h6 class="parameter_heading">*`vic_init_state_date`* :</h6> 
     <span class="requirement">Optional parameter</span>
 
