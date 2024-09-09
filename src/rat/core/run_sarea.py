@@ -5,6 +5,8 @@ from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION, LOG_LEVEL1_NAME
 
 from rat.core.sarea.sarea_cli_s2 import sarea_s2
+from rat.core.sarea.sarea_cli_l5 import sarea_l5
+from rat.core.sarea.sarea_cli_l7 import sarea_l7
 from rat.core.sarea.sarea_cli_l8 import sarea_l8
 from rat.core.sarea.sarea_cli_l9 import sarea_l9
 from rat.core.sarea.sarea_cli_sar import sarea_s1
@@ -70,6 +72,16 @@ def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_d
     sarea_s2(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 's2'))
     s2_dfpath = os.path.join(datadir, 's2', reservoir_name+'.csv')
 
+    # Landsat-5
+    log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-5 data from {start_date} to {end_date}")
+    sarea_l5(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'l5'))
+    l5_dfpath = os.path.join(datadir, 'l5', reservoir_name+'.csv')
+    
+    # Landsat-7
+    log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-7 data from {start_date} to {end_date}")
+    sarea_l7(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'l7'))
+    l7_dfpath = os.path.join(datadir, 'l7', reservoir_name+'.csv')
+
     # Landsat-8
     log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-8 data from {start_date} to {end_date}")
     sarea_l8(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'l8'))
@@ -86,7 +98,8 @@ def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_d
     s1_dfpath = os.path.join(datadir, 'sar', reservoir_name+'_12d_sar.csv')
 
     tmsos = TMS(reservoir_name, reservoir_area)
-    result,method = tmsos.tms_os(l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath, s2_dfpath=s2_dfpath, s1_dfpath=s1_dfpath)
+    result,method = tmsos.tms_os(l5_dfpath=l5_dfpath, l7_dfpath=l7_dfpath, l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath,
+                                  s2_dfpath=s2_dfpath, s1_dfpath=s1_dfpath)
 
     tmsos_savepath = os.path.join(datadir, reservoir_name+'.csv')
     log.debug(f"Saving surface area of {reservoir_name} at {tmsos_savepath}")
