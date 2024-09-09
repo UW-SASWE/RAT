@@ -35,18 +35,15 @@ def convert_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,
     for inflow_path in inflow_paths:
         res_name = os.path.splitext(os.path.split(inflow_path)[-1])[0]
 
-        if res_name in reservoirs['Inflow_filename'].tolist():
-            savepath = final_out_inflow_dir / inflow_path.name
+        savepath = final_out_inflow_dir / inflow_path.name
 
-            df = pd.read_csv(inflow_path, parse_dates=['date'])
-            df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
-            df = df[['date', 'inflow (m3/d)']]
+        df = pd.read_csv(inflow_path, parse_dates=['date'])
+        df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+        df = df[['date', 'inflow (m3/d)']]
 
-            print(f"Converting [Inflow]: {res_name}")
-            df.to_csv(savepath, index=False)
-            print(df.tail())
-        else:
-            print(f"Currently not displayed in website: {res_name}")
+        print(f"Converting [Inflow]: {res_name}")
+        df.to_csv(savepath, index=False)
+        print(df.tail())
 
 def convert_dels(dels_dir, website_v_dir):
     # Delta S

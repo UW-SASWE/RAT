@@ -129,7 +129,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
             # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
             complement = pd.concat([existing_data, new_data], ignore_index=True)
             # Remove all duplicates:
-            complement.drop_duplicates(subset=['time'],inplace=True, keep='first')
+            complement.drop_duplicates(subset=['time'],inplace=True, keep='last')
             complement.to_csv(savepath, index=False)
         else:
             data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)

@@ -3,6 +3,8 @@ import math
 import numpy as np
 from scipy.signal import savgol_filter
 from datetime import datetime
+import xarray as xr
+import pandas as pd
 
 def days_between(d1, d2):
     d1 = datetime.strptime(d1, "%Y-%m-%d")
@@ -85,3 +87,53 @@ def weighted_moving_average(data, weights, window_size):
         smoothed_data[i] = np.sum(weighted_values) / np.sum(weights[start:end])
 
     return smoothed_data
+
+def check_date_in_netcdf(nc_file_path, check_date):
+    """
+    Check if a given date is present in the 'time' dimension of a NetCDF file.
+
+    Parameters:
+    - nc_file_path (str): Path to the NetCDF file.
+    - check_date (datetime.datetime): The date to check for in the NetCDF file.
+
+    Returns:
+    - bool: True if the date is present in the 'time' dimension, False otherwise.
+    """
+    try:
+        # Open the NetCDF file
+        with xr.open_dataset(nc_file_path) as ds:
+            # Convert the check_date to a pandas Timestamp for comparison
+            check_date = pd.Timestamp(check_date)
+            
+            # Check if the date is in the 'time' dimension
+            if check_date in ds['time'].values:
+                return True
+            else:
+                return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
+
+def get_first_date_from_netcdf(nc_file_path):
+    """
+    Retrieve the first date from the 'time' dimension of a NetCDF file.
+
+    Parameters:
+    - nc_file_path (str): Path to the NetCDF file.
+
+    Returns:
+    - datetime.datetime: The first date in the 'time' dimension of the NetCDF file.
+    """
+    try:
+        # Open the NetCDF file
+        with xr.open_dataset(nc_file_path) as ds:
+            # Extract the first date from the 'time' dimension
+            first_date = ds['time'].values[0]
+            
+            # Convert to a datetime.datetime object if necessary
+            if isinstance(first_date, np.datetime64):
+                first_date = pd.to_datetime(first_date).to_pydatetime()
+            return first_date
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
