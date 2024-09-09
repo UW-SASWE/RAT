@@ -4,13 +4,14 @@
 In this release, we have:
 
 1. **Enhanced Low-Latency Functionality:** RAT can now run in operational mode with significantly reduced latency as low as 0.  
-2. **Updated Forecasting Plugin:** The forecasting plugin has been upgraded to allow forecast generation for multiple past dates.  
+2. **Updated Forecasting Plugin:** The forecasting plugin has been upgraded to allow forecast generation for multiple past dates. Also, user can now provide scenarios to get forecasted outflow. One of the scenarios is 'ST' where user can provide different values of storage change expressed as a percentage of maximum reservoir capacity.
 3. **Updated IMERG Precipitation Web Links:** The web links for downloading historical IMERG data (prior to 2024) have been updated to match those for current data. This change reflects the revision of the IMERG product version for historical data to V07B, which is now the same as the version for recent IMERG data. These updates were implemented on June 1, 2024, on the IMERG web servers.
 4. **Updated RAT documentation:** To reflect the changes in the forecasting plugin and the possibility of using low latency in operational mode.
 
 !!!note
     1. Previously, a latency of 3 or more days was recommended due to delays in retrieving meteorological data from servers. However, RAT can now operate with latencies of less than 3 days, including real-time data (0-day latency). This is a major improvement over earlier versions, enabling users to generate data for the current day and produce forecasts up to 15 days ahead from the current day.
     2. Previously, forecasts could only be generated for the final date of the RAT run, which worked well for operational use. Now, for case studies and research purposes, users can generate forecasts for several historical dates, offering greater flexibility and utility.
+    3. If a user selects the 'ST' scenario, the current storage of the reservoir is estimated using a probability distribution function of the surface area time series, provided the time series is sufficiently long. The scenario where the storage changes from the current storage level to the maximum reservoir storage level is also included as part of the forecast scenarios for predicting outflow in this case.
 
 ### v3.0.13
 In this release, we have:
