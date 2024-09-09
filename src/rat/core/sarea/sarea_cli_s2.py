@@ -343,8 +343,6 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
 
         scratchdir = os.path.join(datadir, "_scratch")
 
-        # flag = True
-        num_runs = 0
 
         # If data already exists, only get new data starting from the last one
         savepath = os.path.join(datadir, f"{res_name}.csv")
@@ -461,9 +459,6 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
                     break
                 elif df.index[-1].strftime('%Y-%m-%d') == fo:
                     print(f"Reached last available observation - {fo}")
-                    break
-                elif num_runs > 1000:
-                    print("Quitting: Reached 1000 iterations")
                     break
             except Exception as e:
                 log.error(e)

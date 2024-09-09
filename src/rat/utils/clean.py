@@ -6,19 +6,32 @@ class Clean:
     
     def __init__(self, basin_data_dir):
         self.basin_data_dir = basin_data_dir
+        self.days_old_to_delete = 20
         pass
 
     def clean_pre_processing(self):
         try:
-            pre_processing_path = os.path.join(self.basin_data_dir,'pre_processing','')
-            shutil.rmtree(pre_processing_path)
+            pre_processing_processed_path = os.path.join(self.basin_data_dir,'pre_processing','processed','')
+            shutil.rmtree(pre_processing_processed_path)
         except:
-            print("No pre_processing folder to delete")
+            print("No processed folder in pre_processing to delete")
+        
+        # try:
+        #     pre_processing_nc_path = os.path.join(self.basin_data_dir,'pre_processing','nc','')
+        #     shutil.rmtree(pre_processing_nc_path)
+        # except:
+        #     print("No nc folder in pre_processing to delete")
 
     def clean_metsim(self):
         try:
-            metsim_path = os.path.join(self.basin_data_dir,'metsim','metsim_outputs','')
-            shutil.rmtree(metsim_path)
+            metsim_inputs_path = os.path.join(self.basin_data_dir,'metsim','metsim_inputs','')
+            shutil.rmtree(metsim_inputs_path)
+        except:
+            print("No metsim_inputs folder to delete")
+
+        try:
+            metsim_outputs_path = os.path.join(self.basin_data_dir,'metsim','metsim_outputs','')
+            shutil.rmtree(metsim_outputs_path)
         except:
             print("No metsim_outputs folder to delete")
     
@@ -37,7 +50,7 @@ class Clean:
         
         try:
             vic_init_states_dir_path = os.path.join(self.basin_data_dir,'vic','vic_init_states','') 
-            days_old = 15 #n max of days
+            days_old = self.days_old_to_delete #n max of days
 
             time_interval = datetime.now() - timedelta(days_old)
             file_namelist = os.listdir(vic_init_states_dir_path)
@@ -67,7 +80,7 @@ class Clean:
 
         try:
             rout_init_states_dir_path = os.path.join(self.basin_data_dir,'ro','rout_state_file','') 
-            days_old = 15 #n max of days
+            days_old = self.days_old_to_delete #n max of days
 
             time_interval = datetime.now() - timedelta(days_old)
             file_namelist = os.listdir(rout_init_states_dir_path)
