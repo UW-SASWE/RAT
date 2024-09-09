@@ -32,9 +32,11 @@ class TMS():
         self.AREA_DEVIATION_THRESHOLD = self.area * AREA_DEVIATION_THRESHOLD_PCNT/100
 
     def tms_os(self,
+            l5_dfpath: str = "",
+            l7_dfpath: str = "",
             l8_dfpath: str = "", 
+            l9_dfpath: str = "",
             s2_dfpath: str = "", 
-            l9_dfpath: str = "", 
             s1_dfpath: str = "", 
             CLOUD_THRESHOLD: float = 90.0,
             MIN_DATE: str = '2019-01-01'
@@ -42,7 +44,10 @@ class TMS():
         ## TODO: add conditional, S1 required, any one of optical datasets required
         """Implements the TMS-OS methodology
         Args:
-            l8_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l8.py` - Landsat derived surface areas
+            l5_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l5.py` - Landsat-5 derived surface areas
+            l7_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l7.py` - Landsat-7 derived surface areas
+            l8_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l8.py` - Landsat-8 derived surface areas
+            l9_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l9.py` - Landsat-9 derived surface areas
             s2_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_s2.py` - Sentinel-2 derived surface areas
             s1_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_sar.py` - Sentinel-1  derived surface areas
             CLOUD_THRESHOLD (float): Threshold to use for cloud-masking in % (default: 90.0)
@@ -51,10 +56,90 @@ class TMS():
         MIN_DATE = pd.to_datetime(MIN_DATE, format='%Y-%m-%d')
         S2_TEMPORAL_RESOLUTION = 5
         S1_TEMPORAL_RESOLUTION = 12
+        L5_TEMPORAL_RESOLUTION = 16
+        L7_TEMPORAL_RESOLUTION = 16
         L8_TEMPORAL_RESOLUTION = 16
         L9_TEMPORAL_RESOLUTION = 16
 
         TO_MERGE = []
+
+        if os.path.isfile(l5_dfpath):
+            # Read in Landsat-8
+            l5df = pd.read_csv(l5_dfpath, parse_dates=['mosaic_enddate']).rename({
+                'mosaic_enddate': 'date',
+                'water_area_cordeiro': 'water_area_uncorrected',
+                'non_water_area_cordeiro': 'non_water_area', 
+                'corrected_area_cordeiro': 'water_area_corrected'
+                }, axis=1).set_index('date')
+            l5df = l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            l5df['cloud_percent'] = l5df['cloud_area']*100/(l5df['water_area_uncorrected']+l5df['non_water_area']+l5df['cloud_area'])
+            l5df.replace(-1, np.nan, inplace=True)
+
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            l5df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            l5df.loc[l5df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+            l5df.loc[l5df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+
+            # in some cases l5df may have duplicated rows (with same values) that have to be removed
+            if l5df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                l5df = l5df[~l5df.index.duplicated(keep='last')]
+
+            # Fill in the gaps in l5df created due to high cloud cover with np.nan values
+            l5df_interpolated = l5df.reindex(pd.date_range(l5df.index[0], l5df.index[-1], freq=f'{L5_TEMPORAL_RESOLUTION}D'))
+            l5df_interpolated.loc[np.isnan(l5df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['cloud_area']), 'cloud_area'] = max(l5df['cloud_area'])
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['non_water_area']), 'non_water_area'] = 0
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+            # Interpolate bad data
+            l5df_interpolated.loc[:, "water_area_corrected"] = l5df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            l5df_interpolated['sat'] = 'l5'
+
+            TO_MERGE.append(l5df_interpolated)
+        
+        if os.path.isfile(l7_dfpath):
+            # Read in Landsat-8
+            l7df = pd.read_csv(l7_dfpath, parse_dates=['mosaic_enddate']).rename({
+                'mosaic_enddate': 'date',
+                'water_area_cordeiro': 'water_area_uncorrected',
+                'non_water_area_cordeiro': 'non_water_area', 
+                'corrected_area_cordeiro': 'water_area_corrected'
+                }, axis=1).set_index('date')
+            l7df = l7df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            l7df['cloud_percent'] = l7df['cloud_area']*100/(l7df['water_area_uncorrected']+l7df['non_water_area']+l7df['cloud_area'])
+            l7df.replace(-1, np.nan, inplace=True)
+
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            l7df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            l7df.loc[l7df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+            l7df.loc[l7df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+
+            # in some cases l7df may have duplicated rows (with same values) that have to be removed
+            if l7df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                l7df = l7df[~l7df.index.duplicated(keep='last')]
+
+            # Fill in the gaps in l7df created due to high cloud cover with np.nan values
+            l7df_interpolated = l7df.reindex(pd.date_range(l7df.index[0], l7df.index[-1], freq=f'{L7_TEMPORAL_RESOLUTION}D'))
+            l7df_interpolated.loc[np.isnan(l7df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['cloud_area']), 'cloud_area'] = max(l7df['cloud_area'])
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['non_water_area']), 'non_water_area'] = 0
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+            # Interpolate bad data
+            l7df_interpolated.loc[:, "water_area_corrected"] = l7df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            l7df_interpolated['sat'] = 'l7'
+
+            TO_MERGE.append(l7df_interpolated)
 
         if os.path.isfile(l8_dfpath):
             # Read in Landsat-8
