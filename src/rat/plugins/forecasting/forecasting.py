@@ -683,8 +683,20 @@ def forecast_outflow_for_res(
         forecast_outflow_st = forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data, st_percSmax)
         forecast_outflow = forecast_outflow.merge(forecast_outflow_st)
 
+    forecast_outflow_df = forecast_outflow.to_pandas().reset_index()
     if(output_path is not None):
-        forecast_outflow.to_pandas().to_csv(output_path)
+        if output_path.exists():
+            existing_df = pd.read_csv(output_path, parse_dates=['date'])
+            new_df = forecast_outflow_df.drop(['inflow', 'evaporation'], axis=1)
+            len_before_union = len(existing_df.columns)
+            all_cols = existing_df.columns.union(new_df.columns)
+            len_after_union = len(all_cols)
+            if len_after_union > len_before_union:
+                # new columns need to be added
+                merged_df = pd.merge(existing_df, new_df, how='left', on='date')
+                merged_df.to_csv(output_path, index=False)
+        else:
+            forecast_outflow_df.to_csv(output_path, index=False)
 
     return forecast_outflow
 
