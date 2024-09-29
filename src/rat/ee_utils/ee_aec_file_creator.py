@@ -24,17 +24,17 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
     else:
         raise ValueError('Expected fill, strict, or ignore')
 
-def _aec(n,elev_dem,roi):
-  ii = ee.Image.constant(n).reproject(elev_dem.projection())
-  DEM141 = elev_dem.lte(ii)
+def _aec(n,elev_dem,roi, scale=30):
+    ii = ee.Image.constant(n).reproject(elev_dem.projection())
+    DEM141 = elev_dem.lte(ii)
 
-  DEM141Count = DEM141.reduceRegion(
-    geometry= roi,
-    scale= 30,
-    reducer= ee.Reducer.sum()
-  )
-  area=ee.Number(DEM141Count.get('elevation')).multiply(30*30).divide(1e6)
-  return area
+    DEM141Count = DEM141.reduceRegion(
+        geometry= roi,
+        scale= scale,
+        reducer= ee.Reducer.sum()
+    )
+    area=ee.Number(DEM141Count.get('elevation')).multiply(30*30).divide(1e6)
+    return area
 
 def aec_file_creator(reservoir_shpfile, shpfile_column_dict, aec_dir_path):
   # Obtaining list of csv files in aec_dir_path
