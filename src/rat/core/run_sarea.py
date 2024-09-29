@@ -16,13 +16,18 @@ log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
 
 def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_dict, filt_options = None):
-    reservoirs_polygon = gpd.read_file(reservoirs_shpfile)
+    if isinstance(reservoirs_shpfile, gpd.GeoDataFrame):
+        reservoirs_polygon = reservoirs_shpfile
+    else:
+        reservoirs_polygon = gpd.read_file(reservoirs_shpfile)
     no_failed_files = 0
     Optical_files = 0
     Tmsos_files = 0
     Partial_optical_tmsos_files = 0
-    
+    i = 1
     for reservoir_no,reservoir in reservoirs_polygon.iterrows():
+        print(f"\n\n +++ PROCESSING RESERVOIR: {reservoir['tmsos_id']} - {reservoir['name_2']} ({i}/{len(reservoirs_polygon)}) +++\n\n")
+        i += 1
         try:
             # Reading reservoir information
             reservoir_name = str(reservoir[shpfile_column_dict['unique_identifier']]).replace(" ","_")
