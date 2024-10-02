@@ -8,6 +8,7 @@ from rat.ee_utils.ee_utils import poly2feature
 from pathlib import Path
 from scipy.optimize import minimize
 from scipy.integrate import cumulative_trapezoid
+from shapely.geometry import Point
 
 BUFFER_DIST = 500
 DEM = ee.Image('USGS/SRTMGL1_003')
@@ -84,19 +85,18 @@ def dem_percentile(
     # Set the calculated statistics as properties of the feature
     return stats.getInfo()
 
-def get_obs_aec_above_water_surface(aec, max_height):
+def get_obs_aec_above_water_surface(aec):
     """
     Filters and processes the AEC (Area-Elevation Curve) data to obtain observations above a specified water surface height.
 
     Args:
         aec (pd.DataFrame): DataFrame containing AEC data with 'Elevation' and 'CumArea' columns.
-        max_height (float): The maximum height of the water surface to filter the observations.
+        # max_height (float): The maximum height of the water surface to filter the observations.
 
     Returns:
         pd.DataFrame: A DataFrame containing the filtered and processed AEC data with 'Elevation' and 'CumArea' columns.
     """
-    obs_aec_above_water = aec[aec['Elevation'] < max_height]
-    obs_aec_above_water = obs_aec_above_water.sort_values('Elevation')
+    obs_aec_above_water = aec.sort_values('Elevation')
     obs_aec_above_water['CumArea_diff'] = obs_aec_above_water['CumArea'].diff()
     obs_aec_above_water['z_score'] = (obs_aec_above_water['CumArea_diff'] - obs_aec_above_water['CumArea'].mean()) / obs_aec_above_water['CumArea'].std()
     max_z_core_idx = obs_aec_above_water['z_score'].idxmax()
@@ -181,50 +181,153 @@ def fit_polynomial(x, y, degree, dam_bottom):
     return result, initial_guess
 
 
-def aec_file_creator(
-        reservoir_shpfile, shpfile_column_dict, aec_dir_path, 
-        scale=30, dam_bottom_elevation_percentile=1, force_extrapolate=False):
-    # Obtaining list of csv files in aec_dir_path
-    aec_filenames = []
-    for f in os.listdir(aec_dir_path):
-        if f.endswith(".csv"):
-            aec_filenames.append(f[:-4])
-    if isinstance(reservoir_shpfile, str):
-        reservoirs_polygon = gpd.read_file(reservoir_shpfile)
-    elif isinstance(reservoir_shpfile, gpd.geodataframe.GeoDataFrame): 
-        reservoirs_polygon = reservoir_shpfile
+def dam_bottom_dem_percentile(
+        dam_location, scale=30,
+        percentiles=[1, 2, 3, 4, 5, 10], buffer_distance=1000,
+        ee_dem_name = 'MERIT/DEM/v1_0_3'
+    ):
+    """
+    Calculates elevations corresponding to percentile values within a buffered region around 
+    a dam location.
+
+    Parameters:
+        dam_location (shapely.geometry.point.Point): The location of the dam as a point geometry.
+        scale (int, optional): Scale in meters for the DEM data. Default is 30.
+        percentiles (list of int, optional): List of percentiles to calculate. Default is [1, 2, 3, 4, 5, 10].
+        buffer_distance (int, optional): Buffer distance in meters around the point of interest. Default is 1000.
+        ee_dem_name (str, optional): Name of the Earth Engine DEM dataset. Default is 'MERIT/DEM/v1_0_3'.
+    Returns:
+        dict: A dictionary containing the calculated statistics (min, max, and specified percentiles).
+    """
+    lon, lat = dam_location.x, dam_location.y
+    # Create a point geometry using the provided latitude and longitude
+    point = ee.Geometry.Point([lon, lat])
+    
+    # Buffer the point to create a region of interest (ROI)
+    feature = point.buffer(buffer_distance)
+    # Load the DEM dataset
+    dem = ee.Image(ee_dem_name)
+    
+    # Clip DEM to the buffered region (feature)
+    dem_clipped = dem.clip(feature)
+    
+    # Define the reducer (min/max combined with percentiles)
+    reducer = (ee.Reducer.minMax()
+               .combine(ee.Reducer.percentile(percentiles), '', True))
+    
+    # Reduce the clipped DEM over the feature's geometry to get statistics
+    stats = dem_clipped.reduceRegion(
+        reducer=reducer,
+        geometry=feature,
+        scale=scale,  # Scale appropriate for MERIT DEM (30 meters)
+        maxPixels=1e9
+    )
+    
+    # Set the calculated statistics as properties of the feature
+    return stats.getInfo()
+
+def get_closest_point_to_dam(
+        reservoir, dam_location, buffer_distance=90, 
+        grwl_fp=Path('/tiger1/pdas47/tmsosPP/data/dam_bottom_elevation/GRWL/GRWL_summaryStats.shp')
+    ):
+    """
+    Gets the closest point to the dam for a given reservoir.
+
+    Parameters:
+        tmsos_id (str): The tmsos_id of the reservoir.
+        buffer_distance (int): The buffer distance around the reservoir in meters.
+
+    Returns:
+        tuple: (shapely.geometry.point.Point, matplotlib.figure.Figure or None)
+               The closest point to the dam and the plot if PLOT is True, otherwise None.
+    """
+    grwl = gpd.read_file(grwl_fp)
+
+    # Select the reservoir
+    reservoir_df = reservoir
+
+    # Clip GRWL by taking a 1 degree buffer around reservoir_df
+    reservoir_df_buffered = reservoir_df.buffer(1)
+    grwl_clipped = gpd.clip(grwl, reservoir_df_buffered)
+
+    # Convert the CRS to the local UTM projection
+    utm_crs = reservoir_df.estimate_utm_crs()
+    grwl_utm = grwl_clipped.to_crs(utm_crs)
+    reservoir_utm = reservoir_df.to_crs(utm_crs)
+
+    # Take a buffer of buffer_distance meters around the grand reservoirs
+    reservoir_utm_buffered = reservoir_utm.geometry.buffer(buffer_distance)
+
+    # Convert buffered geometries back to GeoDataFrame
+    reservoir_utm_buffered_gdf = gpd.GeoDataFrame(geometry=reservoir_utm_buffered, crs=utm_crs).reset_index(drop=True)
+
+    # Reverse the clipping to keep the portion of GRWL polylines outside the reservoir polygon
+    grwl_outside_reservoir = gpd.overlay(grwl_utm, reservoir_utm_buffered_gdf, how='difference')
+
+    # Get the dam location in utm crs
+    dam_location_geom = gpd.GeoDataFrame(geometry=[dam_location], crs=reservoir_df.crs).to_crs(utm_crs)
+
+    # Convert the dam location and grwl_outside_reservoir back to lat/lon
+    dam_location_latlon = dam_location_geom.to_crs(epsg=4326).geometry.iloc[0]
+    grwl_outside_reservoir_latlon = grwl_outside_reservoir.to_crs(epsg=4326)
+
+    # Find the closest point in the grwl_outside_reservoir polylines to the dam location
+    closest_point_to_dam = grwl_outside_reservoir_latlon.geometry.apply(lambda geom: geom.interpolate(geom.project(dam_location_latlon)))
+    closest_point_to_dam = closest_point_to_dam.iloc[closest_point_to_dam.distance(dam_location_latlon).idxmin()]
+
+    return closest_point_to_dam, dam_location, grwl_clipped
+
+
+def get_dam_bottom(reservoir, dam_location=None, grwl_fp=Path('/tiger1/pdas47/tmsosPP/data/dam_bottom_elevation/GRWL/GRWL_summaryStats.shp')):
+    """
+    Determines the dam bottom elevation for a given reservoir.
+
+    Parameters:
+        tmsos_id (str): The tmsos_id of the reservoir.
+        grwl_fp (Path): The file path to the GRWL data.
+
+    Returns:
+        tuple: (float, str)
+               The dam bottom elevation and the method used ('grwl_intersection' or 'dam_location').
+    """
+    # Load GRWL data
+    grwl = gpd.read_file(grwl_fp)
+
+    # Check if GRWL intersects with reservoir geometry
+    intersection = grwl.intersects(reservoir.union_all())
+
+    if intersection.any():
+        method = 'grwl_intersection'
+        print("GRWL intersects with reservoir geometry.")
+        closest_point_to_dam, _, _ = get_closest_point_to_dam(
+            reservoir, dam_location,
+            buffer_distance=90,  # 90 m buffer from reservoir = 3 pixels
+            grwl_fp=grwl_fp
+        )
+        
+        # Extract latitude and longitude of the closest point
+        lat, lon = closest_point_to_dam.y, closest_point_to_dam.x
+        
+        # Calculate the dam bottom elevation using the dam_bottom_dem_percentile function
+        stats = dam_bottom_dem_percentile(closest_point_to_dam, buffer_distance=250)
+        
+        # Extract the 1 percentile elevation as the dam bottom elevation
+        dam_bottom_elevation = stats['dem_p1']
     else:
-        raise ValueError("reservoir_shpfile should be either a string or a geodataframe")
-    for reservoir_no,reservoir in reservoirs_polygon.iterrows():
-        # Reading reservoir information
-        reservoir_name = str(reservoir[shpfile_column_dict['unique_identifier']])
-        dam_height = float(reservoir[shpfile_column_dict['dam_height']])
-        dam_lat = float(reservoir[shpfile_column_dict['dam_lat']])
-        dam_lon = float(reservoir[shpfile_column_dict['dam_lon']])
-        if (reservoir_name in aec_filenames) and (not force_extrapolate):
-            print(f"Skipping {reservoir_name} as its AEC file already exists. Not extrapolating, force_extrapolate is turned off.")
-        elif force_extrapolate:
-            print(f"Extrapolating AEC file for {reservoir_name} as force_extrapolate is turned on.")
-            aec = get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name)
+        method = 'dam_location'
+        print("GRWL does not intersect with reservoir geometry.")
+        
+        # Calculate the dam bottom elevation using the dam_bottom_dem_percentile function with a 500 m buffer
+        stats = dam_bottom_dem_percentile(dam_location, buffer_distance=500)
+        
+        # Extract the 1 percentile elevation as the dam bottom elevation
+        dam_bottom_elevation = stats['dem_p1']
 
-            # Check if 'Elevation_Observed' column exists in the AEC DataFrame
-            if 'Elevation_Observed' in aec.columns:
-                print(f"AEC for {reservoir_name} has already been extrapolated.")
-            else:
-                # Replace the $SELECTION_PLACEHOLDER$ with a call to the new function
-                extrapolate_reservoir(
-                    reservoir_name, dam_lat, dam_lon, dam_height, scale, 
-                    dam_bottom_elevation_percentile, aec, aec_dir_path
-                )
-        else:
-            get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name)
+    return dam_bottom_elevation, method
 
-    print("AEC file exists for all reservoirs in this basin")
-    return 1
 
 def extrapolate_reservoir(
-    reservoir_name, dam_lat, dam_lon, dam_height, scale, 
-    dam_bottom_elevation_percentile, aec, aec_dir_path
+    reservoir, dam_location, reservoir_name, dam_height, aec, aev_save_dir, buffer_distance=1000
 ):
     """
     Extrapolates the reservoir's Area-Elevation-Capacity (AEC) curve by fitting a polynomial to observed data and adds column for storage.
@@ -235,8 +338,6 @@ def extrapolate_reservoir(
     
     Parameters:
         reservoir_name (str): Name of the reservoir.
-        dam_lat (float): Latitude of the dam.
-        dam_lon (float): Longitude of the dam.
         dam_height (float): Height of the dam.
         scale (float): Scale factor for the DEM data.
         dam_bottom_elevation_percentile (float): Percentile to determine the dam bottom elevation.
@@ -245,28 +346,18 @@ def extrapolate_reservoir(
     Returns:
         pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', and 'Elevation_Observed'.
     """
-    # Obtain the elevation of the dam bottom using the specified percentile
-    dam_bottom_stats = dem_percentile(
-        lat=dam_lat,
-        lon=dam_lon,
-        scale=scale,
-        percentiles=[dam_bottom_elevation_percentile],
-        buffer_distance=1000
-    )
-    dam_bottom_elevation = dam_bottom_stats[f"dem_p{dam_bottom_elevation_percentile}"]
+    dam_bottom_elevation, method = get_dam_bottom(reservoir, dam_location) # from GRWL downstream point
     dam_top_elevation = dam_bottom_elevation + dam_height
+
     print(f"Dam bottom elevation for {reservoir_name} is {dam_bottom_elevation}")
     print(f"Dam top elevation for {reservoir_name} is {dam_top_elevation}")
 
-    obs_aec_above_water = get_obs_aec_above_water_surface(
-        aec, dam_top_elevation
-    )
-
-    x = obs_aec_above_water['CumArea']
-    y = obs_aec_above_water['Elevation']
+    aec = aec[(aec['Elevation'] > dam_bottom_elevation)&(aec['Elevation'] <= dam_top_elevation)]
+    x = aec['CumArea']
+    y = aec['Elevation']
 
     # Try fitting polynomials starting from degree 3 down to 1
-    for degree in [3, 2, 1]:
+    for degree in [2, 1]:
         result, initial_guess = fit_polynomial(x, y, degree, dam_bottom_elevation)
         if result.success:
             print(f"Successfully fitted a degree {degree} polynomial for {reservoir_name}")
@@ -276,7 +367,10 @@ def extrapolate_reservoir(
     
     # Generate x_pred by combining a range of values from 0 to the maximum of x with the unique values from aec['CumArea']
     # and then sorting them. This ensures that x_pred includes all unique cumulative area values from the AEC data.
-    x_pred = np.sort(np.unique(np.concatenate([np.arange(0, np.max(x), 0.25), obs_aec_above_water['CumArea'].values])))
+    # This was we can also store the observed SRTM AEC values.
+    x_pred = np.arange(0, np.max(x), 0.25)
+    x_pred = np.unique(np.concatenate((x_pred, aec['CumArea'].values)))
+    x_pred = np.sort(x_pred)
     y_pred = predict_y(result.x, x_pred)
 
     # Create a new DataFrame with the predicted x and y values
@@ -295,18 +389,20 @@ def extrapolate_reservoir(
         suffixes=('', '_Observed')
     )
     # Store the initial guess and result as comments in the AEC file
-    with open(os.path.join(aec_dir_path, f"{reservoir_name}.csv"), 'w') as f:
-        f.write(f"# Initial guess: {initial_guess[::-1]}\n")
+    with open(os.path.join(aev_save_dir, f"{reservoir_name}.csv"), 'w') as f:
+        f.write(f"# Initial guess: {initial_guess}\n")
         f.write(f"# Polynomial degree: {degree}\n")
-        polynomial_equation = np.poly1d(result.x[::-1])
+        polynomial_equation = np.poly1d(result.x)
         for line in str(polynomial_equation).split('\n'):
             f.write(f"# {line}\n")
+        f.write(f"# dam bottom method: {method}\n")
         predicted_storage_df.to_csv(f, index=False)
-    print(f"Saved predicted AEC for {reservoir_name} to {os.path.join(aec_dir_path, f'{reservoir_name}.csv')}")
+    print(f"Saved predicted AEC for {reservoir_name} to {os.path.join(aev_save_dir, f'{reservoir_name}.csv')}")
 
     return predicted_storage_df
 
-def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name):
+
+def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=False):
     """
     Generates an observed Area-Elevation Curve (AEC) file for a given reservoir using SRTM data.
     The function checks if an AEC file already exists for the given reservoir. If it does, it reads the file and returns the data.
@@ -325,6 +421,13 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name):
     if Path(aec_dst_fp).exists():
         print(f"SRTM AEC exists for {reservoir_name} at {aec_dst_fp}")
         aec_df = pd.read_csv(aec_dst_fp, comment='#')
+        # if 'Elevation_Observed' column exists in the dataframe, that means the extrapolation was 
+        # done already. In that case, the 'CumArea' and 'Elevation_Observed' represent the SRTM 
+        # observed AEC.
+        if 'Elevation_Observed' in aec_df.columns:
+            aec_df = aec_df[['CumArea', 'Elevation_Observed']].rename({'Elevation_Observed': 'Elevation'}, axis=1)
+            aec_df = aec_df.dropna(subset='Elevation')
+            clip_to_water_surf = False # in this case, clipping is not required. set it to false
     else:
         reservoir_polygon = reservoir.geometry
         aoi = poly2feature(reservoir_polygon,BUFFER_DIST).geometry()
@@ -364,7 +467,78 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name):
                         'Elevation' :elevs_list, 
                         'CumArea':areas_list
                         })
-        aec_df.to_csv(aec_dst_fp,index=False)
         print(f"Observed AEC obtained from SRTM for {reservoir_name}")
 
+    if clip_to_water_surf:
+        aec_df = get_obs_aec_above_water_surface(
+            aec_df
+        )
+        print(f"Clipped to elevations above water surface")
+
+    aec_df.to_csv(aec_dst_fp,index=False)
+
     return aec_df
+
+def aec_file_creator(
+        reservoir_shpfile, shpfile_column_dict, aec_dir_path, 
+        scale=30, dam_bottom_elevation_percentile=1, 
+        # force_extrapolate=False, 
+        dam_buffer_distance=250
+    ):
+    """
+    Creates AEC (Area-Elevation-Capacity) files for reservoirs based on provided shapefile and parameters.
+    
+    Parameters:
+        reservoir_shpfile : str or geopandas.geodataframe.GeoDataFrame
+            Path to the reservoir shapefile or a GeoDataFrame containing reservoir data.
+        shpfile_column_dict : dict
+            Dictionary mapping shapefile column names to required fields. Expected keys are:
+            - 'unique_identifier': Unique identifier for each reservoir.
+            - 'dam_height': Height of the dam.
+            - 'dam_lat': Latitude of the dam.
+            - 'dam_lon': Longitude of the dam.
+        aec_dir_path : str
+            Directory path where AEC files are stored or will be created. Will be saved as `aec_dir_path/{unique_identifier}.csv`
+        scale : int, optional
+            Scale parameter for the AEC calculation, default is 30.
+        dam_bottom_elevation_percentile : float, optional
+            Percentile to determine the dam bottom elevation, default is 1.
+        dam_buffer_distance : int, optional
+            Buffer distance around the dam for calculations, default is 250.
+    Returns:
+        int
+            Returns 1 upon successful creation or verification of AEC files for all reservoirs.
+    Raises:
+        ValueError
+            If `reservoir_shpfile` is neither a string nor a GeoDataFrame.
+    """
+    # Obtaining list of csv files in aec_dir_path
+    aec_filenames = []
+    for f in os.listdir(aec_dir_path):
+        if f.endswith(".csv"):
+            aec_filenames.append(f[:-4])
+    if isinstance(reservoir_shpfile, str):
+        reservoirs_polygon = gpd.read_file(reservoir_shpfile)
+    elif isinstance(reservoir_shpfile, gpd.geodataframe.GeoDataFrame): 
+        reservoirs_polygon = reservoir_shpfile
+    else:
+        raise ValueError("reservoir_shpfile should be either a string or a geodataframe")
+    for reservoir_no,reservoir in reservoirs_polygon.iterrows():
+        # Reading reservoir information
+        reservoir_gpd = gpd.GeoSeries(reservoir.geometry)
+        reservoir_gpd = reservoir_gpd.set_crs(reservoirs_polygon.crs)
+
+        reservoir_name = str(reservoir[shpfile_column_dict['unique_identifier']])
+        dam_height = float(reservoir[shpfile_column_dict['dam_height']])
+        dam_lat = float(reservoir[shpfile_column_dict['dam_lat']])
+        dam_lon = float(reservoir[shpfile_column_dict['dam_lon']])
+        dam_location = Point(dam_lon, dam_lat)
+
+        aec = get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=True)
+
+        extrapolate_reservoir(
+            reservoir_gpd, dam_location, reservoir_name, dam_height, aec,
+            aec_dir_path
+        )
+
+    return 1
