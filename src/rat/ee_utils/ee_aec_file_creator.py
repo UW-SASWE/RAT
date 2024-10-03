@@ -278,7 +278,9 @@ def get_closest_point_to_dam(
     return closest_point_to_dam, dam_location, grwl_clipped
 
 
-def get_dam_bottom(reservoir, dam_location=None, grwl_fp=Path('/tiger1/pdas47/tmsosPP/data/dam_bottom_elevation/GRWL/GRWL_summaryStats.shp')):
+def get_dam_bottom(
+    reservoir, buffer_distance=500, dam_location=None, 
+    grwl_fp=Path('/tiger1/pdas47/tmsosPP/data/dam_bottom_elevation/GRWL/GRWL_summaryStats.shp')):
     """
     Determines the dam bottom elevation for a given reservoir.
 
@@ -290,11 +292,13 @@ def get_dam_bottom(reservoir, dam_location=None, grwl_fp=Path('/tiger1/pdas47/tm
         tuple: (float, str)
                The dam bottom elevation and the method used ('grwl_intersection' or 'dam_location').
     """
-    # Load GRWL data
-    grwl = gpd.read_file(grwl_fp)
-
-    # Check if GRWL intersects with reservoir geometry
-    intersection = grwl.intersects(reservoir.union_all())
+    if grwl_fp is not None:
+        # Load GRWL data
+        grwl = gpd.read_file(grwl_fp)
+        # Check if GRWL intersects with reservoir geometry
+        intersection = grwl.intersects(reservoir.union_all())
+    else:
+        intersection = np.array([False])
 
     if intersection.any():
         method = 'grwl_intersection'
@@ -315,10 +319,13 @@ def get_dam_bottom(reservoir, dam_location=None, grwl_fp=Path('/tiger1/pdas47/tm
         dam_bottom_elevation = stats['dem_p1']
     else:
         method = 'dam_location'
-        print("GRWL does not intersect with reservoir geometry.")
+        if grwl_fp is None:
+            print("GRWL dataset is not provided. You can download global_data which includes GRWL.")
+        else:
+            print("GRWL does not intersect with reservoir geometry.")
         
         # Calculate the dam bottom elevation using the dam_bottom_dem_percentile function with a 500 m buffer
-        stats = dam_bottom_dem_percentile(dam_location, buffer_distance=500)
+        stats = dam_bottom_dem_percentile(dam_location, buffer_distance=buffer_distance)
         
         # Extract the 1 percentile elevation as the dam bottom elevation
         dam_bottom_elevation = stats['dem_p1']
@@ -327,7 +334,8 @@ def get_dam_bottom(reservoir, dam_location=None, grwl_fp=Path('/tiger1/pdas47/tm
 
 
 def extrapolate_reservoir(
-    reservoir, dam_location, reservoir_name, dam_height, aec, aev_save_dir, buffer_distance=1000
+    reservoir, dam_location, reservoir_name, dam_height, aec, aev_save_dir, buffer_distance=500,
+    grwl_fp=None
 ):
     """
     Extrapolates the reservoir's Area-Elevation-Capacity (AEC) curve by fitting a polynomial to observed data and adds column for storage.
@@ -346,7 +354,7 @@ def extrapolate_reservoir(
     Returns:
         pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', and 'Elevation_Observed'.
     """
-    dam_bottom_elevation, method = get_dam_bottom(reservoir, dam_location) # from GRWL downstream point
+    dam_bottom_elevation, method = get_dam_bottom(reservoir, dam_location, buffer_distance=buffer_distance, grwl_fp=grwl_fp) # from GRWL downstream point
     dam_top_elevation = dam_bottom_elevation + dam_height
 
     print(f"Dam bottom elevation for {reservoir_name} is {dam_bottom_elevation}")
@@ -482,8 +490,8 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
 def aec_file_creator(
         reservoir_shpfile, shpfile_column_dict, aec_dir_path, 
         scale=30, dam_bottom_elevation_percentile=1, 
-        # force_extrapolate=False, 
-        dam_buffer_distance=250
+        dam_buffer_distance=500, 
+        grwl_fp=None
     ):
     """
     Creates AEC (Area-Elevation-Capacity) files for reservoirs based on provided shapefile and parameters.
@@ -538,7 +546,7 @@ def aec_file_creator(
 
         extrapolate_reservoir(
             reservoir_gpd, dam_location, reservoir_name, dam_height, aec,
-            aec_dir_path
+            aec_dir_path, grwl_fp=grwl_fp
         )
 
     return 1
