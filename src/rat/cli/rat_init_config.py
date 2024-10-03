@@ -1,7 +1,7 @@
 DOWNLOAD_LINKS_DROPBOX = {
     'route_model': "https://www.dropbox.com/scl/fi/1kjivr13kyf6gn7wlhbzt/routing.zip?rlkey=zq8j501amqyirfprcgb9dquec&dl=1",
     'params': "https://www.dropbox.com/scl/fi/9qk9bwrbawryx79o7cclg/params.zip?rlkey=j5dqxipkvwuo3nso4dl1cxaux&dl=1",
-    'global_data': "https://www.dropbox.com/s/u8vc3oxujmaak97/global_data.zip?dl=1",
+    'global_data': "https://www.dropbox.com/scl/fi/dhy3y3e9dw6tg89vt6x66/global_data.zip?rlkey=uvy6772cj5bpdfvtvqa4u8enj&st=4sti44e7&dl=1",
     'global_vic_params': "https://www.dropbox.com/s/jsg2wu62qi2ltwz/global_vic_params.zip?dl=1",
 }
 
@@ -16,6 +16,7 @@ SUFFIXES_GLOBAL = {
     'GLOBAL': {
         'basin_shpfile': 'global_basin_data/shapefiles/mrb_basins.json',
         'elevation_tif_file': 'global_elevation_data/World_e-Atlas-UCSD_SRTM30-plus_v8.tif',
+        'grwl': 'global_river_data/GRWL_summaryStats.shp'
     },
 
     'VIC': {
