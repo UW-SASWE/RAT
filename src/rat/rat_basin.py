@@ -736,7 +736,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                 else: 
                     raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             ## Creating AEC files if not present for post-processing dels calculation
-            AEC_STATUS = aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path)
+            AEC_STATUS = aec_file_creator(basin_reservoir_shpfile_path,reservoirs_gdf_column_dict,aec_dir_path,config['GLOBAL']['grwl'])
         except:
             rat_logger.exception("Finished Step-12: Generating Area Elevation Curves for reservoirs")
         else:
