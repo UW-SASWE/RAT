@@ -314,7 +314,7 @@ def extrapolate_reservoir(
     Returns:
         pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', 'Storage', 'Storage (mil. m3)', and 'Elevation_Observed'.
     """
-    dam_bottom_elevation, method = get_dam_bottom(reservoir, dam_location, buffer_distance=buffer_distance, grwl_fp=grwl_fp) # from GRWL downstream point
+    dam_bottom_elevation, method = get_dam_bottom(reservoir, buffer_distance=buffer_distance, dam_location=dam_location, grwl_fp=grwl_fp) # from GRWL downstream point
     dam_top_elevation = dam_bottom_elevation + dam_height
 
     print(f"Dam bottom elevation for {reservoir_name} is {dam_bottom_elevation}")
