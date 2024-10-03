@@ -40,58 +40,12 @@ def _aec(n,elev_dem,roi, scale=30):
     area=ee.Number(DEM141Count.get('elevation')).multiply(30*30).divide(1e6)
     return area
 
-def dem_percentile(
-        lat, lon, scale=30,
-        percentiles=[1, 2, 3, 4, 5, 10], buffer_distance=1000,
-        ee_dem_name = 'MERIT/DEM/v1_0_3'
-    ):
-    """
-    Calculates elevations corresponding to percentile values within a buffered region around 
-    a dam location.
-
-    Parameters:
-        lat (float): Latitude of the point of interest.
-        lon (float): Longitude of the point of interest.
-        scale (int, optional): Scale in meters for the DEM data. Default is 30.
-        percentiles (list of int, optional): List of percentiles to calculate. Default is [1, 2, 3, 4, 5, 10].
-        buffer_distance (int, optional): Buffer distance in meters around the point of interest. Default is 1000.
-        ee_dem_name (str, optional): Name of the Earth Engine DEM dataset. Default is 'MERIT/DEM/v1_0_3'.
-    Returns:
-        dict: A dictionary containing the calculated statistics (min, max, and specified percentiles).
-    """
-    # Create a point geometry using the provided latitude and longitude
-    point = ee.Geometry.Point([lon, lat])
-    
-    # Buffer the point to create a region of interest (ROI)
-    feature = point.buffer(buffer_distance)
-    # Load the DEM dataset
-    dem = ee.Image(ee_dem_name)
-    
-    # Clip DEM to the buffered region (feature)
-    dem_clipped = dem.clip(feature)
-    
-    # Define the reducer (min/max combined with percentiles)
-    reducer = (ee.Reducer.minMax()
-               .combine(ee.Reducer.percentile(percentiles), '', True))
-    
-    # Reduce the clipped DEM over the feature's geometry to get statistics
-    stats = dem_clipped.reduceRegion(
-        reducer=reducer,
-        geometry=feature,
-        scale=scale,  # Scale appropriate for MERIT DEM (30 meters)
-        maxPixels=1e9
-    )
-    
-    # Set the calculated statistics as properties of the feature
-    return stats.getInfo()
-
 def get_obs_aec_above_water_surface(aec):
     """
     Filters and processes the AEC (Area-Elevation Curve) data to obtain observations above a specified water surface height.
 
     Args:
         aec (pd.DataFrame): DataFrame containing AEC data with 'Elevation' and 'CumArea' columns.
-        # max_height (float): The maximum height of the water surface to filter the observations.
 
     Returns:
         pd.DataFrame: A DataFrame containing the filtered and processed AEC data with 'Elevation' and 'CumArea' columns.
@@ -183,7 +137,7 @@ def fit_polynomial(x, y, degree, dam_bottom):
 
 def dam_bottom_dem_percentile(
         dam_location, scale=30,
-        percentiles=[1, 2, 3, 4, 5, 10], buffer_distance=1000,
+        percentiles=[1, 2, 3, 4, 5, 10], buffer_distance=500,
         ee_dem_name = 'MERIT/DEM/v1_0_3'
     ):
     """
@@ -194,7 +148,7 @@ def dam_bottom_dem_percentile(
         dam_location (shapely.geometry.point.Point): The location of the dam as a point geometry.
         scale (int, optional): Scale in meters for the DEM data. Default is 30.
         percentiles (list of int, optional): List of percentiles to calculate. Default is [1, 2, 3, 4, 5, 10].
-        buffer_distance (int, optional): Buffer distance in meters around the point of interest. Default is 1000.
+        buffer_distance (int, optional): Buffer distance in meters around the point of interest. Default is 500.
         ee_dem_name (str, optional): Name of the Earth Engine DEM dataset. Default is 'MERIT/DEM/v1_0_3'.
     Returns:
         dict: A dictionary containing the calculated statistics (min, max, and specified percentiles).
@@ -234,12 +188,13 @@ def get_closest_point_to_dam(
     Gets the closest point to the dam for a given reservoir.
 
     Parameters:
-        tmsos_id (str): The tmsos_id of the reservoir.
+        reservoir (gpd.GeoSeries): GeoSeries containing the reservoir geometry.
+        dam_location (shapely.geometry.point.Point): The location of the dam as a point geometry.
         buffer_distance (int): The buffer distance around the reservoir in meters.
+        grwl_fp (Path): The file path to the GRWL data.
 
     Returns:
-        tuple: (shapely.geometry.point.Point, matplotlib.figure.Figure or None)
-               The closest point to the dam and the plot if PLOT is True, otherwise None.
+        shapely.geometry.point.Point: The closest point to the dam.
     """
     grwl = gpd.read_file(grwl_fp)
 
@@ -275,7 +230,7 @@ def get_closest_point_to_dam(
     closest_point_to_dam = grwl_outside_reservoir_latlon.geometry.apply(lambda geom: geom.interpolate(geom.project(dam_location_latlon)))
     closest_point_to_dam = closest_point_to_dam.iloc[closest_point_to_dam.distance(dam_location_latlon).idxmin()]
 
-    return closest_point_to_dam, dam_location, grwl_clipped
+    return closest_point_to_dam
 
 
 def get_dam_bottom(
@@ -285,7 +240,9 @@ def get_dam_bottom(
     Determines the dam bottom elevation for a given reservoir.
 
     Parameters:
-        tmsos_id (str): The tmsos_id of the reservoir.
+        reservoir (gpd.GeoSeries): GeoSeries containing the reservoir geometry.
+        buffer_distance (int): Buffer distance around the reservoir in meters.
+        dam_location (shapely.geometry.point.Point): The location of the dam as a point geometry.
         grwl_fp (Path): The file path to the GRWL data.
 
     Returns:
@@ -303,7 +260,7 @@ def get_dam_bottom(
     if intersection.any():
         method = 'grwl_intersection'
         print("GRWL intersects with reservoir geometry.")
-        closest_point_to_dam, _, _ = get_closest_point_to_dam(
+        closest_point_to_dam = get_closest_point_to_dam(
             reservoir, dam_location,
             buffer_distance=90,  # 90 m buffer from reservoir = 3 pixels
             grwl_fp=grwl_fp
@@ -338,21 +295,24 @@ def extrapolate_reservoir(
     grwl_fp=None
 ):
     """
-    Extrapolates the reservoir's Area-Elevation-Capacity (AEC) curve by fitting a polynomial to observed data and adds column for storage.
-    - The function first calculates the dam bottom elevation using the specified percentile.
-    - It then fits polynomials of degrees 3, 2, and 1 to the observed AEC data, stopping at the first successful fit.
+    Extrapolates the reservoir's Area-Elevation-Capacity (AEC) curve by fitting a polynomial to observed data and adds a column for storage.
+    - The function first calculates the dam bottom elevation using the specified percentile or GRWL intersection.
+    - It then fits polynomials of degrees 2 and 1 to the observed AEC data, stopping at the first successful fit.
     - The predicted AEC curve is generated and saved to a CSV file in the specified directory.
     - The initial guess and polynomial equation are stored as comments in the CSV file.
     
     Parameters:
+        reservoir (gpd.GeoSeries): GeoSeries containing the reservoir geometry.
+        dam_location (shapely.geometry.point.Point): The location of the dam as a point geometry.
         reservoir_name (str): Name of the reservoir.
         dam_height (float): Height of the dam.
-        scale (float): Scale factor for the DEM data.
-        dam_bottom_elevation_percentile (float): Percentile to determine the dam bottom elevation.
         aec (pd.DataFrame): DataFrame containing observed AEC data with columns 'CumArea' and 'Elevation'.
-        aec_dir_path (str): Directory path to save the predicted AEC file.
+        aev_save_dir (str): Directory path to save the predicted AEC file.
+        buffer_distance (int, optional): Buffer distance around the dam. Default is 500.
+        grwl_fp (Path, optional): File path to the GRWL (Global River Widths from Landsat) dataset. Default is None.
+    
     Returns:
-        pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', and 'Elevation_Observed'.
+        pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', 'Storage', 'Storage (mil. m3)', and 'Elevation_Observed'.
     """
     dam_bottom_elevation, method = get_dam_bottom(reservoir, dam_location, buffer_distance=buffer_distance, grwl_fp=grwl_fp) # from GRWL downstream point
     dam_top_elevation = dam_bottom_elevation + dam_height
@@ -414,12 +374,15 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
     """
     Generates an observed Area-Elevation Curve (AEC) file for a given reservoir using SRTM data.
     The function checks if an AEC file already exists for the given reservoir. If it does, it reads the file and returns the data.
-    If not, it generates the AEC using SRTM data. It saves the data as a csv file and returns the aecas a pandas dataframe.
+    If not, it generates the AEC using SRTM data. It saves the data as a csv file and returns the AEC as a pandas dataframe.
+    
     Parameters:
         aec_dir_path (str): The directory path where the AEC file will be saved.
         scale (int): The scale at which to perform the elevation calculations.
         reservoir (object): The reservoir object containing geometry information.
         reservoir_name (str): The name of the reservoir.
+        clip_to_water_surf (bool): If True, clips the AEC data to elevations above the water surface. Default is False.
+        
     Returns:
         pd.DataFrame: A DataFrame containing the elevation and cumulative area data.
     """
@@ -494,31 +457,22 @@ def aec_file_creator(
         grwl_fp=None
     ):
     """
-    Creates AEC (Area-Elevation-Capacity) files for reservoirs based on provided shapefile and parameters.
-    
+    Creates AEC (Area-Elevation Curve) files for reservoirs based on the provided shapefile.
+
     Parameters:
-        reservoir_shpfile : str or geopandas.geodataframe.GeoDataFrame
-            Path to the reservoir shapefile or a GeoDataFrame containing reservoir data.
-        shpfile_column_dict : dict
-            Dictionary mapping shapefile column names to required fields. Expected keys are:
-            - 'unique_identifier': Unique identifier for each reservoir.
-            - 'dam_height': Height of the dam.
-            - 'dam_lat': Latitude of the dam.
-            - 'dam_lon': Longitude of the dam.
-        aec_dir_path : str
-            Directory path where AEC files are stored or will be created. Will be saved as `aec_dir_path/{unique_identifier}.csv`
-        scale : int, optional
-            Scale parameter for the AEC calculation, default is 30.
-        dam_bottom_elevation_percentile : float, optional
-            Percentile to determine the dam bottom elevation, default is 1.
-        dam_buffer_distance : int, optional
-            Buffer distance around the dam for calculations, default is 250.
-    Returns:
-        int
-            Returns 1 upon successful creation or verification of AEC files for all reservoirs.
-    Raises:
-        ValueError
-            If `reservoir_shpfile` is neither a string nor a GeoDataFrame.
+    - reservoir_shpfile (str or gpd.geodataframe.GeoDataFrame): Path to the reservoir shapefile or a GeoDataFrame.
+    - shpfile_column_dict (dict): Dictionary mapping shapefile columns to their respective data types. 
+      Required keys:
+        - 'unique_identifier': Column name for the unique identifier of the reservoir.
+        - 'dam_height': Column name for the height of the dam.
+        - 'dam_lat': Column name for the latitude of the dam.
+        - 'dam_lon': Column name for the longitude of the dam.
+    - aec_dir_path (str): Directory path where AEC files will be stored.
+    - scale (int, optional): Scale for the AEC calculation. Default is 30.
+    - dam_bottom_elevation_percentile (int, optional): Percentile for dam bottom elevation. Default is 1.
+    - dam_buffer_distance (int, optional): Buffer distance around the dam. Default is 500.
+    - grwl_fp (str, optional): File path to the GRWL (Global River Widths from Landsat) dataset. Default is None. 
+        Can be passed as 'grwl' option in 'GLOBAL' section of config file.
     """
     # Obtaining list of csv files in aec_dir_path
     aec_filenames = []
