@@ -33,7 +33,7 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
 
 # NEW STUFF
 s2 = ee.ImageCollection("COPERNICUS/S2_SR")
-gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater")
+gswd = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
 NDWI_THRESHOLD = 0.3;
@@ -46,6 +46,14 @@ start_date = ee.Date('2019-01-01')
 end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 5
 RESULTS_PER_ITER = 5
+MISSION_START_DATE = (2022,1,1) # Rough start date for mission/satellite data
+QUALITY_PIXEL_BAND_NAME = 'QA_PIXEL'
+BLUE_BAND_NAME = 'B2'
+GREEN_BAND_NAME = 'B3'
+RED_BAND_NAME = 'B4'
+NIR_BAND_NAME = 'B8'
+SWIR1_BAND_NAME = 'B11'
+SWIR2_BAND_NAME = 'B12'
 
 # aoi = reservoir.geometry().simplify(100).buffer(500);
 
@@ -206,12 +214,84 @@ def process_image(im):
             ee.Number(-1e6)
         )
     )
+    # Calculate red band sum for water area in water_map_clustering.
+    water_red_sum = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(RED_BAND_NAME)).reduceRegion(
+                reducer = ee.Reducer.sum(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
+    # Calculate green band sum for water area in water_map_NDWI.
+    water_green_sum = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(GREEN_BAND_NAME)).reduceRegion(
+                reducer = ee.Reducer.sum(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
+    # Calculate nir band sum for water area in water_map_NDWI.
+    water_nir_sum = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(NIR_BAND_NAME)).reduceRegion(
+                reducer = ee.Reducer.sum(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
+    # Calculate red band/green band mean for water area in water_map_NDWI.
+    water_red_green_mean = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(RED_BAND_NAME)).divide(im.select(
+                    GREEN_BAND_NAME)).reduceRegion(
+                reducer = ee.Reducer.mean(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
+    # Calculate nir band/red band mean for water area in water_map_NDWI.
+    water_nir_red_mean = ee.Number(
+        ee.Algorithms.If(
+            CLOUD_LIMIT_SATISFIED,
+            ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(NIR_BAND_NAME)).divide(im.select(
+                    RED_BAND_NAME)).reduceRegion(
+                reducer = ee.Reducer.mean(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_clustering')),
+            ee.Number(-1e6)
+        )
+    )
 
     im = im.set('cloud_area', cloud_area.multiply(1e-6))
     im = im.set('cloud_percent', cloud_percent)
     im = im.set('water_area_clustering', water_area_clustering.multiply(1e-6))
     im = im.set('non_water_area_clustering', non_water_area_clustering.multiply(1e-6))
     im = im.set('PROCESSING_SUCCESSFUL', CLOUD_LIMIT_SATISFIED)
+    im = im.set('water_red_sum', water_red_sum)
+    im = im.set('water_green_sum', water_green_sum)
+    im = im.set('water_nir_sum', water_nir_sum)
+    im = im.set('water_red_green_mean', water_red_green_mean)
+    im = im.set('water_nir_red_mean', water_nir_red_mean)
     
     return im
 
@@ -410,6 +490,11 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
                 non_water_areas = []
                 water_areas = []
                 water_areas_zhaogao = []
+                water_red_sums = []
+                water_green_sums = []
+                water_nir_sums = []
+                water_red_green_means = []
+                water_nir_red_means = []
                 for f, f_postprocessed in zip(ts_imcoll_L['features'], postprocessed_ts_imcoll_L['features']):
                     PROCESSING_STATUS = f['properties']['PROCESSING_SUCCESSFUL']
                     PROCESSING_STATUSES.append(PROCESSING_STATUS)
@@ -423,11 +508,21 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
                         non_water_areas.append(f['properties']['non_water_area_clustering'])
                         cloud_areas.append(f['properties']['cloud_area'])
                         cloud_percents.append(f['properties']['cloud_percent'])
+                        water_red_sums.append(f['properties']['water_red_sum'])
+                        water_green_sums.append(f['properties']['water_green_sum'])
+                        water_nir_sums.append(f['properties']['water_nir_sum'])
+                        water_red_green_means.append(f['properties']['water_red_green_mean'])
+                        water_nir_red_means.append(f['properties']['water_nir_red_mean'])
                     else:
                         water_areas.append(np.nan)
                         non_water_areas.append(np.nan)
                         cloud_areas.append(np.nan)
                         cloud_percents.append(np.nan)
+                        water_red_sums.append(np.nan)
+                        water_green_sums.append(np.nan)
+                        water_nir_sums.append(np.nan)
+                        water_red_green_means.append(np.nan)
+                        water_nir_red_means.append(np.nan)
                     if POSTPROCESSING_STATUS:
                         water_areas_zhaogao.append(f_postprocessed['properties']['corrected_area'])
                     else:
@@ -443,7 +538,12 @@ def run_process_long(res_name,res_polygon, start, end, datadir):
                     'cloud_percent': cloud_percents,
                     'water_area_uncorrected': water_areas,
                     'non_water_area': non_water_areas,
-                    'water_area_corrected': water_areas_zhaogao
+                    'water_area_corrected': water_areas_zhaogao,
+                    'water_red_sum': water_red_sums,
+                    'water_green_sum': water_green_sums,
+                    'water_nir_sum': water_nir_sums,
+                    'water_red_green_mean': water_red_green_means,
+                    'water_nir_red_mean': water_nir_red_means
                 }).set_index('date')
 
                 fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
