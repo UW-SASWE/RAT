@@ -36,7 +36,7 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
 
 # NEW STUFF
 l8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
-gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater")
+gswd = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
 NDWI_THRESHOLD = 0.3
@@ -49,6 +49,13 @@ start_date = ee.Date('2019-01-01')
 end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 16
 RESULTS_PER_ITER = 5
+QUALITY_PIXEL_BAND_NAME = 'QA_PIXEL'
+BLUE_BAND_NAME = 'SR_B2'
+GREEN_BAND_NAME = 'SR_B3'
+RED_BAND_NAME = 'SR_B4'
+NIR_BAND_NAME = 'SR_B5'
+SWIR1_BAND_NAME = 'SR_B6'
+SWIR2_BAND_NAME = 'SR_B7'
 
 
 # s2_subset = s2.filterBounds(aoi).filterDate(start_date, end_date)
@@ -198,7 +205,7 @@ def process_image(im):
         ee.Number(-1e6)
     ))
 
-    # NDWI based
+    # NDWI based water map: Classify water wherever NDWI is greater than NDWI_THRESHOLD and add water_map_NDWI band.
     im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
     water_area_NDWI = ee.Number(im.select('water_map_NDWI').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(), 
@@ -212,6 +219,27 @@ def process_image(im):
         scale = SMALL_SCALE, 
         maxPixels = 1e10
     ).get('water_map_NDWI'))
+    # Calculate red band sum for water area in water_map_NDWI.
+    water_red_sum = ee.Number(im.select('water_map_NDWI').eq(1).multiply(im.select(RED_BAND_NAME)).reduceRegion(
+        reducer = ee.Reducer.sum(), 
+        geometry = aoi, 
+        scale = SMALL_SCALE, 
+        maxPixels = 1e10
+    ).get('water_map_NDWI'))
+    # Calculate green band sum for water area in water_map_NDWI.
+    water_green_sum = ee.Number(im.select('water_map_NDWI').eq(1).multiply(im.select(GREEN_BAND_NAME)).reduceRegion(
+        reducer = ee.Reducer.sum(), 
+        geometry = aoi, 
+        scale = SMALL_SCALE, 
+        maxPixels = 1e10
+    ).get('water_map_NDWI'))
+    # Calculate nir band sum for water area in water_map_NDWI.
+    water_nir_sum = ee.Number(im.select('water_map_NDWI').eq(1).multiply(im.select(NIR_BAND_NAME)).reduceRegion(
+        reducer = ee.Reducer.sum(), 
+        geometry = aoi, 
+        scale = SMALL_SCALE, 
+        maxPixels = 1e10
+    ).get('water_map_NDWI'))
     
     im = im.set('cloud_area', cloud_area.multiply(1e-6))
     im = im.set('cloud_percent', cloud_percent)
@@ -219,6 +247,9 @@ def process_image(im):
     im = im.set('non_water_area_cordeiro', non_water_area_cordeiro.multiply(1e-6))
     im = im.set('water_area_NDWI', water_area_NDWI.multiply(1e-6))
     im = im.set('non_water_area_NDWI', non_water_area_NDWI.multiply(1e-6))
+    im = im.set('water_red_sum', water_red_sum)
+    im = im.set('water_green_sum', water_green_sum)
+    im = im.set('water_nir_sum', water_nir_sum)
     
     return im
 
@@ -381,7 +412,8 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
                 res = generate_timeseries(dates).filterMetadata('l8_images', 'greater_than', 0)
                 # pprint.pprint(res.getInfo())
 
-                uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images']
+                uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images',
+                                                  'water_red_sum', 'water_green_sum', 'water_nir_sum']
                 uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
                 uncorrected_final_data = uncorrected_final_data_ee.getInfo()
                 print("Uncorrected", uncorrected_final_data)
