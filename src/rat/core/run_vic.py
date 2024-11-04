@@ -45,7 +45,7 @@ class VICRunner():
             first_existing_time = new_vic_output.time[0]
             new_vic_output.close()
 
-            #Preprocessing function for merging netcdf files
+            #Preprocessing function for merging netcdf files by removing coinciding dates from the first and using those values from latest
             def _remove_coinciding_days(ds, cutoff_time, ndays):
                 file_name = ds.encoding["source"]
                 file_stem = Path(file_name).stem
@@ -55,7 +55,7 @@ class VICRunner():
                     return ds
             remove_coinciding_days_func = partial(_remove_coinciding_days, cutoff_time=first_existing_time, ndays=ndays)
             
-            # Merging previous and new vic outputs
+            # Merging previous and new vic outputs by taking 365 days data in state file (previous vic outputs) before the first date in new vic output. So coinciding data will be removed from state file.
             try:
                 save_vic_output = xr.open_mfdataset([rout_input_state_file,self.vic_result],{'time':365}, preprocess=remove_coinciding_days_func)
                 save_vic_output.to_netcdf(save_path)

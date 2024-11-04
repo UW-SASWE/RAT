@@ -12,17 +12,21 @@ import copy
 from dask.distributed import Client, LocalCluster
 
 from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
+from rat.utils.vic_init_state_finder import get_vic_init_state_date
 import rat.ee_utils.ee_config as ee_configuration
 from rat.rat_basin import rat_basin
 
 #------------ Define Variables ------------#
-def run_rat(config_fn, operational_latency=None):
+def run_rat(config_fn, operational_latency=None ):
     """Runs RAT as per configuration defined in `config_fn`.
 
     parameters:
         config_fn (str): Path to the configuration file
         operational_latency (int): Number of days in the past from today to end RAT operational run . RAT won't run operationally if operational_latency is None. Default is None.
     """
+
+    # IMERG Latency (in days) that works fine
+    low_latency_limit = 3
 
     # Reading config with comments
     config_fn = Path(config_fn).resolve()
@@ -62,22 +66,56 @@ def run_rat(config_fn, operational_latency=None):
     except:
         log.info("Failed to connect to Earth engine. Wrong credentials. If you want to use Surface Area Estimations from RAT, please update the EE credentials.")
 
-    ############ ----------- Single basin run ---------------- ################
+    ############################ ----------- Single basin run ---------------- ######################################
     if(not config['GLOBAL']['multiple_basin_run']):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')
         
         # Checking if Rat is running operationally with some latency. If yes, update start, end and vic_init_state dates.
         if operational_latency:
+            operational_latency = int(operational_latency)
+            ## Calculation of gfs_days
+            # If running for more than a latency of 3 days, IMERG data will be there. So data for gfs days is 0.
+            if operational_latency>low_latency_limit:
+                gfs_days = 0
+            # If running for a lower latency of 0-3 days, GFS data will have to be used for 3-0 days.
+            else:
+                gfs_days = low_latency_limit-operational_latency
+
             try:
-                log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
-                config['BASIN']['start'] = copy.deepcopy(config['BASIN']['end'])
-                config['BASIN']['vic_init_state'] = copy.deepcopy(config['BASIN']['end'])
+                # RAT has to be run for one overlapping day of IMERG(1) + one new day for IMERG(1) + GFS days
+                log.info(f'Running RAT operationally at a latency of {operational_latency} day(s) from today. Updating start and end date.')
+                # Record the previous end date
+                previous_end_date = copy.deepcopy(config['BASIN']['end'])
+                # Find vic_init_state_date from last run
+                config['BASIN']['vic_init_state'] = get_vic_init_state_date(previous_end_date, low_latency_limit, config['GLOBAL']['data_dir'],
+                                                                             config['BASIN']['region_name'], config['BASIN']['basin_name'])
+                if not(config['BASIN']['vic_init_state']):
+                    raise Exception('No vic init state file was found from last run.')
+                # Start date will be same as Vic init date because RAT will start from the same date as date of VIC's initial state
+                config['BASIN']['start'] = copy.deepcopy(config['BASIN']['vic_init_state'])
                 config['BASIN']['rout_init_state'] = None
+                # End date will be updated to today - latency 
                 config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
             except:
                 log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
                 return None
-        # Running RAT if start < end date
+        else:
+            ## Calculation of gfs_days
+            #If not running operationally, check end date and start date's difference from today
+            end_date_diff_from_today = datetime.datetime.now().date() - config['BASIN']['end']
+            start_date_diff_from_today = datetime.datetime.now().date() - config['BASIN']['start']
+            # If difference is more than 3 days, gfs_days will be 0.
+            if end_date_diff_from_today > datetime.timedelta(days=int(low_latency_limit)):
+                gfs_days = 0
+            # Else if start date and today has less than 3 days difference, gfs_days will be start-end
+            elif (start_date_diff_from_today<datetime.timedelta(days=int(low_latency_limit))):
+                gfs_days = (config['BASIN']['end']-config['BASIN']['start']).days
+            # Else gfs_days will be low_latency_limit - difference of end_date from today
+            else:
+                gfs_days = low_latency_limit - end_date_diff_from_today.days
+
+
+        # Running RAT (if start < end date)
         if (config['BASIN']['start'] >= config['BASIN']['end']):
             log.error('Sorry, RAT operational run for '+config['BASIN']['basin_name']+' failed.')
             log.error(f"Start date - {config['BASIN']['start']} is before the end date - {config['BASIN']['end']}")
@@ -88,16 +126,16 @@ def run_rat(config_fn, operational_latency=None):
             # Store deep copy of config as it is mutable
             config_copy = copy.deepcopy(config)
             # Run RAT for basin
-            no_errors, latest_altimetry_cycle = rat_basin(config, log)
+            no_errors, latest_altimetry_cycle = rat_basin(config, log, gfs_days=gfs_days)
             # Run RAT forecast for basin if forecast is True           
             if config.get('PLUGINS', {}).get('forecasting'):
                 # Importing the forecast module
                 try:
-                    from rat.plugins.forecasting import forecast
+                    from plugins.forecasting.forecast_basin import forecast
                 except:
                     log.exception("Failed to import Forecast plugin due to missing package(s).")
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
-                forecast_no_errors = forecast(config, log)
+                forecast_no_errors = forecast(config, log, low_latency_limit)
                 if(forecast_no_errors>0):
                     log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                 elif(forecast_no_errors==0):
@@ -115,7 +153,7 @@ def run_rat(config_fn, operational_latency=None):
         else:
             log.error('############## RAT run failed for '+config['BASIN']['basin_name']+' #################')
 
-    ############ ----------- Multiple basin run ---------------- ################
+    ######################## ----------- Multiple basin run ---------------- #############################
     else:
         # Reading basins metadata
         try:
@@ -143,41 +181,96 @@ def run_rat(config_fn, operational_latency=None):
             log.info('############## Starting RAT for '+basin+' #################')
             # Checking if Rat is running operationally with some latency. If yes, update start, end and vic_init_state dates.
             if operational_latency:
+                operational_latency = int(operational_latency)
+                ## Calculation of gfs_days
+                # If running for more than a latency of 3 days, IMERG data will be there. So data for gfs days is 0.
+                if operational_latency>low_latency_limit:
+                    gfs_days = 0
+                # If running for a lower latency of 0-3 days, GFS data will have to be used for 3-0 days.
+                else:
+                    gfs_days = 3-operational_latency
+
                 try:
-                    log.info(f'Running RAT operationally at a latency of {operational_latency}. Updating start and end date.')
+                    log.info(f'Running RAT operationally at a latency of {operational_latency} day(s) from today. Updating start and end date.')
                     ## If end date is not in basins metadata.columns then it is in config file.
                     if ('BASIN','end') not in basins_metadata.columns:
-                        ## Adding [Basin][start] to metadata.columns if not there with with None value 
-                        if ('BASIN','start') not in basins_metadata.columns:
-                            basins_metadata['BASIN','start'] = None
-                        ## Changning [Basin][start] in metadata.columns to previous end value from config file 
-                        basins_metadata['BASIN','start'] = copy.deepcopy(config['BASIN']['end'])
-                        config['BASIN']['end'] = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
-                    ## Else it is in metadata.columns
+                        # Record the previous end date
+                        previous_end_date = copy.deepcopy(config['BASIN']['end'])
                     else:
-                        # Updating start
-                        ## Adding [Basin][start] to metadata.columns if not there with None value
-                        if ('BASIN','start') not in basins_metadata.columns:
-                            basins_metadata['BASIN','start'] = None    
-                        ## Changning [Basin][start] in metadata.columns to previous end value from metadata
-                        basins_metadata['BASIN','start'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','end'], inplace=True)
-                        # Updating end
-                        operational_end_date = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
-                        basins_metadata['BASIN','end'].where(basins_metadata['BASIN','basin_name']!= basin, operational_end_date, inplace=True)
-                    ### We can add vic_init_state and rout_init_state to metadata as it will override the values in config anyway.
-                    # Updating vic_init_state
-                    ## Adding [Basin][vic_init_state] to metadata.columns if not there with None value
+                        previous_end_date = basins_metadata['BASIN','end'].loc[basins_metadata['BASIN','basin_name']== basin]
+                    # Find vic_init_state_date from last run
+                    if ('GLOBAL','data_dir') not in basins_metadata.columns:
+                        data_dir = config['GLOBAL']['data_dir']
+                    else:
+                        data_dir = basins_metadata['GLOBAL','data_dir'].loc[basins_metadata['BASIN','basin_name']== basin]
+                    if ('BASIN','region_name') not in basins_metadata.columns:
+                        region_name = config['BASIN']['region_name']
+                    else:
+                        region_name = basins_metadata['GLOBAL','region_name'].loc[basins_metadata['BASIN','basin_name']== basin]
+                    if ('BASIN','basin_name') not in basins_metadata.columns:
+                        basin_name = config['BASIN']['basin_name']
+                    else:
+                        basin_name = basins_metadata['GLOBAL','basin_name'].loc[basins_metadata['BASIN','basin_name']== basin]
+
+                    ## Adding [Basin][vic_init_date] to metadata.columns if not there with with None value
                     if ('BASIN','vic_init_state') not in basins_metadata.columns:
-                        basins_metadata['BASIN','vic_init_state'] = None    
-                    basins_metadata['BASIN','vic_init_state'].where(basins_metadata['BASIN','basin_name']!= basin, basins_metadata['BASIN','start'], inplace=True)
+                        basins_metadata['BASIN','vic_init_state'] = None
+                    # Find vic_init_state
+                    vic_init_state_date = get_vic_init_state_date(previous_end_date, low_latency_limit, data_dir,region_name, basin_name)
+                    # Check if vic init state is not none, else raise error
+                    if not(config['BASIN']['vic_init_state']):
+                        raise Exception('No vic init state file was found from last run.')
+                    # Replace vic_init_state in basins metadata 
+                    basins_metadata['BASIN','vic_init_state'].where(basins_metadata['BASIN','basin_name']!= basin, vic_init_state_date, inplace=True)
+
+                     ## Adding [Basin][start] to metadata.columns if not there with with None value 
+                    if ('BASIN','start') not in basins_metadata.columns:
+                        basins_metadata['BASIN','start'] = None
+                    # Replace start date same as vic_init_date
+                    basins_metadata['BASIN','start'].where(basins_metadata['BASIN','basin_name']!= basin, vic_init_state_date, inplace=True)
+                    
+                    ## Adding [Basin][end] to metadata.columns if not there with with None value 
+                    if ('BASIN','end') not in basins_metadata.columns:
+                        basins_metadata['BASIN','end'] = None
+                    # Replace end date as today - operational latency
+                    operational_end_date = datetime.datetime.now().date() - datetime.timedelta(days=int(operational_latency))
+                    basins_metadata['BASIN','end'].where(basins_metadata['BASIN','basin_name']!= basin, operational_end_date, inplace=True)
+
                     # Updating rout_init_state to None for all.
-                    ## Adding [Basin][vic_init_state] to metadata.columns if not there with None value
+                    ## Adding [Basin][rout_init_state] to metadata.columns if not there with None value
                     if ('BASIN','rout_init_state') not in basins_metadata.columns:
                         basins_metadata['BASIN','rout_init_state'] = None
                     basins_metadata['BASIN','rout_init_state'] = None
+
                 except:
                     log.exception('Failed to update start and end date for RAT to run operationally. Please make sure RAT has been run atleast once before.')
                     return None
+            
+            else:
+                ## Calculation of gfs_days
+                # Read start and end date from metadata if there, otherwise from config.
+                if ('BASIN','start') not in basins_metadata.columns:
+                    start_date_value = config['BASIN']['start']
+                else:
+                    start_date_value = basins_metadata['BASIN','start'].loc[basins_metadata['BASIN','basin_name']== basin]
+                if ('BASIN','end') not in basins_metadata.columns:
+                    end_date_value = config['BASIN']['end']
+                else:
+                    end_date_value = basins_metadata['BASIN','end'].loc[basins_metadata['BASIN','basin_name']== basin]
+                #If not running operationally, check end date and start date's difference from today
+                end_date_diff_from_today = datetime.datetime.now().date() - end_date_value
+                start_date_diff_from_today = datetime.datetime.now().date() - start_date_value
+                # If difference is more than 3 days, gfs_days will be 0.
+                if end_date_diff_from_today > datetime.timedelta(days=int(low_latency_limit)):
+                    gfs_days = 0
+                # Else if start date and today has less than 3 days difference, gfs_days will be start-end
+                elif (start_date_diff_from_today<datetime.timedelta(days=int(low_latency_limit))):
+                    gfs_days = (end_date_value - start_date_value).days
+                # Else gfs_days will be low_latency_limit - difference of end_date from today
+                else:
+                    gfs_days = low_latency_limit - end_date_diff_from_today.days
+
+            
             # Extracting basin information and populating it in config if it's not NaN
             basin_info = basins_metadata[basins_metadata['BASIN']['basin_name']==basin]
             config_copy = copy.deepcopy(config)
@@ -192,16 +285,16 @@ def run_rat(config_fn, operational_latency=None):
             else:
                 basins_metadata.to_csv(config['GLOBAL']['basins_metadata'], index=False)
                 ryaml_client.dump(config, config_fn.open('w'))
-                no_errors, latest_altimetry_cycle = rat_basin(config_copy, log)
+                no_errors, latest_altimetry_cycle = rat_basin(config_copy, log, gfs_days=gfs_days)
                 # Run RAT forecast for basin if forecast is True
                 if config.get('PLUGINS', {}).get('forecasting'):
                     # Importing the forecast module
                     try:
-                        from rat.plugins.forecasting import forecast
+                        from plugins.forecasting.forecast_basin import forecast
                     except:
                         log.exception("Failed to import Forecast plugin due to missing package(s).")
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
-                    forecast_no_errors = forecast(config, log)
+                    forecast_no_errors = forecast(config, log, low_latency_limit)
                     if(forecast_no_errors>0):
                         log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                     elif(forecast_no_errors==0):

@@ -38,17 +38,28 @@ class MetSimRunner():
         log.debug(f"Will create {len(years)} forcing files")
         for year, ds, p in zip(years, dataset, paths):
             if os.path.isfile(p):
-                existing = xr.open_dataset(p)#.load()
-                existing.close()
+                # Open the existing NetCDF file
+                with xr.open_dataset(p) as existing:
+                    last_existing_time = existing.time[-1]
+                    log.debug(f"Writing file for year {year}: {p} -- Updating existing")
+                    log.debug("Existing data: %s", last_existing_time)
 
-                log.debug(f"Writing file for year {year}: {p} -- Updating existing")
-                # xr.merge([existing, ds], compat='override', join='outer').to_netcdf(p)
-                # xr.concat([existing, ds], dim='time').to_netcdf(p)
-                last_existing_time = existing.time[-1]
-                log.debug("Existing data: %s", last_existing_time)
+                    # Load the data into memory before closing the dataset
+                    existing_data = existing.sel(
+                        time=slice(None, last_existing_time)
+                    ).load()  # Load the data into memory
+
+                # Select the new data that needs to be appended
                 ds = ds.sel(time=slice(last_existing_time + np.timedelta64(6,'h'), ds.time[-1]))
-                #ds = ds.isel(time=slice(1, None))
-                xr.merge([existing, ds]).to_netcdf(p)
+
+                # Merge the existing data with the new data and save it back to the file
+                xr.merge([existing_data, ds]).to_netcdf(p)
+
+                # # Explicitly delete variables to free up memory
+                # del existing_data, ds
+
+                # # Manually trigger garbage collection to ensure memory is freed
+                # gc.collect()
             else:
                 log.debug(f"Writing file for year {year}: {p} -- Updating new")
                 ds.to_netcdf(p)

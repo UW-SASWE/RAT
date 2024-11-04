@@ -1,5 +1,4 @@
 import xarray as xr
-import rioxarray as rxr
 import numpy as np
 import requests
 import dask
@@ -9,20 +8,14 @@ from dask.distributed import LocalCluster, Client
 from pathlib import Path
 import tempfile
 import os
-import subprocess
 import shutil
 import numpy as np
 from datetime import date
 from rat.utils.run_command import run_command
-import ruamel_yaml as ryaml
-# import cfgrib
-from rat.data_processing.metsim_input_processing import CombinedNC
-from rat.rat_basin import rat_basin
-from rat.toolbox.config import update_config
-
+from rat.toolbox.MiscUtil import get_quantile_from_area
 
 # Obtain GEFS precip data
-def download_gefs_chirps(basedate, lead_time, save_dir):
+def download_gefs_chirps(basedate, lead_time, save_dir, low_latency=False):
     """Download forecast precipitation from GEFS-CHIRPS.
 
     Args:
@@ -33,8 +26,12 @@ def download_gefs_chirps(basedate, lead_time, save_dir):
     assert lead_time <= 15, "Maximum lead time is 15 days for GEFS-CHIRPS."
 
     forecast_dates = pd.date_range(basedate, basedate + pd.Timedelta(days=lead_time))
+    if low_latency:
+        start_index=0
+    else:
+        start_index=1
 
-    for forecast_date in forecast_dates[1:]: # Skip the first day, download forecast from next day
+    for forecast_date in forecast_dates[start_index:]: # Skip the first day, download forecast from next day but if latency mode is being used, download will start first day
         by = basedate.year
         bm = basedate.month
         bd = basedate.day
@@ -119,10 +116,10 @@ def process_gefs_chirps(
     return date, 'Precipitaion', STATUS
 
 
-def get_gefs_precip(basin_bounds, forecast_raw_dir, forecast_processed_dir, begin, lead_time, temp_datadir=None):
+def get_gefs_precip(basin_bounds, forecast_raw_dir, forecast_processed_dir, begin, lead_time, low_latency=False, temp_datadir=None):
     """Download and process forecast data for a day."""
     # download data
-    download_gefs_chirps(begin, lead_time, forecast_raw_dir)
+    download_gefs_chirps(begin, lead_time, forecast_raw_dir, low_latency)
 
     # process data
     futures = []
@@ -145,12 +142,12 @@ def get_gefs_precip(basin_bounds, forecast_raw_dir, forecast_processed_dir, begi
 
 
 def download_GFS_files(
-        basedate, lead_time, save_dir
+        basedate, lead_time, save_dir, hour_of_day=0
     ):
     """Download GFS files for a day and saves it with a consistent naming format for further processing."""
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
-    hours = range(24, 16*24+1, 24)
+    hours = range(bool(lead_time)*24+hour_of_day, lead_time*24+hour_of_day+1, 24) # Added 1 in the end of range because it is exclusive. So just increase by 1
 
     # determine where to download from. nomads has data for the last 10 days
     if basedate > pd.Timestamp(date.today()) - pd.Timedelta(days=10):
@@ -300,14 +297,15 @@ def process_GFS_file(fn, basin_bounds, gfs_dir):
     res = run_command(cmd)#, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # print(f"{basedate:%Y-%m-%d} - {var} - (4) Converted to .asc")
 
-def process_GFS_files(basedate, lead_time, basin_bounds, gfs_dir):
+def process_GFS_files(basedate, lead_time, basin_bounds, gfs_dir, hour_of_day=0):
     """Extracts only the required meteorological variables and converts from GRIB2 format to netcdf
 
     Args:
-        fns (string): Path of GRIB2 GFS file
+        fns (string):,
+        hour_of_day=hour_of_day Path of GRIB2 GFS file
     """
     gfs_dir = Path(gfs_dir)
-    hours = range(24, lead_time*24+1, 24)
+    hours = range(bool(lead_time)*24+hour_of_day, lead_time*24+hour_of_day+1, 24)
     forecasted_dates = [basedate + pd.Timedelta(h, 'hours') for h in hours]
     
     in_fns = [
@@ -318,7 +316,7 @@ def process_GFS_files(basedate, lead_time, basin_bounds, gfs_dir):
     for i, in_fn in enumerate(in_fns):
         process_GFS_file(in_fn, basin_bounds, gfs_dir)
 
-def get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir):
+def get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir, hour_of_day=0):
     """Extracts only the required meteorological variables and converts from GRIB2 format to netcdf
 
     Args:
@@ -328,6 +326,7 @@ def get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir):
         basedate,
         lead_time=lead_time,
         save_dir=gfs_dir / "raw",
+        hour_of_day=hour_of_day
     )
 
     extract_gribs(gfs_dir, basedate)
@@ -336,7 +335,8 @@ def get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir):
         basedate,
         lead_time,
         basin_bounds,
-        gfs_dir
+        gfs_dir,
+        hour_of_day=hour_of_day
     )
 
 def forecast_scenario_custom_wl(forecast_outflow, initial_sa, aec_data, cust_wl):
@@ -491,7 +491,7 @@ def forecast_scenario_gates_closed(forecast_outflow, initial_sa, aec_data):
 def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data, st_percSmax):
     #Creating positive and negative values for permissible storage cases
     st_percSmax = np.array(st_percSmax)
-    st_percSmax = np.append(st_percSmax, -st_percSmax)
+    # st_percSmax = np.append(st_percSmax, -st_percSmax)
 
     #Converting storage cases from %Smax to absolute volumes
     st_volumes = np.array(st_percSmax)/100*s_max*1E6
@@ -508,6 +508,8 @@ def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data,
         curr_sa = initial_sa
         curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
         cum_netInflow = forecast_outflow['inflow'].sum() - forecast_outflow['evaporation'].sum()
+        dels_remaining = vol
+        dels_stored = 0
         for iter,inflow in enumerate(forecast_outflow['inflow'].values):
             if(cum_netInflow < vol):
                 delS.append(inflow - forecast_outflow['evaporation'].values[iter])
@@ -519,9 +521,22 @@ def forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data,
                 sarea.append(curr_sa)
                 outflow.append(0)
             else:
-                net_delS = cum_netInflow - vol
-                outflow.append(net_delS/15)
-                delS.append(inflow - outflow[-1])
+                I_E = inflow - forecast_outflow['evaporation'].values[iter]
+                if dels_remaining > 0:
+                    if I_E <= dels_remaining:
+                        O = 0
+                        dels_stored = I_E
+                        dels_remaining = dels_remaining - dels_stored
+                    else:
+                        O = I_E - dels_remaining
+                        dels_stored = dels_remaining
+                        dels_remaining = 0
+                else:
+                    # If no remaining storage capacity, release all incoming water minus evaporation
+                    O = I_E
+                    dels_stored = 0  # No water is stored
+                outflow.append(O)
+                delS.append(dels_stored)
                 delH.append(delS[-1]/(curr_sa*1E6))
                 curr_elevation = np.interp(curr_sa, aec_data['area'], aec_data['elevation'])
                 new_elevation = curr_elevation + delH[-1]
@@ -560,7 +575,8 @@ def forecast_outflow_for_res(
         rule_curve = None, 
         st_percSmax = [0.5, 1, 2.5], 
         cust_st = None, 
-        output_path = None
+        output_path = None,
+        actual_st_left = False
     ):
     ''' 
     Generates forecasted outflow for RAT given forecasted inflow time series data based on specific delS scenarios.
@@ -601,8 +617,14 @@ def forecast_outflow_for_res(
     output_path: str
         If provided, generates a netcdf file at the specified path containing the forecasted outflow results.
     '''
+    # If actual_st_left is true
+    if actual_st_left and 'ST' in dels_scenario:
+        actual_st_left_percent = np.round(100*(1-get_quantile_from_area(sarea_fp)),1)
+        st_percSmax.append(actual_st_left_percent)
+
     # Reading forecasted inflow data, computing forecasting period as base date to base date + 15 days
     forecast_inflow = pd.read_csv(forecast_inflow_fp, parse_dates=['date']).set_index('date').rename({'streamflow': 'inflow'}, axis=1).to_xarray()
+    forecast_inflow = forecast_inflow*86400 # convert m3/s to m3/day
     base_date = pd.to_datetime(base_date)
     base_date_15lead = base_date + pd.Timedelta(days=forecast_lead_time)
 
@@ -671,111 +693,73 @@ def forecast_outflow(
     forecast_reservoir_shpfile_column_dict, rule_curve_dir,
     scenarios = ['GC', 'GO', 'RC', 'ST'],
     st_percSmaxes = [0.5, 1, 2.5],
+    actual_st_left = False
 ):
     reservoirs = gpd.read_file(reservoir_shpfile)
     reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
 
     for res_name in reservoirs['Inflow_filename'].tolist():
         res_scenarios = scenarios.copy()
-        forecast_inflow_fp = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
-        forecast_evap_fp = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
-        sarea_fp = basin_data_dir / 'gee' / 'gee_sarea_tmsos' / f'{res_name}.csv'
-        aec_fp = basin_data_dir / 'final_outputs' / 'aec' / f'{res_name}.csv'
-        output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
-        output_fp.parent.mkdir(parents=True, exist_ok=True)
+        observed_outflow_fp = basin_data_dir / 'final_outputs' / 'outflow' / f'{res_name}.csv'
+        # Calculate forecast outflow only if observed outflow exists. Will skip for guages.
+        if (observed_outflow_fp.exists()):
 
-        s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
-        reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0]
+            forecast_inflow_fp = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+            forecast_evap_fp = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+            sarea_fp = basin_data_dir / 'gee' / 'gee_sarea_tmsos' / f'{res_name}.csv'
+            aec_fp = basin_data_dir / 'final_outputs' / 'aec' / f'{res_name}.csv'
+            output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
+            output_fp.parent.mkdir(parents=True, exist_ok=True)
 
-        if np.isnan(s_max):
-            res_scenarios.remove('ST')
+            s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
+            reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0]
 
-        if np.isnan(reservoir_id):
-            res_scenarios.remove('RC')
-            rule_curve_fp = None
-        else:
-            rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
+            if np.isnan(s_max) and 'ST' in res_scenarios:
+                res_scenarios.remove('ST')
 
-        for scenario in res_scenarios:       
-            forecast_outflow_for_res(
-                base_date = basedate,
-                forecast_lead_time = lead_time,
-                forecast_inflow_fp = forecast_inflow_fp,
-                evap_fp = forecast_evap_fp,
-                sarea_fp = sarea_fp,
-                aec_fp = aec_fp,
-                dels_scenario = scenario,
-                s_max = s_max,
-                rule_curve = rule_curve_fp,
-                st_percSmax = st_percSmaxes,
-                output_path = output_fp
-            )
+            if (np.isnan(reservoir_id) or rule_curve_dir) and 'RC' in res_scenarios:
+                res_scenarios.remove('RC')
+                rule_curve_fp = None
+            else:
+                rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
 
+            for scenario in res_scenarios:       
+                forecast_outflow_for_res(
+                    base_date = basedate,
+                    forecast_lead_time = lead_time,
+                    forecast_inflow_fp = forecast_inflow_fp,
+                    evap_fp = forecast_evap_fp,
+                    sarea_fp = sarea_fp,
+                    aec_fp = aec_fp,
+                    dels_scenario = scenario,
+                    s_max = s_max,
+                    rule_curve = rule_curve_fp,
+                    st_percSmax = st_percSmaxes[:],
+                    output_path = output_fp,
+                    actual_st_left = actual_st_left
+                )
 
-def generate_forecast_state_and_inputs(
-        forecast_startdate, # forecast start date
-        forecast_enddate, # forecast end date
-        hindcast_combined_datapath, 
-        forecast_combined_datapath, 
-        out_dir
-    ):
-    out_dir = Path(out_dir)
-    hindcast_combined_data = xr.open_dataset(hindcast_combined_datapath)
-    forecast_combined_data = xr.open_dataset(forecast_combined_datapath)
-    
-    # check if tmin < tmax. If not, set tmin = tmax
-    forecast_combined_data['tmin'] = xr.where(
-        forecast_combined_data['tmin'] < forecast_combined_data['tmax'],
-        forecast_combined_data['tmin'],
-        forecast_combined_data['tmax']
-    )
-
-    hindcast_combined_data = hindcast_combined_data.sel(time=slice(None, forecast_startdate))
-
-    combined_data = xr.concat([
-        hindcast_combined_data, forecast_combined_data
-    ], dim="time")
-
-    state_startdate = forecast_startdate - pd.Timedelta(days=90)
-    state_enddate = forecast_startdate - pd.Timedelta(days=1)
-
-    state_ds = combined_data.sel(time=slice(state_startdate, state_enddate))
-    state_outpath = out_dir / "forecast_state.nc"
-    state_ds.to_netcdf(state_outpath)
-
-    # # Generate the metsim input
-    forcings_ds = combined_data.sel(time=slice(forecast_startdate, forecast_enddate))
-    forcings_outpath = out_dir / "forecast_metsim_input.nc"
-    print(f"Saving forcings: {forcings_outpath}")
-    forcings_ds.to_netcdf(forcings_outpath)
-
-    return state_outpath, forcings_outpath
-
-
-def convert_forecast_inflow(inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  final_out_inflow_dir, basedate):
+def convert_forecast_inflow(forecast_inflow_dir, reservoir_shpfile, reservoir_shpfile_column_dict,  final_out_forecast_inflow_dir, basedate):
     # Inflow
     reservoirs = gpd.read_file(reservoir_shpfile)
     reservoirs['Inflow_filename'] = reservoirs[reservoir_shpfile_column_dict['unique_identifier']].astype(str)
 
-    inflow_paths = list(Path(inflow_dir).glob('*.csv'))
-    final_out_inflow_dir.mkdir(exist_ok=True)
+    forecast_inflow_paths = list(Path(forecast_inflow_dir).glob('*.csv'))
+    final_out_forecast_inflow_dir.mkdir(exist_ok=True)
 
-    for inflow_path in inflow_paths:
-        res_name = os.path.splitext(os.path.split(inflow_path)[-1])[0]
+    for forecast_inflow_path in forecast_inflow_paths:
+        res_name = os.path.splitext(os.path.split(forecast_inflow_path)[-1])[0]
 
-        if res_name in reservoirs['Inflow_filename'].tolist():
-            savepath = final_out_inflow_dir / inflow_path.name
+        savepath = final_out_forecast_inflow_dir / forecast_inflow_path.name
 
-            df = pd.read_csv(inflow_path, parse_dates=['date'])
-            df['inflow (m3/d)'] = df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
-            df = df[['date', 'inflow (m3/d)']]
+        forecast_df = pd.read_csv(forecast_inflow_path, parse_dates=['date'])
+        forecast_df['inflow (m3/d)'] = forecast_df['streamflow'] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+        forecast_df = forecast_df[['date', 'inflow (m3/d)']]
 
-            print(f"Converting [Inflow]: {res_name}")
-            df = df[df['date'] > basedate]
-            df.to_csv(savepath, index=False)
-            print(df.tail())
-        else:
-            print(f"Skipping {res_name} as its inflow file is not available.")
+        print(f"Converting [Inflow]: {res_name}")
+        forecast_df = forecast_df[forecast_df['date'] >= basedate]
+        forecast_df.to_csv(savepath, index=False)
+        print(forecast_df.tail())
 
 
 def convert_forecast_evaporation(evap_dir, final_evap_dir):
@@ -832,7 +816,7 @@ def convert_forecast_outflow_states(outflow_dir, final_outflow_dir, final_dels_d
             converted_col_name = f'outflow (m3/d) [case: {outflow_case}]'
             col_names.append(converted_col_name)
             outflow_df.loc[outflow_df[outflow_col]<0, outflow_col] = 0
-            outflow_df[converted_col_name] = outflow_df[outflow_col] * (24*60*60)        # indicate units, convert from m3/s to m3/d
+            outflow_df[converted_col_name] = outflow_df[outflow_col] # Units are already in m3/d
         outflow_df = outflow_df[['date', *col_names]]
         final_outflow_dir.mkdir(parents=True, exist_ok=True)
         outflow_df.to_csv(outflow_savefp, index=False)
@@ -874,119 +858,3 @@ def convert_forecast_outflow_states(outflow_dir, final_outflow_dir, final_dels_d
         sarea_df.to_csv(sarea_savefp, index=False)
 
 
-def forecast(config, rat_logger):
-    """Function to run the forecasting plugin.
-
-    Args:
-        config (dict): Dictionary containing the configuration parameters.
-        rat_logger (Logger): Logger object
-    """
-    print("Forecasting Plugin Started")
-    # read necessary parameters from config
-    basins_shapefile_path = config['GLOBAL']['basin_shpfile'] # Shapefile containg information of basin(s)- geometry and attributes
-    basins_shapefile = gpd.read_file(basins_shapefile_path)  # Reading basins_shapefile_path to get basin polygons and their attributes
-    basins_shapefile_column_dict = config['GLOBAL']['basin_shpfile_column_dict'] # Dictionary of column names in basins_shapefile, Must contain 'id' field
-    region_name = config['BASIN']['region_name']  # Major basin name used to cluster multiple basins data in data-directory
-    basin_name = config['BASIN']['basin_name']              # Basin name used to save basin related data
-    basin_id = config['BASIN']['basin_id']                  # Unique identifier for each basin used to map basin polygon in basins_shapefile
-    basin_data = basins_shapefile[basins_shapefile[basins_shapefile_column_dict['id']]==basin_id] # Getting the particular basin related information corresponding to basin_id
-    basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
-    basin_bounds = np.array(basin_bounds)[0]
-    basin_data_dir = Path(config['GLOBAL']['data_dir']) / region_name / 'basins' / basin_name
-    rule_curve_dir = Path(config['PLUGINS']['forecast_rule_curve_dir'])
-    reservoirs_gdf_column_dict = config['GEE']['reservoir_vector_file_columns_dict']
-    forecast_reservoir_shpfile_column_dict = config['PLUGINS']['forecast_reservoir_shpfile_column_dict']
-    if (config['ROUTING']['station_global_data']):
-        reservoirs_gdf_column_dict['unique_identifier'] = 'uniq_id'
-    else:
-        reservoirs_gdf_column_dict['unique_identifier'] = reservoirs_gdf_column_dict['dam_name_column']
-
-    # determine forecast related dates - basedate, lead time and enddate
-    if config['PLUGINS']['forecast_start_date'] == 'end_date':
-        basedate = pd.to_datetime(config['BASIN']['end'])
-    else:
-        basedate = pd.to_datetime(config['PLUGINS']['forecast_start_date'])
-    lead_time = config['PLUGINS']['forecast_lead_time']
-    forecast_enddate = basedate + pd.Timedelta(days=lead_time)
-
-    # define and create directories
-    hindcast_nc_path = basin_data_dir / 'pre_processing' / 'nc' / 'combined_data.nc'
-    combined_nc_path = basin_data_dir / 'pre_processing' / 'nc' / 'forecast_combined.nc'
-    metsim_inputs_dir = basin_data_dir / 'metsim' / 'metsim_inputs'
-    basingridfile_path = basin_data_dir / 'basin_grid_data' / f'{basin_name}_grid_mask.tif'
-    forecast_data_dir = basin_data_dir / 'forecast'
-    raw_gefs_chirps_dir = forecast_data_dir / 'gefs-chirps' / 'raw'
-    processed_gefs_chirps_dir = forecast_data_dir / 'gefs-chirps' / 'processed'
-    gfs_dir = forecast_data_dir / 'gfs'
-    raw_gfs_dir = gfs_dir / 'raw'
-    extracted_gfs_dir = gfs_dir / 'extracted'
-    processed_gfs_dir = gfs_dir / 'processed'
-    inflow_dst_dir = basin_data_dir / 'rat_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
-    basin_reservoir_shpfile_path = Path(basin_data_dir) / 'gee' / 'gee_basin_params' / 'basin_reservoirs.shp'
-    final_inflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_inflow' / f"{basedate:%Y%m%d}"
-    final_evap_out_dir = basin_data_dir / 'final_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
-    evap_dir = basin_data_dir / 'rat_outputs' / 'forecast_evaporation' / f"{basedate:%Y%m%d}"
-    outflow_forecast_dir = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}'
-    final_outflow_out_dir = basin_data_dir / 'final_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}'
-    final_dels_out_dir = basin_data_dir / 'final_outputs' / 'forecast_dels' / f'{basedate:%Y%m%d}'
-    final_sarea_out_dir = basin_data_dir / 'final_outputs' / 'forecast_sarea' / f'{basedate:%Y%m%d}'
-
-    for d in [
-        raw_gefs_chirps_dir, processed_gefs_chirps_dir, raw_gfs_dir, extracted_gfs_dir, processed_gfs_dir, outflow_forecast_dir,
-        final_evap_out_dir, final_inflow_out_dir, final_outflow_out_dir
-    ]:
-        d.mkdir(parents=True, exist_ok=True)
-
-    # cleanup previous runs
-    vic_forecast_input_dir = basin_data_dir / 'vic' / 'forecast_vic_inputs'
-    [f.unlink() for f in vic_forecast_input_dir.glob("*") if f.is_file()]
-    vic_forecast_state_dir = basin_data_dir / 'vic' / 'forecast_vic_state'
-    [f.unlink() for f in vic_forecast_state_dir.glob("*") if f.is_file()]
-    combined_nc_path.unlink() if combined_nc_path.is_file() else None
-    rout_forecast_state_dir = basin_data_dir / 'rout' / 'forecast_rout_state_file'
-    [f.unlink() for f in rout_forecast_state_dir.glob("*") if f.is_file()]
-
-
-    # RAT STEP-1 (Forecasting) Download and process GEFS-CHIRPS data
-    get_gefs_precip(basin_bounds, raw_gefs_chirps_dir, processed_gefs_chirps_dir, basedate, lead_time)
-
-    # RAT STEP-1 (Forecasting) Download and process GFS data
-    get_GFS_data(basedate, lead_time, basin_bounds, gfs_dir)
-
-    # RAT STEP-2 (Forecasting) make combined nc
-    CombinedNC(
-        basedate, forecast_enddate, None,
-        basingridfile_path, combined_nc_path, False,
-        forecast_data_dir, basedate
-    )
-
-    # RAT STEP-2 (Forecasting) generate metsim inputs
-    generate_forecast_state_and_inputs(
-        basedate, forecast_enddate,
-        hindcast_nc_path, combined_nc_path,
-        metsim_inputs_dir
-    )
-
-    # change config to only run metsim-routing
-    config['BASIN']['vic_init_state'] = config['BASIN']['end'] # assuming vic_init_state is available for the end date
-    config['GLOBAL']['steps'] = [3, 4, 5, 6, 7, 8, 13] # only run metsim-routing and inflow file generation
-    config['BASIN']['start'] = basedate
-    config['BASIN']['end'] = forecast_enddate
-    config['BASIN']['spin_up'] = False
-
-    # run RAT with forecasting parameters
-    no_errors, _ = rat_basin(config, rat_logger, forecast_mode=True)
-
-    # generate outflow forecast
-    forecast_outflow(
-        basedate, lead_time, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, forecast_reservoir_shpfile_column_dict, rule_curve_dir,
-        scenarios = ['GC', 'GO', 'RC', 'ST'],
-        st_percSmaxes = [0.5, 1, 2.5]
-    )
-
-    # RAT STEP-14 (Forecasting) convert forecast inflow and evaporation
-    convert_forecast_inflow(inflow_dst_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict, final_inflow_out_dir, basedate)
-    convert_forecast_evaporation(evap_dir, final_evap_out_dir)
-    convert_forecast_outflow_states(outflow_forecast_dir, final_outflow_out_dir, final_dels_out_dir, final_sarea_out_dir)
-
-    return no_errors

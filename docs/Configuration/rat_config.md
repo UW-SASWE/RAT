@@ -238,6 +238,10 @@ RAT config file has 12 major sections that defines several parameters which are 
         end: 2022-08-31
     ```
 
+    !!! note
+        1. Starting from [v3.0.14](../../Development/PatchNotes/#v3014), the end date can now be set to a date on or before the current day.
+        2. For RAT runs that overlap with the period from three days prior to the current day up to the current day, meteorological data is sourced as nowcasts—precipitation data from the GEFS server and temperature and wind data from the GFS server.
+
 * <h6 class="parameter_heading">*`vic_init_state_date`* :</h6> 
     <span class="requirement">Optional parameter</span>
 
@@ -808,7 +812,7 @@ This section of the configuration file describes the parameters defined by `rout
          If `clean_previous_outputs` is `True`, the previous outputs are cleaned before executing any step in `steps`.
          
     !!! tip_note "Tip"
-        You should use `clean_previous_outputs` if you want to have fresh outputs of RAT for a river basin. Otherwise, by default RAT will keep appending the new outputs to the same files and will concatenate data by calendar dates.
+        You should use `clean_previous_outputs` if you want to have fresh outputs of RAT for a river basin. Otherwise, by default RAT will keep appending the new outputs to the same files and will concatenate data by calendar dates. In case the new outputs and previous outputs have some coinciding dates, RAT will replace the previous outputs with the new outputs for these dates.
 
 ### Confidential
 * <h6 class="parameter_heading">*`secrets:`* :</h6> 

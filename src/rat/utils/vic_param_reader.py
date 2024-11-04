@@ -13,7 +13,7 @@ log.setLevel(LOG_LEVEL)
 
 class VICParameterFile:
     def __init__(self, config, basin_name, startdate=None, enddate=None, vic_output_path=None, vic_section='VIC',
-                                     forcing_prefix=None, runname=None, init_state=None, save_init_state=True, init_state_dir=None,
+                                     forcing_prefix=None, runname=None, init_state=None, init_state_dir=None, save_init_state=True, init_state_save_date= None,
                                       init_state_out_dir=None, intermediate_files= False):
         
         self.params = {
@@ -110,7 +110,11 @@ class VICParameterFile:
         self.straight_from_metsim = False
         self.save_init_state = save_init_state
         #VIC State Save Date
-        self.vic_init_state_save_date = config['BASIN']['end']
+        if self.save_init_state:
+            if not init_state_save_date:
+                self.vic_init_state_save_date = config['BASIN']['end']
+            else:
+                self.vic_init_state_save_date = init_state_save_date
         if init_state_dir:
             self.init_state_dir = init_state_dir
         else:
@@ -335,6 +339,18 @@ class VICParameterFile:
                 self.params['state_file_params']['INIT_STATE'] = init_state_file_path
         else:
             del self.params['state_file_params']['INIT_STATE']
+
+        # If using init state and also wants to save init state file, check if they don't have the same date (or path). If yes, do not save the state file as VIC will give error.
+        if (self.init_state) and (self.save_init_state):
+            vic_init_state_save_date_str = str(self.vic_init_state_save_date.strftime('%Y'))+str(self.vic_init_state_save_date.strftime('%m'))+\
+                                    str(self.vic_init_state_save_date.strftime('%d'))
+            init_state_save_file_path = os.path.join(config['GLOBAL']['data_dir'],config['BASIN']['region_name'],
+                                                            'basins',self.basin_name,'vic',self.init_state_dir,
+                                                            'state_.'+vic_init_state_save_date_str+'_00000.nc')
+            
+            if self.params['state_file_params']['INIT_STATE']==init_state_save_file_path:
+                del self.params['state_file_params']['STATENAME']
+                self.save_init_state=False
 
     def _out_format_params(self): # return a VIC compatible string of paramters
         header = '\n'.join([
