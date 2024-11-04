@@ -243,6 +243,22 @@ def process_image(im):
         scale = SMALL_SCALE, 
         maxPixels = 1e10
     ).get('water_map_NDWI'))
+    # Calculate red band/green band mean for water area in water_map_NDWI.
+    water_red_green_mean = ee.Number(im.select('water_map_NDWI').eq(1).multiply(im.select(RED_BAND_NAME)).divide(im.select(
+                    GREEN_BAND_NAME)).reduceRegion(
+        reducer = ee.Reducer.mean(), 
+        geometry = aoi, 
+        scale = SMALL_SCALE, 
+        maxPixels = 1e10
+    ).get('water_map_NDWI'))
+    # Calculate nir band/red band mean for water area in water_map_NDWI.
+    water_nir_red_mean = ee.Number(im.select('water_map_NDWI').eq(1).multiply(im.select(NIR_BAND_NAME)).divide(im.select(
+                    RED_BAND_NAME)).reduceRegion(
+        reducer = ee.Reducer.mean(), 
+        geometry = aoi, 
+        scale = SMALL_SCALE, 
+        maxPixels = 1e10
+    ).get('water_map_NDWI'))    
     
     im = im.set('cloud_area', cloud_area.multiply(1e-6))
     im = im.set('cloud_percent', cloud_percent)
@@ -253,6 +269,8 @@ def process_image(im):
     im = im.set('water_red_sum', water_red_sum)
     im = im.set('water_green_sum', water_green_sum)
     im = im.set('water_nir_sum', water_nir_sum)
+    im = im.set('water_red_green_mean', water_red_green_mean)
+    im = im.set('water_nir_red_mean', water_nir_red_mean)
     
     return im
 
@@ -420,7 +438,7 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
                 # pprint.pprint(res.getInfo())
 
                 uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l9_images',
-                                                  'water_red_sum', 'water_green_sum', 'water_nir_sum']
+                                                  'water_red_sum', 'water_green_sum', 'water_nir_sum','water_red_green_mean','water_nir_red_mean']
                 uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
                 uncorrected_final_data = uncorrected_final_data_ee.getInfo()
                 print("Uncorrected", uncorrected_final_data)
