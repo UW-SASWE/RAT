@@ -135,6 +135,21 @@ def copy_aec_files(src_dir, dst_dir):
             'Elevation_Observed': 'elevation_srtm'
         }, axis=1, inplace=True)
         aec.to_csv(dst_dir / src_path.name, index=False)
+        
+def convert_nssc(nssc_dir, final_out_dir):
+    src_dir = Path(nssc_dir)
+    dst_dir = Path(create_directory(os.path.join(final_out_dir,'nssc'),True))
+
+    for src_path in src_dir.glob('*.csv'):
+        nssc_df = pd.read_csv(src_path)
+        df_to_save = nssc_df[['date','nssc_rd_gn_px','nssc_nr_rd_px', 'nssc_rd_gn_res', 'nssc_nr_rd_res']]
+        df_to_save.rename({
+            'nssc_rd_gn_px': 'NSSC (red/green per pixel)',
+            'nssc_nr_rd_px': 'NSSC (nir/red per pixel)',
+            'nssc_rd_gn_res': 'NSSC (total_red/total_green)',
+            'nssc_nr_rd_res': 'NSSC (total_nir/totaL_red)',
+        }, axis=1, inplace=True)
+        df_to_save.to_csv(dst_dir / src_path.name, index=False)    
 
 
 def convert_v2_frontend(basin_data_dir, res_name, inflow_src, sarea_src, dels_src, outflow_src):
