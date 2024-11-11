@@ -180,7 +180,7 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
 
 
 def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date, rout_init_state_save_file, use_rout_state,
-                            evap_datadir, dels_savedir, outflow_savedir, vic_status, routing_status, gee_status, forecast_mode=False):
+                            evap_datadir, dels_savedir, nssc_savedir, outflow_savedir, vic_status, routing_status, gee_status, forecast_mode=False):
     # read file defining mapped resrvoirs
     # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
     reservoirs = gpd.read_file(reservoir_shpfile)
@@ -197,9 +197,10 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
 
     # SArea
     sarea_raw_dir = os.path.join(basin_data_dir,'gee', "gee_sarea_tmsos")
+    nssc_raw_dir = os.path.join(basin_data_dir,'gee', "gee_nssc")
 
     ## No of failed files (no_failed_files) is tracked and used to print a warning message in log level 1 file.
-    # DelS
+    # DelS calculation & copying of NSSC files
     if(gee_status):
         log.debug("Calculating ∆S")
         no_failed_files = 0
@@ -210,14 +211,22 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
                 sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
-                savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
+                nssc_path = os.path.join(nssc_raw_dir, reservoir_name + ".csv")
+                dels_savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
+                nssc_savepath = os.path.join(nssc_savedir, reservoir_name + ".csv")
                 aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
 
                 if os.path.isfile(sarea_path):
-                    log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {savepath}")
-                    calc_dels(aecpath, sarea_path, savepath)
+                    log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {dels_savepath}")
+                    calc_dels(aecpath, sarea_path, dels_savepath)
                 else:
                     raise Exception("Surface area file not found; skipping ∆S calculation")
+                
+                if os.path.isfile(nssc_path):
+                    nssc_df = pd.read_csv(nssc_path)
+                    nssc_df.to_csv(nssc_savepath, index=False)
+                else:
+                    raise Exception("NSSC file not found for {reservoir_name}; skipping copy to RAT Outputs")
             except:
                 log.exception(f"∆S for {reservoir_name} could not be calculated.")
                 no_failed_files += 1 
