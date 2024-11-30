@@ -1,14 +1,17 @@
+from contextlib import redirect_stderr
+from io import StringIO
+import datetime
+import copy
+import os
+
 import pandas as pd
 import numpy as np
 import yaml
-import os
 import argparse
 import configparser
 import ee
 import ruamel_yaml as ryaml
 from pathlib import Path 
-import datetime
-import copy
 from dask.distributed import Client, LocalCluster
 
 from rat.utils.logging import init_logger,close_logger,LOG_LEVEL1_NAME
@@ -60,11 +63,12 @@ def run_rat(config_fn, operational_latency=None ):
         secrets.read(config['CONFIDENTIAL']['secrets'])
         ee_configuration.service_account = secrets["ee"]["service_account"]
         ee_configuration.key_file = secrets["ee"]["key_file"]
-        ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
-        ee.Initialize(ee_credentials)
+        with StringIO() as fake_stderr, redirect_stderr(fake_stderr):
+            ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
+            ee.Initialize(ee_credentials)
         log.info("Connected to earth engine succesfully.")
-    except:
-        log.info("Failed to connect to Earth engine. Wrong credentials. If you want to use Surface Area Estimations from RAT, please update the EE credentials.")
+    except Exception as e:
+        log.error(f"Failed to connect to Earth Engine. RAT will not be able to use Surface Area Estimations. Error: {e}")
 
     ############################ ----------- Single basin run ---------------- ######################################
     if(not config['GLOBAL']['multiple_basin_run']):
