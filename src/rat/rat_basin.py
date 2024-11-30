@@ -32,7 +32,7 @@ from rat.core.run_altimetry import run_altimetry
 
 from rat.core.run_postprocessing import run_postprocessing
 
-from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files, convert_nssc
+from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files, convert_nssc, convert_meteorological_ts
 
 # Step-(-1): Reading Configuration settings to run RAT
 # Step-0: Creating required directory structure for RAT
@@ -345,6 +345,20 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             aec_dir_path = config['POST_PROCESSING'].get('aec_dir')
         else:
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
+        # Defining paths for creating meteorlogical timeseries for reservoir catchment
+        if (config['POST_PROCESSING'].get('catchment_vector_file')):
+            catchment_vector_file_path = config['POST_PROCESSING'].get('catchment_vector_file')
+            catchments_gdf_column_dict = config['POST_PROCESSING'].get('catchment_vector_file_columns_dict')
+            # Adding key-value pair to Basin Reservoir Shapefile's column dictionary ### 
+            if (config['ROUTING']['station_global_data']):
+                catchments_gdf_column_dict['unique_identifier'] = 'uniq_id'
+            else:
+                catchments_gdf_column_dict['unique_identifier'] = catchments_gdf_column_dict['dam_name_column']
+        else:
+            catchment_vector_file_path = None
+            catchments_gdf_column_dict = None
+        # Reading catchment vector file's column dictionary
+        
         ## Paths for storing post-processed data and in webformat data
         if forecast_mode:
             evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{forecast_basedate:%Y%m%d}"), True)
@@ -792,6 +806,13 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                 rat_logger.info("Converted Inflow to the Output Format.")
             else:
                 rat_logger.info("Could not convert Inflow to the Output Format as Routing run failed.")
+            
+            ## Climatological TS
+            if (ROUTING_STATUS):
+                convert_meteorological_ts(catchment_vector_file_path, catchments_gdf_column_dict, basin_data, combined_datapath, final_output_path)
+                rat_logger.info("Converted Catchment's Climatological TS to the Output Format (from NetCDF).")
+            else:
+                rat_logger.info("Could not convert Catchment's Climatological TS to the Output Format (from NetCDF) as Routing run failed.")
             
             ## Dels 
             if(DELS_STATUS):
