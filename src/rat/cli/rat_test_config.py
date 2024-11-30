@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 
 DOWNLOAD_LINK_DROPBOX = {
     'test_data': "https://www.dropbox.com/scl/fi/f1pnyz9mo178kweh3agtf/test_data.zip?dl=1&rlkey=qxvsfrhc2li55dh4yj4a03bq2"
@@ -93,8 +93,8 @@ PARAMS = {
             'basin_name': 'gunnison',
             'basin_id': 0,
             'spin_up': False,
-            'start': datetime(2022, 1, 1),
-            'end': datetime(2022, 1, 31),
+            'start': date(2022, 1, 1),
+            'end': date(2022, 1, 31),
         },
 
         'VIC': {
@@ -124,8 +124,8 @@ PARAMS = {
             'basin_name': 'Nueces',
             'basin_id': 4223,
             'spin_up': False,
-            'start': datetime(2022, 8, 1),
-            'end': datetime(2022, 8, 31),
+            'start': date(2022, 8, 1),
+            'end': date(2022, 8, 31),
         },
 
         'VIC': {
