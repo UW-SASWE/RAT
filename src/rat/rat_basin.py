@@ -32,7 +32,7 @@ from rat.core.run_altimetry import run_altimetry
 
 from rat.core.run_postprocessing import run_postprocessing
 
-from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files
+from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files, convert_nssc, convert_meteorological_ts
 
 # Step-(-1): Reading Configuration settings to run RAT
 # Step-0: Creating required directory structure for RAT
@@ -335,6 +335,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             reservoirs_gdf_column_dict['unique_identifier'] = reservoirs_gdf_column_dict['dam_name_column']
         # Defining paths to save surface area from gee and heights from altimetry
         sarea_savepath = create_directory(os.path.join(basin_data_dir,'gee','gee_sarea_tmsos',''), True)
+        nssc_savepath = create_directory(os.path.join(basin_data_dir,'gee','gee_nssc',''), True)
         altimetry_savepath = os.path.join(basin_data_dir,'altimetry','altimetry_timeseries')
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
 
@@ -344,12 +345,27 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             aec_dir_path = config['POST_PROCESSING'].get('aec_dir')
         else:
             aec_dir_path = create_directory(os.path.join(basin_data_dir,'post_processing','post_processing_gee_aec',''), True)
+        # Defining paths for creating meteorlogical timeseries for reservoir catchment
+        if (config['POST_PROCESSING'].get('catchment_vector_file')):
+            catchment_vector_file_path = config['POST_PROCESSING'].get('catchment_vector_file')
+            catchments_gdf_column_dict = config['POST_PROCESSING'].get('catchment_vector_file_columns_dict')
+            # Adding key-value pair to Basin Reservoir Shapefile's column dictionary ### 
+            if (config['ROUTING']['station_global_data']):
+                catchments_gdf_column_dict['unique_identifier'] = 'uniq_id'
+            else:
+                catchments_gdf_column_dict['unique_identifier'] = catchments_gdf_column_dict['dam_name_column']
+        else:
+            catchment_vector_file_path = None
+            catchments_gdf_column_dict = None
+        # Reading catchment vector file's column dictionary
+        
         ## Paths for storing post-processed data and in webformat data
         if forecast_mode:
             evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'forecast_evaporation', f"{forecast_basedate:%Y%m%d}"), True)
         else:
             evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'Evaporation'), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
+        nssc_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "nssc"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
         aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
         final_output_path = create_directory(os.path.join(basin_data_dir,'final_outputs',''),True)
@@ -699,7 +715,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             # Get Sarea
             filt_options = config['GEE'].get('bot_filter') 
             run_sarea(gee_start_date.strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
-                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,filt_options)
+                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,filt_options,nssc_savepath)
             GEE_STATUS = 1         
         except:
             no_errors = no_errors+1
@@ -761,7 +777,8 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                 rat_logger.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
             #Generating evaporation, storage change and outflow.    
             DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
-                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS, forecast_mode=forecast_mode)
+                                aec_dir_path, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir,
+                                nssc_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS, forecast_mode=forecast_mode)
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
@@ -778,9 +795,10 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             ## Surface Area
             if(GEE_STATUS):
                 convert_sarea(sarea_savepath,final_output_path)
-                rat_logger.info("Converted Surface Area to the Output Format.")
+                convert_nssc(nssc_savepath,final_output_path)
+                rat_logger.info("Converted Surface Area and NSSC to the Output Format.")
             else:
-                rat_logger.info("Could not convert Surface Area to the Output Format as GEE run failed.")
+                rat_logger.info("Could not convert Surface Area and NSSC to the Output Format as GEE run failed.")
             
             ## Inflow
             if(ROUTING_STATUS):
@@ -788,6 +806,13 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                 rat_logger.info("Converted Inflow to the Output Format.")
             else:
                 rat_logger.info("Could not convert Inflow to the Output Format as Routing run failed.")
+            
+            ## Climatological TS
+            if (ROUTING_STATUS):
+                convert_meteorological_ts(catchment_vector_file_path, catchments_gdf_column_dict, basin_data, combined_datapath, final_output_path)
+                rat_logger.info("Converted Catchment's Climatological TS to the Output Format (from NetCDF).")
+            else:
+                rat_logger.info("Could not convert Catchment's Climatological TS to the Output Format (from NetCDF) as Routing run failed.")
             
             ## Dels 
             if(DELS_STATUS):
@@ -851,13 +876,13 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                     
             # Clearing out memory space as per user input 
             if(config['CLEAN_UP'].get('clean_metsim')):
-                rat_logger.info("Clearing up memory space: Removal of metsim output files")
+                rat_logger.info("Clearing up memory space: Removal of metsim input and output files")
                 cleaner.clean_metsim()
             if(config['CLEAN_UP'].get('clean_vic')):
-                rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files")
+                rat_logger.info("Clearing up memory space: Removal of vic input, output files and previous init_state_files older than 20 days.")
                 cleaner.clean_vic()
             if(config['CLEAN_UP'].get('clean_routing')):
-                rat_logger.info("Clearing up memory space: Removal of routing input and output files")
+                rat_logger.info("Clearing up memory space: Removal of routing input, output files and previous rout_state_files older than 20 days.")
                 cleaner.clean_routing()
             if(config['CLEAN_UP'].get('clean_gee')):
                 rat_logger.info("Clearing up memory space: Removal of unwanted gee extracted small chunk files")
