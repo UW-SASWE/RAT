@@ -4,6 +4,7 @@ import geopandas as gpd
 import numpy as np
 from pathlib import Path
 from rat.utils.utils import create_directory
+from rat.toolbox.data_transform import create_meterological_ts
 
 def convert_sarea(sarea_dir, website_v_dir):
     # Surface Area
@@ -151,6 +152,32 @@ def convert_nssc(nssc_dir, final_out_dir):
         }, axis=1, inplace=True)
         df_to_save.to_csv(dst_dir / src_path.name, index=False)    
 
+def convert_meteorological_ts(catchment_shpfile, catchments_gdf_column_dict, basin_gpd_df, meteorological_nc_file_path, final_out_dir):
+    if catchment_shpfile:
+        print('Reading Catchment Shapefile')
+        catchments = gpd.read_file(catchment_shpfile)
+        dst_dir = Path(create_directory(os.path.join(final_out_dir,'catchment_climate'),True))
+        
+        if catchments_gdf_column_dict['unique_identifier'] == 'uniq_id':
+            print('Finding a spatial join of catchments because of Global Station Vector File')
+            basin_data_crs_changed = basin_gpd_df.to_crs(catchments.crs)
+            catchments_spatial_filtered = gpd.sjoin(catchments, basin_data_crs_changed, "inner")[catchments.columns]
+            catchments_spatial_filtered['uniq_id'] = catchments_spatial_filtered[catchments_gdf_column_dict['id_column']].astype(str)+'_'+ \
+                            catchments_spatial_filtered[catchments_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
+        else:
+            catchments_spatial_filtered = catchments.copy()
+        
+        for index, row in catchments_spatial_filtered.iterrows():
+            res_name = row[catchments_gdf_column_dict['unique_identifier']]
+            save_file_path = dst_dir / res_name / '.csv'
+            catchment_roi = row['geometry']
+            print(f"Creating Catchment's Climatolgical time series for reservoir : {res_name}")
+            create_meterological_ts(catchment_roi, meteorological_nc_file_path, save_file_path)
+        
+        return
+    else:
+        return
+    
 
 def convert_v2_frontend(basin_data_dir, res_name, inflow_src, sarea_src, dels_src, outflow_src):
     """Converts the files according to the newer version of the frontend (v2).
