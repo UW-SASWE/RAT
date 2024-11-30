@@ -1,8 +1,8 @@
 import pandas as pd
 from logging import getLogger
 
-from plugins.forecasting.forecasting import get_gefs_precip
-from plugins.forecasting.forecasting import get_GFS_data
+from rat.plugins.forecasting.forecasting import get_gefs_precip
+from rat.plugins.forecasting.forecasting import get_GFS_data
 from rat.utils.logging import LOG_NAME, LOG_LEVEL, NOTIFICATION
 
 # Getting the log-level 2
