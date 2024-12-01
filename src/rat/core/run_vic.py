@@ -97,7 +97,7 @@ class VICRunner():
 
                     da = fluxes_subset.isel(lat=lat, lon=lon).to_dataframe().reset_index()
 
-                    da.to_csv(fname, sep=' ', header=False, index=False, float_format="%.5f", quotechar="", quoting=csv.QUOTE_NONE, date_format="%Y %m %d", escapechar=" ")
+                    da.to_csv(fname, sep=' ', header=False, index=False, float_format="%.5f", quotechar="", quoting=csv.QUOTE_NONE, date_format="%Y %m %d", escapechar="\t")
             
             print(f"All files for {lat} have been written.")
                         # pbar.update(1)
