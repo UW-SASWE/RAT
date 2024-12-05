@@ -11,9 +11,6 @@ DOWNLOAD_LINKS_GOOGLE = {
     'global_data': "https://drive.google.com/uc?id=1Obm_cKPFoumJKhcNTvFxIZNkSU3OmgT_",
     'global_vic_params': "https://drive.google.com/uc?id=16P95eu2yG0i77ac_NrmTSVutNtVXWNeA",
 }
-https://drive.google.com/file/d/1Obm_cKPFoumJKhcNTvFxIZNkSU3OmgT_/view?usp=sharing
-https://drive.google.com/file/d/16P95eu2yG0i77ac_NrmTSVutNtVXWNeA/view?usp=share_link
-https://drive.google.com/file/d//view?usp=share_link
 
 SUFFIXES_GLOBAL = {
     'GLOBAL': {
