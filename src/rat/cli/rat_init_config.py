@@ -8,9 +8,12 @@ DOWNLOAD_LINKS_DROPBOX = {
 DOWNLOAD_LINKS_GOOGLE = {
     'route_model': "https://drive.google.com/uc?id=1zr3VH0wy-XN-yF2_n0xic89_PiT_V_Mb",
     'params': "https://drive.google.com/uc?id=1LAGivWvgBdtJvDWzkGKorzfjPEKvO69k",
-    'global_data': "https://drive.google.com/uc?id=1WZ44rS-woViLHlIreK1DBPRXX50PiQI_",
+    'global_data': "https://drive.google.com/uc?id=1Obm_cKPFoumJKhcNTvFxIZNkSU3OmgT_",
     'global_vic_params': "https://drive.google.com/uc?id=16P95eu2yG0i77ac_NrmTSVutNtVXWNeA",
 }
+https://drive.google.com/file/d/1Obm_cKPFoumJKhcNTvFxIZNkSU3OmgT_/view?usp=sharing
+https://drive.google.com/file/d/16P95eu2yG0i77ac_NrmTSVutNtVXWNeA/view?usp=share_link
+https://drive.google.com/file/d//view?usp=share_link
 
 SUFFIXES_GLOBAL = {
     'GLOBAL': {
