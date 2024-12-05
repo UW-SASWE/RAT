@@ -126,10 +126,13 @@ def copy_aec_files(src_dir, dst_dir):
     dst_dir = Path(dst_dir)
 
     for src_path in src_dir.glob('*.csv'):
-        aec = pd.read_csv(src_path)
+        aec = pd.read_csv(src_path, comment="#")
         aec.rename({
             'Elevation': 'elevation',
-            'CumArea': 'area'
+            'CumArea': 'area',
+            'Storage': 'storage',
+            'Storage (mil. m3)': 'storage (mil. m3)',
+            'Elevation_Observed': 'elevation_srtm'
         }, axis=1, inplace=True)
         aec.to_csv(dst_dir / src_path.name, index=False)
 
