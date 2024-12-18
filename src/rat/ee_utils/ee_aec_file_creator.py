@@ -181,8 +181,7 @@ def dam_bottom_dem_percentile(
     return stats.getInfo()
 
 def get_closest_point_to_dam(
-        reservoir, dam_location, buffer_distance=90, 
-        grwl_fp=Path('/tiger1/pdas47/tmsosPP/data/dam_bottom_elevation/GRWL/GRWL_summaryStats.shp')
+        reservoir, dam_location, grwl_fp, buffer_distance=90
     ):
     """
     Gets the closest point to the dam for a given reservoir.
@@ -234,20 +233,37 @@ def get_closest_point_to_dam(
 
 
 def get_dam_bottom(
-    reservoir, buffer_distance=500, dam_location=None, 
-    grwl_fp=Path('/tiger1/pdas47/tmsosPP/data/dam_bottom_elevation/GRWL/GRWL_summaryStats.shp')):
+        reservoir, 
+        dam_location=None, 
+        grwl_fp=None,
+        buffer_distance=500, 
+        grwl_intersection_buffer=250,
+        grwl_buffer_from_dam=90,
+        
+    ):
     """
-    Determines the dam bottom elevation for a given reservoir.
+    Determines the dam bottom elevation for a given reservoir. It can either use centerlines of
+    rivers (GRWL) to determine the likely location the downstream river bed, or use a buffered
+    region around the dam location to find the 1 percentile elevation as an estimate of the 
+    elevation of the dam bottom.
 
     Parameters:
         reservoir (gpd.GeoSeries): GeoSeries containing the reservoir geometry.
-        buffer_distance (int): Buffer distance around the reservoir in meters.
         dam_location (shapely.geometry.point.Point): The location of the dam as a point geometry.
-        grwl_fp (Path): The file path to the GRWL data.
+        grwl_fp (Path): The file path to the GRWL data. If passed, GRWL river centerlines would
+            be used to estimate the location of the dam bottom.  
+        buffer_distance (int): Buffer distance around the dam in meters to use if the dam location
+            is to be used for estimating the dam bottom.
+        grwl_intersection_buffer (float): Buffer distance of a region to consider around the
+            intersection of GRWL and reservoir boundary for finding the bottom-elevation from the
+            distribution of elevations within that region. Defaults to 250 m.
+        grwl_buffer_from_dam (float): Buffer distance to use along the GRWL centerline from the
+            intersection of GRWL and reservoir boundary for estimating the location of the 
+            dam bottom.
 
     Returns:
         tuple: (float, str)
-               The dam bottom elevation and the method used ('grwl_intersection' or 'dam_location').
+            The dam bottom elevation and the method used ('grwl_intersection' or 'dam_location').
     """
     if grwl_fp is not None:
         # Load GRWL data
@@ -262,15 +278,15 @@ def get_dam_bottom(
         print("GRWL intersects with reservoir geometry.")
         closest_point_to_dam = get_closest_point_to_dam(
             reservoir, dam_location,
-            buffer_distance=90,  # 90 m buffer from reservoir = 3 pixels
-            grwl_fp=grwl_fp
+            grwl_fp=grwl_fp,
+            buffer_distance=grwl_buffer_from_dam,  # 90 m buffer from reservoir = 3 pixels
         )
         
         # Extract latitude and longitude of the closest point
         lat, lon = closest_point_to_dam.y, closest_point_to_dam.x
         
         # Calculate the dam bottom elevation using the dam_bottom_dem_percentile function
-        stats = dam_bottom_dem_percentile(closest_point_to_dam, buffer_distance=250)
+        stats = dam_bottom_dem_percentile(closest_point_to_dam, buffer_distance=grwl_intersection_buffer)
         
         # Extract the 1 percentile elevation as the dam bottom elevation
         dam_bottom_elevation = stats['dem_p1']
@@ -308,7 +324,8 @@ def extrapolate_reservoir(
         dam_height (float): Height of the dam.
         aec (pd.DataFrame): DataFrame containing observed AEC data with columns 'CumArea' and 'Elevation'.
         aev_save_dir (str): Directory path to save the predicted AEC file.
-        buffer_distance (int, optional): Buffer distance around the dam. Default is 500.
+        buffer_distance (int, optional): Buffer distance around the dam. Default is 500. It will be used if GRWL
+            doesn't intersect with the reservoir geometry or if not provided.
         grwl_fp (Path, optional): File path to the GRWL (Global River Widths from Landsat) dataset. Default is None.
     
     Returns:
@@ -470,7 +487,10 @@ def aec_file_creator(
     - aec_dir_path (str): Directory path where AEC files will be stored.
     - scale (int, optional): Scale for the AEC calculation. Default is 30.
     - dam_bottom_elevation_percentile (int, optional): Percentile for dam bottom elevation. Default is 1.
-    - dam_buffer_distance (int, optional): Buffer distance around the dam. Default is 500.
+    - dam_buffer_distance (int, optional): Buffer distance around the dam. Default is 500. Will be used 
+        if GRWL river centerlines doesn't intersect with reservoir boundary or if not passed. Buffer
+        distance around dam location where distribution of elevation is used to estimate the
+        elevation of the dam location.
     - grwl_fp (str, optional): File path to the GRWL (Global River Widths from Landsat) dataset. Default is None. 
         Can be passed as 'grwl' option in 'GLOBAL' section of config file.
     """
@@ -498,9 +518,12 @@ def aec_file_creator(
 
         aec = get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=True)
 
-        extrapolate_reservoir(
-            reservoir_gpd, dam_location, reservoir_name, dam_height, aec,
-            aec_dir_path, grwl_fp=grwl_fp
-        )
+        if dam_height > 0:
+            extrapolate_reservoir(
+                reservoir_gpd, dam_location, reservoir_name, dam_height, aec,
+                aec_dir_path, grwl_fp=grwl_fp
+            )
+        else:
+            print(f"Dam height can't be used to extrapolate aev: {dam_height}")
 
     return 1

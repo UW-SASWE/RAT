@@ -26,7 +26,7 @@ def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_
     Partial_optical_tmsos_files = 0
     i = 1
     for reservoir_no,reservoir in reservoirs_polygon.iterrows():
-        print(f"\n\n +++ PROCESSING RESERVOIR: {reservoir['tmsos_id']} - {reservoir['name_2']} ({i}/{len(reservoirs_polygon)}) +++\n\n")
+        print(f"\n\n +++ PROCESSING RESERVOIR: {reservoir[shpfile_column_dict['id_column']]} - {reservoir[shpfile_column_dict['dam_name_column']]} ({i}/{len(reservoirs_polygon)}) +++\n\n")
         i += 1
         try:
             # Reading reservoir information
