@@ -730,11 +730,11 @@ This section of the configuration file describes the parameters defined by `rout
 * <h6 class="parameter_heading">*`clean_metsim`* :</h6> 
     <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate metsim outputs for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate metsim inputs and outputs for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to delete intermediate metsim outputs for a river basin, 
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate metsim inputs and outputs for a river basin, 
     ```
     CLEAN_UP:
         clean_metsim: True
@@ -743,7 +743,7 @@ This section of the configuration file describes the parameters defined by `rout
 * <h6 class="parameter_heading">*`clean_vic`* :</h6> 
     <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 20 days, for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
@@ -756,7 +756,7 @@ This section of the configuration file describes the parameters defined by `rout
 * <h6 class="parameter_heading">*`clean_routing`* :</h6> 
     <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 20 days, for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
