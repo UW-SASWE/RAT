@@ -98,17 +98,10 @@ def preprocess(im):
 ## Processing individual images - water classification   ##
 ##########################################################/
 
-def identify_water_cluster(im):
+def identify_water_cluster(im, max_cluster_value):
     im = ee.Image(im)
     mbwi = im.select('MBWI')
-
-    max_cluster_value = ee.Number(im.select('cluster').reduceRegion(
-        reducer = ee.Reducer.max(),
-        geometry = aoi,
-        scale = LARGE_SCALE,
-        maxPixels =  1e10
-    ).get('cluster'))
-
+    
     clusters = ee.List.sequence(0, max_cluster_value)
 
     def calc_avg_mbwi(cluster_val):
@@ -119,8 +112,11 @@ def identify_water_cluster(im):
             geometry = aoi,
             maxPixels = 1e10
         ).get('MBWI')
-        return avg_mbwi
-
+        avg_mbwi_not_null = ee.Number(ee.Algorithms.If(ee.Algorithms.IsEqual(ee.Number(avg_mbwi)),
+                                                   ee.Number(-99), 
+                                                   ee.Number(avg_mbwi)))
+        return avg_mbwi_not_null
+    # print(calc_avg_mbwi(clusters.get(0)).getInfo())
     avg_mbwis = ee.Array(clusters.map(calc_avg_mbwi))
 
     max_mbwi_index = avg_mbwis.argmax().get(0)
@@ -129,29 +125,69 @@ def identify_water_cluster(im):
 
     return water_cluster
 
-
 def cordeiro(im):
-    band_subset = ee.List(['NDWI', 'MNDWI', 'SR_B7'])   # using NDWI, MNDWI and B7 (SWIR)
+    ## Agglomerative Clustering isn't available, using Cascade K-Means Clustering based on
+    ##  calinski harabasz's work
+    ## https:##developers.google.com/earth-engine/apidocs/ee-clusterer-wekacascadekmeans
+    band_subset = ee.List(['NDWI', 'MNDWI', SWIR2_BAND_NAME])   # using NDWI, MNDWI and B7 (SWIR2)
     sampled_pts = im.select(band_subset).sample(
         region = aoi,
         scale = SMALL_SCALE,
         numPixels = 5e3-1  ## limit of 5k points
     )
     
-    ## Agglomerative Clustering isn't available, using Cascade K-Means Clustering based on
-    ##  calinski harabasz's work
-    ## https:##developers.google.com/earth-engine/apidocs/ee-clusterer-wekacascadekmeans
-    clusterer = ee.Clusterer.wekaCascadeKMeans(
-        minClusters = 2,
-        maxClusters = 7,
-        init = True
-    ).train(sampled_pts)
+    no_sampled_pts = sampled_pts.size()
     
-    classified = im.select(band_subset).cluster(clusterer)
-    im = im.addBands(classified)
+    def if_enough_sample_pts(im):
+        clusterer = ee.Clusterer.wekaCascadeKMeans(
+            minClusters = 2,
+            maxClusters = 7,
+            init = True
+        ).train(sampled_pts)
+        
+        classified = im.select(band_subset).cluster(clusterer)
+        im = im.addBands(classified)
+        max_cluster_value = ee.Number(im.select('cluster').reduceRegion(
+            reducer = ee.Reducer.max(),
+            geometry = aoi,
+            scale = LARGE_SCALE,
+            maxPixels =  1e10
+        ).get('cluster'))
+        return ee.Dictionary({'max_cluster_value': max_cluster_value, 'classified': classified})
     
-    water_cluster = identify_water_cluster(im)
-    water_map = classified.select('cluster').eq(ee.Image.constant(water_cluster)).select(['cluster'], ['water_map_cordeiro'])
+    def if_not_enough_sample_pts():
+        return ee.Dictionary({'max_cluster_value': ee.Number(0), 'classified': ee.Image(0).rename('cluster')})
+    
+    # If clustering is possible do clustering
+    def if_clustering_possible(max_cluster_value,classified,im):
+        im = im.addBands(classified)
+        
+        water_cluster = identify_water_cluster(im, max_cluster_value)
+        water_map = classified.select('cluster').eq(ee.Image.constant(water_cluster)).select(['cluster'], ['water_map_cordeiro'])
+        return water_map
+    
+    # If no clustering is possible, use NDWI water map
+    def if_clustering_not_possible(im):
+        water_map = im.select(['water_map_NDWI'],['water_map_cordeiro'])
+        return water_map
+    
+    
+    after_training_dict = ee.Dictionary(ee.Algorithms.If(ee.Number(no_sampled_pts),
+                                        if_enough_sample_pts(im),
+                                        if_not_enough_sample_pts()))
+    
+    max_cluster_value = ee.Number(ee.Algorithms.If(ee.Algorithms.IsEqual(
+                                    ee.Number(after_training_dict.get('max_cluster_value'))),
+                                                   ee.Number(0), 
+                                                   ee.Number(after_training_dict.get('max_cluster_value'))))
+    
+    classified = ee.Image(after_training_dict.get('classified'))
+    water_map = ee.Image(ee.Algorithms.If(ee.Algorithms.IsEqual(max_cluster_value,ee.Number(0)),
+                                          if_clustering_not_possible(im),
+                                          if_clustering_possible(max_cluster_value,
+                                                                 classified,
+                                                                 im)
+                                          ))
     im = im.addBands(water_map)
 
     return im
@@ -182,7 +218,8 @@ def process_image(im):
     cloud_percent = cloud_area.multiply(100).divide(aoi.area())
     
     cordeiro_will_run_when = cloud_percent.lt(CLOUD_COVER_LIMIT)
-
+    # NDWI based water map: Classify water wherever NDWI is greater than NDWI_THRESHOLD and add water_map_NDWI band.
+    im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
     # Clusting based
     im = im.addBands(ee.Image(ee.Algorithms.If(cordeiro_will_run_when, cordeiro(im), ee.Image.constant(-1e6))))  # run cordeiro only if cloud percent is < 90%
 
@@ -205,8 +242,7 @@ def process_image(im):
         ee.Number(-1e6)
     ))
 
-    # NDWI based water map: Classify water wherever NDWI is greater than NDWI_THRESHOLD and add water_map_NDWI band.
-    im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
+    
     water_area_NDWI = ee.Number(im.select('water_map_NDWI').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(), 
         geometry = aoi, 
@@ -287,28 +323,46 @@ def postprocess_wrapper(im, bandName, raw_area):
             maxPixels = 1e10
         ).get('occurrence'))
         
-        counts = ee.Array(hist).transpose().toList()
-        
-        omega = ee.Number(0.17)
-        count_thresh = ee.Number(counts.map(lambda lis: ee.List(lis).reduce(ee.Reducer.mean())).get(1)).multiply(omega)
-        
-        count_thresh_index = ee.Array(counts.get(1)).gt(count_thresh).toList().indexOf(1)
-        occurrence_thresh = ee.Number(ee.List(counts.get(0)).get(count_thresh_index))
+        def if_hist_not_null(im,hist):
+    
+            counts = ee.Array(hist).transpose().toList()
+            
+            omega = ee.Number(0.17)
+            count_thresh = ee.Number(counts.map(lambda lis: ee.List(lis).reduce(ee.Reducer.mean())).get(1)).multiply(omega)
+            
+            count_thresh_index = ee.Array(counts.get(1)).gt(count_thresh).toList().indexOf(1)
+            occurrence_thresh = ee.Number(ee.List(counts.get(0)).get(count_thresh_index))
 
-        water_map = im.select([bandName], ['water_map'])
-        gswd_improvement = gswd.clip(aoi).gte(occurrence_thresh).updateMask(water_map.mask().Not()).select(["occurrence"], ["water_map"])
+            water_map = im.select([bandName], ['water_map'])
+            gswd_improvement = gswd.clip(aoi).gte(occurrence_thresh).updateMask(water_map.mask().Not()).select(["occurrence"], ["water_map"])
+            
+            improved = ee.ImageCollection([water_map, gswd_improvement]).mosaic().select(['water_map'], ['water_map_zhao_gao'])
+            
+            corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
+                reducer = ee.Reducer.sum(), 
+                geometry = aoi, 
+                scale = SMALL_SCALE, 
+                maxPixels = 1e10
+            ).get('water_map_zhao_gao'))
+            
+            improved = improved.set("corrected_area", corrected_area.multiply(1e-6));
+            improved = improved.set("POSTPROCESSING_SUCCESSFUL", 1);
         
-        improved = ee.ImageCollection([water_map, gswd_improvement]).mosaic().select(['water_map'], ['water_map_zhao_gao'])
+            return improved
         
-        corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
-            reducer = ee.Reducer.sum(), 
-            geometry = aoi, 
-            scale = SMALL_SCALE, 
-            maxPixels = 1e10
-        ).get('water_map_zhao_gao'))
+        def if_hist_null(im):
+            # Preserve the uncorrected area in the corrected area column & POSTPROCESSING=1
+            # because otherwise it will be substituted with nan.
+            uncorrected_area = ee.Number(im.get('water_area_clustering'))
+            improved = im.set('corrected_area', uncorrected_area)
+            improved = improved.set('POSTPROCESSING_SUCCESSFUL', 1)
+            return improved
         
-        improved = improved.set("corrected_area", corrected_area.multiply(1e-6))
+        improved = ee.Image(ee.Algorithms.If(
+            hist, if_hist_not_null(im,hist), if_hist_null(im)
+        ))
         return improved
+        
 
     def dont_post_process():
         improved = ee.Image.constant(-1)
