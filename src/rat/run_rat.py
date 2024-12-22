@@ -3,6 +3,7 @@ from io import StringIO
 import datetime
 import copy
 import os
+import sys
 
 import pandas as pd
 import numpy as np
@@ -69,6 +70,9 @@ def run_rat(config_fn, operational_latency=None ):
         log.info("Connected to earth engine succesfully.")
     except Exception as e:
         log.error(f"Failed to connect to Earth Engine. RAT will not be able to use Surface Area Estimations. Error: {e}")
+    finally:
+        # Ensure sys.stderr is restored
+        sys.stderr = sys.__stderr__
 
     ############################ ----------- Single basin run ---------------- ######################################
     if(not config['GLOBAL']['multiple_basin_run']):
@@ -163,7 +167,7 @@ def run_rat(config_fn, operational_latency=None ):
         try:
             basins_metadata = pd.read_csv(config['GLOBAL']['basins_metadata'],header=[0,1])
         except:
-            raise("Please provide the proper path of a csv file in basins_metadata in the Global section of RAT's config file")
+            raise Exception("Please provide the proper path of a csv file in basins_metadata in the Global section of RAT's config file")
         if ('BASIN','run') in basins_metadata.columns:
             basins_metadata_filtered = basins_metadata[basins_metadata['BASIN','run']==1]
         ####### Remove in future version : Deprecation (start)########
@@ -172,13 +176,13 @@ def run_rat(config_fn, operational_latency=None ):
             if ('BASIN','basin_name') in basins_metadata.columns:
                 basins_metadata_filtered = basins_metadata[basins_metadata['BASIN','basin_name'].isin(config['GLOBAL']['basins_to_process'])]
             else:
-                raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
+                raise Exception("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
         ####### Remove in future version : Deprecation (end) ########
         
         if ('BASIN','basin_name') in basins_metadata.columns:
             basins_to_process = basins_metadata_filtered['BASIN','basin_name'].tolist()
         else:
-            raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
+            raise Exception("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
 
         # For each basin
         for basin in basins_to_process:
