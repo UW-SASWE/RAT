@@ -83,11 +83,6 @@ def create_meterological_ts(roi, nc_file_path, output_csv_path):
         print("CRS not found for dataset. Setting CRS to EPSG:4326.")
         ds.rio.write_crs("EPSG:4326", inplace=True)
 
-    # Set CRS for GeoDataFrame
-    if gdf.crs is None:
-        print("CRS not found for GeoDataFrame. Please set it manually.")
-        return None
-
     # Convert the combined geometry to a format that rioxarray can work with
     geometries = [mapping(roi)]
 
