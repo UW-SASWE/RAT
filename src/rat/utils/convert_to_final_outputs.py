@@ -169,7 +169,7 @@ def convert_meteorological_ts(catchment_shpfile, catchments_gdf_column_dict, bas
         
         for index, row in catchments_spatial_filtered.iterrows():
             res_name = row[catchments_gdf_column_dict['unique_identifier']]
-            save_file_path = dst_dir / res_name / '.csv'
+            save_file_path = dst_dir / (res_name+'.csv')
             catchment_roi = row['geometry']
             print(f"Creating Catchment's Climatolgical time series for reservoir : {res_name}")
             create_meterological_ts(catchment_roi, meteorological_nc_file_path, save_file_path)
