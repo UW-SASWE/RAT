@@ -72,8 +72,8 @@ class TMS():
                 'corrected_area_cordeiro': 'water_area_corrected'
                 }, axis=1).set_index('date')
             l5df = l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-            l5df['cloud_percent'] = l5df['cloud_area']*100/(l5df['water_area_uncorrected']+l5df['non_water_area']+l5df['cloud_area'])
             l5df.replace(-1, np.nan, inplace=True)
+            l5df['cloud_percent'] = l5df['cloud_area']*100/np.nansum(l5df['water_area_uncorrected'],l5df['non_water_area'],l5df['cloud_area'])
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -111,8 +111,8 @@ class TMS():
                 'corrected_area_cordeiro': 'water_area_corrected'
                 }, axis=1).set_index('date')
             l7df = l7df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-            l7df['cloud_percent'] = l7df['cloud_area']*100/(l7df['water_area_uncorrected']+l7df['non_water_area']+l7df['cloud_area'])
             l7df.replace(-1, np.nan, inplace=True)
+            l7df['cloud_percent'] = l7df['cloud_area']*100/np.nansum([l7df['water_area_uncorrected'],l7df['non_water_area'],l7df['cloud_area']])
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -150,8 +150,8 @@ class TMS():
                 'corrected_area_cordeiro': 'water_area_corrected'
                 }, axis=1).set_index('date')
             l8df = l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-            l8df['cloud_percent'] = l8df['cloud_area']*100/(l8df['water_area_uncorrected']+l8df['non_water_area']+l8df['cloud_area'])
             l8df.replace(-1, np.nan, inplace=True)
+            l8df['cloud_percent'] = l8df['cloud_area']*100/np.nansum([l8df['water_area_uncorrected'],l8df['non_water_area'],l8df['cloud_area']])
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -190,8 +190,8 @@ class TMS():
                 'corrected_area_cordeiro': 'water_area_corrected'
                 }, axis=1).set_index('date')
             l9df = l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-            l9df['cloud_percent'] = l9df['cloud_area']*100/(l9df['water_area_uncorrected']+l9df['non_water_area']+l9df['cloud_area'])
             l9df.replace(-1, np.nan, inplace=True)
+            l9df['cloud_percent'] = l9df['cloud_area']*100/np.nansum([l9df['water_area_uncorrected'],l9df['non_water_area'],l9df['cloud_area']])
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
