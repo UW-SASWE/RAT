@@ -17,7 +17,7 @@ log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
 
 def calc_dels(aecpath, sareapath, savepath):
-    aec = pd.read_csv(aecpath)
+    aec = pd.read_csv(aecpath, comment='#')
     df = pd.read_csv(sareapath, parse_dates=['date'])
 
     df = df.drop_duplicates('date')
