@@ -73,7 +73,7 @@ class TMS():
                 }, axis=1).set_index('date')
             l5df = l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
             l5df.replace(-1, np.nan, inplace=True)
-            l5df['cloud_percent'] = l5df['cloud_area']*100/np.nansum(l5df['water_area_uncorrected'],l5df['non_water_area'],l5df['cloud_area'])
+            l5df['cloud_percent'] = l5df['cloud_area']*100/np.nansum([l5df['water_area_uncorrected'],l5df['non_water_area'],l5df['cloud_area']])
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
