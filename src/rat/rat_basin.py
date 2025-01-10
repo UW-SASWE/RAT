@@ -208,10 +208,10 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
         ROUTING_STATUS = 1
         GEE_STATUS = 1
         ALTIMETER_STATUS = 1
-        DELS_STATUS = 0
-        EVAP_STATUS = 0
-        OUTFLOW_STATUS = 0
-        AEC_STATUS = 0
+        DELS_STATUS = 1
+        EVAP_STATUS = 1
+        OUTFLOW_STATUS = 1
+        AEC_STATUS = 1
     except:
         no_errors = -1
         rat_logger.exception("Error in Configuration parameters defined to run RAT.")
