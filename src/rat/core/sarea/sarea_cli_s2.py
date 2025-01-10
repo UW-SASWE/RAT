@@ -31,7 +31,7 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
         raise ValueError('Expected fill, strict, or ignore')
 
 # NEW STUFF
-s2 = ee.ImageCollection("COPERNICUS/S2_SR")
+s2 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
 gswd = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
