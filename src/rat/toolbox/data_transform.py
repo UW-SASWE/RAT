@@ -3,7 +3,7 @@ import os
 import xarray as xr
 import rioxarray as rxr
 import pandas as pd
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Polygon, MultiPolygon
 
 def create_meterological_ts(roi, nc_file_path, output_csv_path):
     """
@@ -78,22 +78,49 @@ def create_meterological_ts(roi, nc_file_path, output_csv_path):
 
         # Set spatial dimensions
         ds = ds.rio.set_spatial_dims(x_dim='x', y_dim='y')
+        
+        # Get the dataset resolution in degrees
+        res_x, res_y = ds.rio.resolution()  # Dataset's resolution in x and y directions
+
+        # Calculate half of the resolution size to add a buffer if needed
+        half_pixel_size = max(abs(res_x), abs(res_y)) / 2
+
+        # Check if the ROI needs to be expanded with a buffer
+        if isinstance(roi, (Polygon, MultiPolygon)):
+            roi_bounds = roi.bounds  # (minx, miny, maxx, maxy)
+            roi_width = roi_bounds[2] - roi_bounds[0]
+            roi_height = roi_bounds[3] - roi_bounds[1]
+
+            # Apply buffer conditionally: apply buffer if ROI is smaller than the resolution
+            if roi_width < abs(res_x) or roi_height < abs(res_y):
+                print("Catchment ROI is too small compared to resolution, applying buffer.")
+                roi_expanded = roi.buffer(half_pixel_size)  # Buffer using half of the dataset's resolution
+            else:
+                print("Catchment ROI is sufficiently large, no buffer applied.")
+                roi_expanded = roi  # No buffer needed, keep original ROI
+        else:
+            raise ValueError("Catchment ROI must be a polygon or a mulipolygon.")
 
         # Sets default CRS for the dataset if missing
         if ds.rio.crs is None:
             print("CRS not found for dataset. Setting CRS to EPSG:4326.")
             ds.rio.write_crs("EPSG:4326", inplace=True)
 
-        # Convert the combined geometry to a format that rioxarray can work with
-        geometries = [mapping(roi)]
-
-        # Clip the xarray Dataset using the ROI geometry
         try:
-            ds_clipped = ds.rio.clip(geometries, from_disk=True)
-        except Exception as e:
-            print(f"Error during clipping: {e}")
-            return
+            # Convert the combined geometry to a format that rioxarray can work with
+            geometries = [mapping(roi_expanded)]
 
+            # Clip the xarray Dataset using the ROI geometry
+            ds_clipped = ds.rio.clip(geometries, from_disk=True)
+        except:
+            print("Catchment ROI is still not large enough. Clipping with all touching pixels for original catchment ROI.")
+            # Convert the combined geometry to a format that rioxarray can work with
+            geometries = [mapping(roi)]
+
+            # Clip the xarray Dataset using the ROI geometry
+            ds_clipped = ds.rio.clip(geometries, all_touched = True, from_disk=True)
+            
+            
         # Calculate the spatial average for each time step
         spatial_mean = ds_clipped.mean(dim=['x', 'y'])
 
