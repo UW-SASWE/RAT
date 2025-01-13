@@ -53,7 +53,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
     # Initialize existing_data to None
     existing_data = None
     # If vic result file exists, then use that to calculate evaporation
-    if os.path.isfile(vic_res_path):
+    if os.path.isfile(vic_res_path) and os.path.isfile(forcings_path):
         ds = xr.open_dataset(vic_res_path)
         forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
         ## Slicing the latest run time period
@@ -73,7 +73,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
         
         log.debug("Clipping VIC results")
         ds_clipped = ds.sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
-        reqvars_clipped = ds_clipped[['OUT_EVAP', 'OUT_R_NET', 'OUT_VP', 'OUT_WIND', 'OUT_AIR_TEMP']]
+        reqvars_clipped = ds_clipped[['OUT_R_NET', 'OUT_VP', 'OUT_WIND', 'OUT_AIR_TEMP']]
         reqvars = reqvars_clipped.load()
         
         log.debug("Checking if grid cells lie inside reservoir")
@@ -102,15 +102,14 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
     # If no vic result file exists then check if data is there in existing file between start and end time
     elif os.path.isfile(savepath):
         existing_data = pd.read_csv(savepath, parse_dates=['time'])
-        # Check if it has data before end_date
-        if pd.Timestamp(end_date) in existing_data['time'].values:
-            # Filter data between start_date and end_date (inclusive)
-            data = existing_data[
-                (existing_data['time'] >= pd.Timestamp(start_date)) & 
-                (existing_data['time'] <= pd.Timestamp(end_date))
-            ]
-        else:
-            raise ValueError("VIC result file not found. Existing evaporation rat_outputs file also does not have data for the requested dates.")
+        existing_data = existing_data.loc[:, ~existing_data.columns.str.startswith('OUT_EVAP')]
+        # Filter data between start_date and end_date (inclusive)
+        data = existing_data[
+            (existing_data['time'] >= pd.Timestamp(start_date)) & 
+            (existing_data['time'] <= pd.Timestamp(end_date))
+        ]
+        data = data.set_index('time').sort_values(by='time')
+        
     else:
         raise ValueError("VIC result file or any existing evaporation rat_outputs file not found.")
     
@@ -127,7 +126,8 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
         if forecast_mode: # forecast mode. extrapolate using forward fill.
             ix = pd.date_range(start=first_obs, end=end_date, freq='D')
             sarea_interpolated = sarea_interpolated.reindex(ix).fillna(method='ffill')
-        sarea_interpolated = sarea_interpolated[start_date:end_date]
+        # Slicing is exclusive of end date. But we want inclusive of both start and end dates.
+        sarea_interpolated = sarea_interpolated.loc[sarea_interpolated.index.isin(data.index)]
         
     if isinstance(sarea, pd.DataFrame):
         data['area'] = sarea_interpolated['area']
@@ -140,11 +140,12 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
         return None
     else:
         data['penman_E'] = data.apply(lambda row: penman(row['OUT_R_NET'], row['OUT_AIR_TEMP'], row['OUT_WIND'], row['OUT_VP'], row['P'], row['area']), axis=1)
+        
         data =data.rename({'penman_E': 'OUT_EVAP'}, axis=1)
         data = data.reset_index()
 
         # Save (Writing new file if not exist otherwise append)
-        if existing_data:
+        if existing_data is not None:
             new_data = data.copy()
             # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
             complement = pd.concat([existing_data, new_data], ignore_index=True)
