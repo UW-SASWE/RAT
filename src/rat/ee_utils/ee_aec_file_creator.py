@@ -545,6 +545,9 @@ def aec_file_creator(
         elif not water_surface_exists:
             print(f"No extrapolation was done in AEC for reservoir {reservoir_name} because of absence of water surface in AEC.")
         else:
-            print(f"Dam height can't be used to extrapolate aev: {dam_height} for {reservoir_name}")
+            if reservoir[shpfile_column_dict['dam_height']] is None:
+                print(f"Dam height is not available to extrapolate AEC for {reservoir_name}.")
+            else:
+                print(f"Dam height can't be used to extrapolate AEC: {dam_height} for {reservoir_name}")
 
     return 1
