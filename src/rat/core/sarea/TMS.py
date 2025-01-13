@@ -73,7 +73,7 @@ class TMS():
                 }, axis=1).set_index('date')
             l5df = l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
             l5df.replace(-1, np.nan, inplace=True)
-            l5df['cloud_percent'] = l5df['cloud_area']*100/np.nansum([l5df['water_area_uncorrected'],l5df['non_water_area'],l5df['cloud_area']])
+            l5df['cloud_percent'] = l5df['cloud_area'] * 100 / l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -96,8 +96,8 @@ class TMS():
             l5df_interpolated.loc[np.isnan(l5df_interpolated['non_water_area']), 'non_water_area'] = 0
             l5df_interpolated.loc[np.isnan(l5df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
 
-            # Interpolate bad data
-            l5df_interpolated.loc[:, "water_area_corrected"] = l5df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            # Interpolate bad data (max upto 6-7 months (seasonal) for l5)
+            l5df_interpolated.loc[:, "water_area_corrected"] = l5df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward", limit=13)
             l5df_interpolated['sat'] = 'l5'
 
             TO_MERGE.append(l5df_interpolated)
@@ -112,7 +112,7 @@ class TMS():
                 }, axis=1).set_index('date')
             l7df = l7df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
             l7df.replace(-1, np.nan, inplace=True)
-            l7df['cloud_percent'] = l7df['cloud_area']*100/np.nansum([l7df['water_area_uncorrected'],l7df['non_water_area'],l7df['cloud_area']])
+            l7df['cloud_percent'] = l7df['cloud_area'] * 100 / l7df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -135,8 +135,8 @@ class TMS():
             l7df_interpolated.loc[np.isnan(l7df_interpolated['non_water_area']), 'non_water_area'] = 0
             l7df_interpolated.loc[np.isnan(l7df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
 
-            # Interpolate bad data
-            l7df_interpolated.loc[:, "water_area_corrected"] = l7df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward")
+            # Interpolate bad data (max upto 6-7 months (seasonal) for l7)
+            l7df_interpolated.loc[:, "water_area_corrected"] = l7df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward", limit=13)
             l7df_interpolated['sat'] = 'l7'
 
             TO_MERGE.append(l7df_interpolated)
@@ -151,7 +151,7 @@ class TMS():
                 }, axis=1).set_index('date')
             l8df = l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
             l8df.replace(-1, np.nan, inplace=True)
-            l8df['cloud_percent'] = l8df['cloud_area']*100/np.nansum([l8df['water_area_uncorrected'],l8df['non_water_area'],l8df['cloud_area']])
+            l8df['cloud_percent'] = l8df['cloud_area'] * 100 / l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -191,7 +191,7 @@ class TMS():
                 }, axis=1).set_index('date')
             l9df = l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
             l9df.replace(-1, np.nan, inplace=True)
-            l9df['cloud_percent'] = l9df['cloud_area']*100/np.nansum([l9df['water_area_uncorrected'],l9df['non_water_area'],l9df['cloud_area']])
+            l9df['cloud_percent'] = l9df['cloud_area'] * 100 / l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -315,7 +315,24 @@ class TMS():
                 optical_with_no_sar.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
                 # Calculate smoothed values with moving weighted average method if more than 7 values; weights are calculated using cloud percent.
                 if len(optical_with_no_sar)>7:
-                    optical_with_no_sar['filled_area'] = weighted_moving_average(optical_with_no_sar['non-smoothened optical area'], weights = (101-optical_with_no_sar['cloud_percent']),window_size=3)
+                    # Temporarily interpolate missing values
+                    optical_with_no_sar['interpolated_area'] = optical_with_no_sar['non-smoothened optical area'].interpolate(method='linear')
+                    
+                    # Apply weighted moving average using interpolated values
+                    optical_with_no_sar['smoothed_area'] = weighted_moving_average(
+                        optical_with_no_sar['interpolated_area'], 
+                        weights=(101 - optical_with_no_sar['cloud_percent']), 
+                        window_size=3
+                    )
+                    
+                    # Restore NaN values to preserve the original structure
+                    optical_with_no_sar['filled_area'] = optical_with_no_sar['smoothed_area'].where(
+                        ~optical_with_no_sar['non-smoothened optical area'].isna()
+                    )
+                    
+                    # Drop temporary columns
+                    optical_with_no_sar = optical_with_no_sar.drop(['interpolated_area', 'smoothed_area'], axis=1)
+                    
                 # Drop 'area' column from optical_with_no_sar
                 optical_with_no_sar = optical_with_no_sar.drop('area',axis=1)
                 # Optical with SAR
@@ -324,7 +341,23 @@ class TMS():
                 result = pd.concat([optical_with_no_sar,optical_with_sar],axis=0)
                 # Smoothen the combined surface area estimates to avoid noise or peaks using savgol_filter if more than 9 values (to increase smoothness and include more points as we have both TMS-OS and Optical)
                 if len(result)>9:    
-                    result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
+                    # Temporarily interpolate missing values for smoothing
+                    result['interpolated_area'] = result['filled_area'].interpolate(method='linear')
+                    
+                    # Apply Savitzky-Golay filter
+                    result['smoothed_filled_area'] = savgol_filter(
+                        result['interpolated_area'], window_length=7, polyorder=3
+                    )
+                    
+                    # Restore NaN values
+                    filled_area_with_nans = result['smoothed_filled_area'].where(
+                        ~result['filled_area'].isna()
+                    )
+                    result['filled_area'] = filled_area_with_nans
+                    
+                    # Drop temporary columns
+                    result = result.drop(['interpolated_area', 'smoothed_filled_area'], axis=1)
+                    
                 method = 'Combine'
             # If SAR begins before Optical
             else:
@@ -336,8 +369,17 @@ class TMS():
             result.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
             # Calculate smoothed values with Savitzky-Golay method if more than 7 values
             if len(result)>7:
-                result['filled_area'] = weighted_moving_average(result['non-smoothened optical area'], weights = (101-result['cloud_percent']),window_size=3)
-                result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
+                filled_area_temp = weighted_moving_average(
+                    result['non-smoothened optical area'].interpolate(method='linear'),  # Temporary interpolate for calculation
+                    weights=(101 - result['cloud_percent']),
+                    window_size=3
+                )
+                
+                # Apply Savitzky-Golay filter
+                smoothed_area_temp = savgol_filter(filled_area_temp, window_length=7, polyorder=3)
+                
+                # Reapply NaN mask to maintain sparse points
+                result['filled_area'] = pd.Series(smoothed_area_temp).where(~result['non-smoothened optical area'].isna())
             method = 'Optical'
         # Returning method used for surface area estimation
         return result,method
