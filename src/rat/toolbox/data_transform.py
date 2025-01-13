@@ -64,57 +64,60 @@ def create_meterological_ts(roi, nc_file_path, output_csv_path):
     """
     
     print("Creating meterological timeseries for a given geometry using comibined meteorlogical NetCDF produced by RAT.")
-    # Load the NetCDF file as an xarray Dataset
-    ds = xr.open_dataset(nc_file_path)
+    if os.path.isfile(nc_file_path):
+        # Load the NetCDF file as an xarray Dataset
+        ds = xr.open_dataset(nc_file_path)
 
-    # Ensure spatial dimensions are set correctly as x and y for rioxarray use
-    if 'lon' in ds.dims and 'lat' in ds.dims:
-        ds = ds.rename({'lon': 'x', 'lat': 'y'})  
-    elif 'longitude' in ds.dims and 'latitude' in ds.dims:
-        ds = ds.rename({'longitude': 'x', 'latitude': 'y'})  
+        # Ensure spatial dimensions are set correctly as x and y for rioxarray use
+        if 'lon' in ds.dims and 'lat' in ds.dims:
+            ds = ds.rename({'lon': 'x', 'lat': 'y'})  
+        elif 'longitude' in ds.dims and 'latitude' in ds.dims:
+            ds = ds.rename({'longitude': 'x', 'latitude': 'y'})  
+        else:
+            raise ValueError("Spatial dimensions not found. Expected 'lon', 'lat', 'longitude', or 'latitude'.")
+
+        # Set spatial dimensions
+        ds = ds.rio.set_spatial_dims(x_dim='x', y_dim='y')
+
+        # Sets default CRS for the dataset if missing
+        if ds.rio.crs is None:
+            print("CRS not found for dataset. Setting CRS to EPSG:4326.")
+            ds.rio.write_crs("EPSG:4326", inplace=True)
+
+        # Convert the combined geometry to a format that rioxarray can work with
+        geometries = [mapping(roi)]
+
+        # Clip the xarray Dataset using the ROI geometry
+        try:
+            ds_clipped = ds.rio.clip(geometries, from_disk=True)
+        except Exception as e:
+            print(f"Error during clipping: {e}")
+            return
+
+        # Calculate the spatial average for each time step
+        spatial_mean = ds_clipped.mean(dim=['x', 'y'])
+
+        # Convert the spatial mean to a pandas DataFrame
+        df = pd.DataFrame({
+            'time': spatial_mean.time.values,
+            'precip': spatial_mean.precip.values,
+            'tmin': spatial_mean.tmin.values,
+            'tmax': spatial_mean.tmax.values,
+            'wind': spatial_mean.wind.values
+        })
+
+        # Append the data if file exists
+        if os.path.exists(output_csv_path):
+            print(f"File {output_csv_path} exists. Appending new data and removing duplicates.")
+            existing_df = pd.read_csv(output_csv_path, parse_dates=['time'])
+            combined_df = pd.concat([existing_df, df], ignore_index=True)
+            # Remove duplicates, keeping the latest entry for each date
+            combined_df = combined_df.sort_values(by='time').drop_duplicates(subset='time', keep='last')
+            combined_df.to_csv(output_csv_path, index=False)
+        else:
+            # Save the new data
+            df.to_csv(output_csv_path, index=False)
+
+        print(f"CSV file has been updated and saved to {output_csv_path}.")
     else:
-        raise ValueError("Spatial dimensions not found. Expected 'lon', 'lat', 'longitude', or 'latitude'.")
-
-    # Set spatial dimensions
-    ds = ds.rio.set_spatial_dims(x_dim='x', y_dim='y')
-
-    # Sets default CRS for the dataset if missing
-    if ds.rio.crs is None:
-        print("CRS not found for dataset. Setting CRS to EPSG:4326.")
-        ds.rio.write_crs("EPSG:4326", inplace=True)
-
-    # Convert the combined geometry to a format that rioxarray can work with
-    geometries = [mapping(roi)]
-
-    # Clip the xarray Dataset using the ROI geometry
-    try:
-        ds_clipped = ds.rio.clip(geometries, from_disk=True)
-    except Exception as e:
-        print(f"Error during clipping: {e}")
-        return
-
-    # Calculate the spatial average for each time step
-    spatial_mean = ds_clipped.mean(dim=['x', 'y'])
-
-    # Convert the spatial mean to a pandas DataFrame
-    df = pd.DataFrame({
-        'time': spatial_mean.time.values,
-        'precip': spatial_mean.precip.values,
-        'tmin': spatial_mean.tmin.values,
-        'tmax': spatial_mean.tmax.values,
-        'wind': spatial_mean.wind.values
-    })
-
-    # Append the data if file exists
-    if os.path.exists(output_csv_path):
-        print(f"File {output_csv_path} exists. Appending new data and removing duplicates.")
-        existing_df = pd.read_csv(output_csv_path, parse_dates=['time'])
-        combined_df = pd.concat([existing_df, df], ignore_index=True)
-        # Remove duplicates, keeping the latest entry for each date
-        combined_df = combined_df.sort_values(by='time').drop_duplicates(subset='time', keep='last')
-        combined_df.to_csv(output_csv_path, index=False)
-    else:
-        # Save the new data
-        df.to_csv(output_csv_path, index=False)
-
-    print(f"CSV file has been updated and saved to {output_csv_path}.")
+        raise ValueError(f"File {nc_file_path} does not exist.")
