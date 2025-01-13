@@ -167,14 +167,20 @@ def convert_meteorological_ts(catchment_shpfile, catchments_gdf_column_dict, bas
         else:
             catchments_spatial_filtered = catchments.copy()
         
+        failed_res_no = 0
         for index, row in catchments_spatial_filtered.iterrows():
-            res_name = row[catchments_gdf_column_dict['unique_identifier']]
-            save_file_path = dst_dir / (res_name+'.csv')
-            catchment_roi = row['geometry']
-            print(f"Creating Catchment's Climatolgical time series for reservoir : {res_name}")
-            create_meterological_ts(catchment_roi, meteorological_nc_file_path, save_file_path)
-        
-        return
+            try:
+                res_name = row[catchments_gdf_column_dict['unique_identifier']]
+                save_file_path = dst_dir / (res_name+'.csv')
+                catchment_roi = row['geometry']
+                print(f"Creating Catchment's Climatolgical time series for reservoir : {res_name}")
+                create_meterological_ts(catchment_roi, meteorological_nc_file_path, save_file_path)
+            except Exception as e:
+                failed_res_no = failed_res_no + 1
+                print(f"Error during creating meteorlogical TS for {res_name}: {e}")
+                continue
+            
+        return failed_res_no
     else:
         return
     

@@ -810,8 +810,11 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             ## Climatological TS
             if (ROUTING_STATUS):
                 try:
-                    convert_meteorological_ts(catchment_vector_file_path, catchments_gdf_column_dict, basin_data, combined_datapath, final_output_path)
-                    rat_logger.info("Converted Catchment's Climatological TS to the Output Format (from NetCDF).")
+                    no_failed_reservoirs = convert_meteorological_ts(catchment_vector_file_path, catchments_gdf_column_dict, basin_data, combined_datapath, final_output_path)
+                    if no_failed_reservoirs:
+                        rat_logger.warning(f"Could not extract Catchment's Climatological TS for {no_failed_reservoirs} reservoir(s).")
+                    else:
+                        rat_logger.info("Converted Catchment's Climatological TS to the Output Format (from NetCDF).")
                 except:
                     rat_logger.exception("Failed to convert Catchment's Climatological TS to the Output Format (from NetCDF).")
             else:
