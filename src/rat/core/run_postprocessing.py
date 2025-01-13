@@ -50,28 +50,70 @@ def calc_dels(aecpath, sareapath, savepath):
     df.to_csv(savepath, index=False)
 
 def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, savepath, forecast_mode=False):
-    ds = xr.open_dataset(vic_res_path)
-    forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
-    ## Slicing the latest run time period
-    ds = ds.sel(time=slice(start_date, end_date))
-    forcings_ds = forcings_ds.sel(time=slice(start_date, end_date))
+    # Initialize existing_data to None
+    existing_data = None
+    # If vic result file exists, then use that to calculate evaporation
+    if os.path.isfile(vic_res_path):
+        ds = xr.open_dataset(vic_res_path)
+        forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
+        ## Slicing the latest run time period
+        ds = ds.sel(time=slice(start_date, end_date))
+        forcings_ds = forcings_ds.sel(time=slice(start_date, end_date))
 
-    # create buffer to get required bounds
-    res_geom = res_data.geometry
-    res_buf = res_geom.buffer(0.1)
+        # create buffer to get required bounds
+        res_geom = res_data.geometry
+        res_buf = res_geom.buffer(0.1)
 
-    minx, miny, maxx, maxy = res_buf.bounds
+        minx, miny, maxx, maxy = res_buf.bounds
 
-    log.debug(f"Bounds: {res_buf.bounds}")
-    log.debug("Clipping forcings")
-    forcings_ds_clipped = forcings_ds['air_pressure'].sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
-    forcings = forcings_ds_clipped.load()
+        log.debug(f"Bounds: {res_buf.bounds}")
+        log.debug("Clipping forcings")
+        forcings_ds_clipped = forcings_ds['air_pressure'].sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
+        forcings = forcings_ds_clipped.load()
+        
+        log.debug("Clipping VIC results")
+        ds_clipped = ds.sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
+        reqvars_clipped = ds_clipped[['OUT_EVAP', 'OUT_R_NET', 'OUT_VP', 'OUT_WIND', 'OUT_AIR_TEMP']]
+        reqvars = reqvars_clipped.load()
+        
+        log.debug("Checking if grid cells lie inside reservoir")
+        last_layer = reqvars.isel(time=-1).to_dataframe().reset_index()
+        temp_gdf = gpd.GeoDataFrame(last_layer, geometry=gpd.points_from_xy(last_layer.lon, last_layer.lat))
+        points_within = temp_gdf[temp_gdf.within(res_geom)]['geometry']
+
+        if len(points_within) == 0:
+            log.debug("No points inside reservoir, using nearest point to centroid")
+            centroid = res_geom.centroid
+
+            data = reqvars.sel(lat=centroid.y, lon=centroid.x, method='nearest')
+            data = data.to_dataframe().reset_index()[1:].set_index('time')
+
+            P = forcings.sel(lat=centroid.y, lon=centroid.x, method='nearest')
+            P = P.to_dataframe().reset_index().set_index('time')['air_pressure'].resample('1D').mean()[1:]
+            P.head()
+
+        else:
+            # print(f"[!] {len(points_within)} Grid cells inside reservoir found, averaging their values")
+            data = reqvars.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
+
+            P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
+
+        data['P'] = P
+    # If no vic result file exists then check if data is there in existing file between start and end time
+    elif os.path.isfile(savepath):
+        existing_data = pd.read_csv(savepath, parse_dates=['time'])
+        # Check if it has data before end_date
+        if pd.Timestamp(end_date) in existing_data['time'].values:
+            # Filter data between start_date and end_date (inclusive)
+            data = existing_data[
+                (existing_data['time'] >= pd.Timestamp(start_date)) & 
+                (existing_data['time'] <= pd.Timestamp(end_date))
+            ]
+        else:
+            raise ValueError("VIC result file not found. Existing evaporation rat_outputs file also does not have data for the requested dates.")
+    else:
+        raise ValueError("VIC result file or any existing evaporation rat_outputs file not found.")
     
-    log.debug("Clipping VIC results")
-    ds_clipped = ds.sel(lon=slice(minx, maxx), lat=slice(maxy, miny))
-    reqvars_clipped = ds_clipped[['OUT_EVAP', 'OUT_R_NET', 'OUT_VP', 'OUT_WIND', 'OUT_AIR_TEMP']]
-    reqvars = reqvars_clipped.load()
-
     # get sarea - if string, read from file, else use same surface area value for all time steps
     log.debug(f"Getting surface areas - {sarea}")
     if isinstance(sarea, str):
@@ -86,53 +128,31 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
             ix = pd.date_range(start=first_obs, end=end_date, freq='D')
             sarea_interpolated = sarea_interpolated.reindex(ix).fillna(method='ffill')
         sarea_interpolated = sarea_interpolated[start_date:end_date]
-    
-    log.debug("Checking if grid cells lie inside reservoir")
-    last_layer = reqvars.isel(time=-1).to_dataframe().reset_index()
-    temp_gdf = gpd.GeoDataFrame(last_layer, geometry=gpd.points_from_xy(last_layer.lon, last_layer.lat))
-    points_within = temp_gdf[temp_gdf.within(res_geom)]['geometry']
-
-    if len(points_within) == 0:
-        log.debug("No points inside reservoir, using nearest point to centroid")
-        centroid = res_geom.centroid
-
-        data = reqvars.sel(lat=centroid.y, lon=centroid.x, method='nearest')
-        data = data.to_dataframe().reset_index()[1:].set_index('time')
-
-        P = forcings.sel(lat=centroid.y, lon=centroid.x, method='nearest')
-        P = P.to_dataframe().reset_index().set_index('time')['air_pressure'].resample('1D').mean()[1:]
-        P.head()
-
-    else:
-        # print(f"[!] {len(points_within)} Grid cells inside reservoir found, averaging their values")
-        data = reqvars.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
-
-        P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
-
+        
     if isinstance(sarea, pd.DataFrame):
         data['area'] = sarea_interpolated['area']
     else:
         data['area'] = sarea
-    data['P'] = P
+    
     data = data.dropna()
     if (data.empty):
         print('After removal of NAN values, no data left to calculate evaporation.')
         return None
     else:
         data['penman_E'] = data.apply(lambda row: penman(row['OUT_R_NET'], row['OUT_AIR_TEMP'], row['OUT_WIND'], row['OUT_VP'], row['P'], row['area']), axis=1)
+        data =data.rename({'penman_E': 'OUT_EVAP'}, axis=1)
         data = data.reset_index()
 
         # Save (Writing new file if not exist otherwise append)
-        if os.path.isfile(savepath):
-            existing_data = pd.read_csv(savepath, parse_dates=['time'])
-            new_data = data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1)
+        if existing_data:
+            new_data = data.copy()
             # Concat the two dataframes into a new dataframe holding all the data (memory intensive):
             complement = pd.concat([existing_data, new_data], ignore_index=True)
             # Remove all duplicates:
             complement.drop_duplicates(subset=['time'],inplace=True, keep='last')
             complement.to_csv(savepath, index=False)
         else:
-            data[['time', 'penman_E']].rename({'penman_E': 'OUT_EVAP'}, axis=1).to_csv(savepath, index=False)
+            data.to_csv(savepath, index=False)
 
 
 def calc_outflow(inflowpath, dspath, epath, area, savepath):
@@ -268,7 +288,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                     log.debug(f"Calculating Evaporation for {reservoir_name}")
                     calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea, e_path, forecast_mode=forecast_mode)
                 else:
-                    raise Exception("Surface area file not found; skipping evaporation calculation")          
+                    raise Exception("Surface area or VIC result file not found; skipping evaporation calculation")          
             except:
                 log.exception(f"Evaporation for {reservoir_name} could not be calculated.")
                 no_failed_files +=1
