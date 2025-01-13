@@ -79,6 +79,12 @@ class Clean:
             print("No rout_outputs folder to delete")
 
         try:
+            rout_workspace_path = os.path.join(self.basin_data_dir,'ro','wkspc','')
+            shutil.rmtree(rout_workspace_path)
+        except:
+            print("No routing wkspc folder to delete")
+            
+        try:
             rout_init_states_dir_path = os.path.join(self.basin_data_dir,'ro','rout_state_file','') 
             days_old = self.days_old_to_delete #n max of days
 
@@ -97,11 +103,29 @@ class Clean:
 
     def clean_gee(self):
         try:
+            l5_scratch_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos','l5','_scratch')
+            shutil.rmtree(l5_scratch_path)
+        except:
+            print("No _scratch folder to delete for landsat-5 based reserevoir area extraction")
+        
+        try:
+            l7_scratch_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos','l7','_scratch')
+            shutil.rmtree(l7_scratch_path)
+        except:
+         print("No _scratch folder to delete for landsat-7 based reserevoir area extraction")
+        
+        try:
             l8_scratch_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos','l8','_scratch')
             shutil.rmtree(l8_scratch_path)
         except:
             print("No _scratch folder to delete for landsat-8 based reserevoir area extraction")
 
+        try:
+            l9_scratch_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos','l9','_scratch')
+            shutil.rmtree(l9_scratch_path)
+        except:
+            print("No _scratch folder to delete for landsat-9 based reserevoir area extraction")
+            
         try:
             s2_scratch_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos','s2','_scratch')
             shutil.rmtree(s2_scratch_path)
