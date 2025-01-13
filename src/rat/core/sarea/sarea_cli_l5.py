@@ -1,5 +1,5 @@
 import ee
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 import time
 import os
@@ -32,7 +32,7 @@ RED_BAND_NAME = 'SR_B3'
 NIR_BAND_NAME = 'SR_B4'
 SWIR1_BAND_NAME = 'SR_B5'
 SWIR2_BAND_NAME = 'SR_B7'
-
+MISSION_END_DATE = date(2012,5,6) # last date of landsat 5 data on GEE
 
 def preprocess(im):
     clipped = im   # clipping adds processing overhead, setting clipped = im
@@ -414,7 +414,7 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
             # Read the existing file
             temp_df = pd.read_csv(savepath, parse_dates=['mosaic_enddate']).set_index('mosaic_enddate')
 
-            # Get the last date in the existing file and adjust the first observation to before last date (last date might not be for this satellite. Its TMS-OS data's ;ast date.)
+            # Get the last date in the existing file and adjust the first observation to before last date (last date might not be for this satellite. Its TMS-OS data's last date.)
             last_date = temp_df.index[-1].to_pydatetime()
             fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
             # Create an array with filepath
@@ -447,6 +447,10 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
         for subset_dates in grouped_dates:
             try:
                 print(subset_dates)
+                # Check if the start of subset_dates is after the end date of the mission. If so quit.
+                if subset_dates[0].date() > MISSION_END_DATE:
+                    print(f"Reached mission end date. No further data available from Landsat-5 satellite mission in GEE - {MISSION_END_DATE}")
+                    break
                 # Convert dates list to earth engine object
                 dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
                 # Generate Timeseries of one image corresponding to each date with water area in its attributes

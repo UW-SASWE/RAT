@@ -1,5 +1,5 @@
 import ee
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 import time
 import os
