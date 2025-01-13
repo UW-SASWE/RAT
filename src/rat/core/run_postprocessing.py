@@ -102,7 +102,6 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
     # If no vic result file exists then check if data is there in existing file between start and end time
     elif os.path.isfile(savepath):
         existing_data = pd.read_csv(savepath, parse_dates=['time'])
-        existing_data = existing_data.loc[:, ~existing_data.columns.str.startswith('OUT_EVAP')]
         # Filter data between start_date and end_date (inclusive)
         data = existing_data[
             (existing_data['time'] >= pd.Timestamp(start_date)) & 
