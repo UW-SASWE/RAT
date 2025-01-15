@@ -9,18 +9,18 @@ class Clean:
         self.days_old_to_delete = 20
         pass
 
-    def clean_pre_processing(self):
+    def clean_processing(self):
         try:
             pre_processing_processed_path = os.path.join(self.basin_data_dir,'pre_processing','processed','')
             shutil.rmtree(pre_processing_processed_path)
         except:
             print("No processed folder in pre_processing to delete")
         
-        # try:
-        #     pre_processing_nc_path = os.path.join(self.basin_data_dir,'pre_processing','nc','')
-        #     shutil.rmtree(pre_processing_nc_path)
-        # except:
-        #     print("No nc folder in pre_processing to delete")
+        try:
+            post_processing_path = os.path.join(self.basin_data_dir,'post_processing','')
+            shutil.rmtree(post_processing_path)
+        except:
+            print("No nc folder in pre_processing to delete")
 
     def clean_metsim(self):
         try:
@@ -71,12 +71,6 @@ class Clean:
             shutil.rmtree(rout_inputs_path)
         except:
             print("No rout_inputs folder to delete")
-        
-        try:
-            rout_outputs_path = os.path.join(self.basin_data_dir,'ro','ou','')
-            shutil.rmtree(rout_outputs_path)
-        except:
-            print("No rout_outputs folder to delete")
 
         try:
             rout_workspace_path = os.path.join(self.basin_data_dir,'ro','wkspc','')
@@ -145,12 +139,24 @@ class Clean:
             shutil.rmtree(rat_outputs_path)
         except:
             print("No previous rat_outputs folder to delete")
+            
+        try:
+            rout_outputs_path = os.path.join(self.basin_data_dir,'ro','ou','')
+            shutil.rmtree(rout_outputs_path)
+        except:
+            print("No rout_outputs folder to delete")
 
         try:
             gee_sarea_path = os.path.join(self.basin_data_dir,'gee','gee_sarea_tmsos')
             shutil.rmtree(gee_sarea_path)
         except:
             print("No previous gee extracted surface area data folder to delete")
+        
+        try:
+            gee_nssc_path = os.path.join(self.basin_data_dir,'gee','gee_nssc')
+            shutil.rmtree(gee_nssc_path)
+        except:
+            print("No previous gee extracted NSSC data folder to delete")
         
         try:
             altimetry_timeseries_path = os.path.join(self.basin_data_dir,'altimetry','altimetry_timeseries')
@@ -169,3 +175,39 @@ class Clean:
             shutil.rmtree(final_outputs_path)
         except:
             print("No final_outputs folder to delete with previous outputs")
+    
+    def clean_basin_parameter_files(self):
+        try:
+            basin_grid_data_path = os.path.join(self.basin_data_dir,'basin_grid_data')
+            shutil.rmtree(basin_grid_data_path)
+        except:
+            print("No basin_grid_data folder to delete")
+            
+        try:
+            vic_basin_params_path = os.path.join(self.basin_data_dir,'vic','vic_basin_params')
+            shutil.rmtree(vic_basin_params_path)
+        except:
+            print("No vic_basin_params folder to delete inside vic")
+        
+        try:
+            ro_basin_params_path = os.path.join(self.basin_data_dir,'ro','pars')
+            shutil.rmtree(ro_basin_params_path)
+        except:
+            print("No pars folder to delete inside ro")
+            
+        try:
+            gee_basin_params_path = os.path.join(self.basin_data_dir,'gee','gee_basin_params')
+            shutil.rmtree(gee_basin_params_path)
+        except:
+            print("No gee_basin_params folder to delete inside gee")
+            
+    def clean_basin_meteorological_data(self):
+        try:
+            basin_meteorological_combined_path = os.path.join(self.basin_data_dir,'pre_processing','nc')
+            shutil.rmtree(basin_meteorological_combined_path)
+        except:
+            print("No nc folder (containing basin's combined meteorological file) to delete inside pre_processing")
+        
+        
+        
+        
