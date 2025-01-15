@@ -1,4 +1,5 @@
 import os
+import glob
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -53,7 +54,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
     # Initialize existing_data to None
     existing_data = None
     # If vic result file exists, then use that to calculate evaporation
-    if os.path.isfile(vic_res_path) and os.path.isfile(forcings_path):
+    if os.path.isfile(vic_res_path) and glob.glob(forcings_path):
         ds = xr.open_dataset(vic_res_path)
         forcings_ds = xr.open_mfdataset(forcings_path, engine='netcdf4')
         ## Slicing the latest run time period
