@@ -75,7 +75,7 @@ def run_rat(config_fn, operational_latency=None ):
         sys.stderr = sys.__stderr__
 
     ############################ ----------- Single basin run ---------------- ######################################
-    if(not config['GLOBAL']['multiple_basin_run']):
+    if(not config['GLOBAL'].get('multiple_basin_run')):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')
         
         # Checking if Rat is running operationally with some latency. If yes, update start, end and vic_init_state dates.
