@@ -67,7 +67,7 @@ def run_rat(config_fn, operational_latency=None ):
         with StringIO() as fake_stderr, redirect_stderr(fake_stderr):
             ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
             ee.Initialize(ee_credentials)
-        log.info("Connected to earth engine succesfully.")
+        log.info("Connected to earth engine successfully.")
     except Exception as e:
         log.error(f"Failed to connect to Earth Engine. RAT will not be able to use Surface Area Estimations. Error: {e}")
     finally:
@@ -147,7 +147,7 @@ def run_rat(config_fn, operational_latency=None ):
                 if(forecast_no_errors>0):
                     log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                 elif(forecast_no_errors==0):
-                    log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                    log.info('############## Successfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
                 else:
                     log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
         # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
@@ -157,7 +157,7 @@ def run_rat(config_fn, operational_latency=None ):
         if(no_errors>0):
             log.info('############## RAT run finished for '+config['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
         elif(no_errors==0):
-            log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
+            log.info('############## Successfully run RAT for '+config['BASIN']['basin_name']+' #################')
         else:
             log.error('############## RAT run failed for '+config['BASIN']['basin_name']+' #################')
 
@@ -306,7 +306,7 @@ def run_rat(config_fn, operational_latency=None ):
                     if(forecast_no_errors>0):
                         log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                     elif(forecast_no_errors==0):
-                        log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                        log.info('############## Successfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
                     else:
                         log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
             # Displaying and storing RAT function outputs
@@ -319,7 +319,7 @@ def run_rat(config_fn, operational_latency=None ):
             if(no_errors>0):
                 log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
             elif(no_errors==0):
-                log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
+                log.info('############## Successfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
             else:
                 log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
 
