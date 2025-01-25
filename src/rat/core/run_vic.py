@@ -89,7 +89,7 @@ class VICRunner():
         lons_vicfmt = (np.floor(np.abs(fluxes_subset.lon.values)*100)/100)*np.sign(fluxes_subset.lon.values)
 
         s = time.time()
-        for lat in range(len(fluxes_subset.lat)):
+        for lat, lat_val in enumerate(fluxes_subset.lat):
             for lon in range(len(fluxes_subset.lon)):
                 if not math.isnan(fluxes_subset.OUT_PREC.isel(time=0, lat=lat, lon=lon).values):
                     fname = os.path.join(self.rout_input, f"fluxes_{lats_vicfmt[lat]:.2f}_{lons_vicfmt[lon]:.2f}")
@@ -99,7 +99,7 @@ class VICRunner():
 
                     da.to_csv(fname, sep=' ', header=False, index=False, float_format="%.5f", quotechar="", quoting=csv.QUOTE_NONE, date_format="%Y %m %d", escapechar=" ")
             
-            print(f"All files for {lat} have been written.")
+            print(f"All files for latitude {lat_val.values:.4f}° have been written. ({lat}/{len(fluxes_subset.lat)})")
                         # pbar.update(1)
         # See how many files were created
         disagg_n = len(os.listdir(self.rout_input))
