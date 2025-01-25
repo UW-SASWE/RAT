@@ -342,19 +342,27 @@ def extrapolate_reservoir(
     Returns:
         pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', 'Storage', 'Storage (mil. m3)', and 'Elevation_Observed'.
     """
-    dam_bottom_elevation, method = get_dam_bottom(reservoir, buffer_distance=buffer_distance, dam_location=dam_location, grwl_fp=grwl_fp) # from GRWL downstream point
-    dam_top_elevation = dam_bottom_elevation + dam_height
-
-    print(f"Dam bottom elevation for {reservoir_name} is {dam_bottom_elevation}")
-    print(f"Dam top elevation for {reservoir_name} is {dam_top_elevation}")
-
     aec_original = aec.copy()
-    # Remove elevations below and above dam's bottom and top elevation. If less than 5 observations are left, then just remove elevations below dam bottom.
-    aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)&(aec_original['Elevation'] <= dam_top_elevation)]
-    if len(aec) > 5:
-        pass
+    
+    dam_bottom_elevation, method = get_dam_bottom(reservoir, buffer_distance=buffer_distance, dam_location=dam_location, grwl_fp=grwl_fp) # from GRWL downstream point
+    print(f"Dam bottom elevation for {reservoir_name} is {dam_bottom_elevation}")
+    
+    if dam_height>0:
+        dam_top_elevation = dam_bottom_elevation + dam_height
+        print(f"Dam height for {reservoir_name} is {dam_height}")
+        print(f"Dam top elevation for {reservoir_name} is {dam_top_elevation}")
+
+        # Remove elevations below and above dam's bottom and top elevation. If less than 5 observations are left, then just remove elevations below dam bottom.
+        aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)&(aec_original['Elevation'] <= dam_top_elevation)]
+        if len(aec) > 5:
+            pass
+        else:
+            aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)]
     else:
+        print(f"Dam height is not available for {reservoir_name} : {dam_height}")
+        print("Using all the elevation data above dam bottom elevation.")
         aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)]
+        
     x = aec['CumArea']
     y = aec['Elevation']
 
@@ -530,24 +538,19 @@ def aec_file_creator(
         if reservoir[shpfile_column_dict['dam_height']] is not None:
             dam_height = float(reservoir[shpfile_column_dict['dam_height']])
         else:
-            dam_height = -99
+            dam_height = np.nan
         dam_lat = float(reservoir[shpfile_column_dict['dam_lat']])
         dam_lon = float(reservoir[shpfile_column_dict['dam_lon']])
         dam_location = Point(dam_lon, dam_lat)
 
         aec, water_surface_exists = get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=True)
 
-        if dam_height > 0 and water_surface_exists:
+        if water_surface_exists:
             extrapolate_reservoir(
                 reservoir_gpd, dam_location, reservoir_name, dam_height, aec,
                 aec_dir_path, grwl_fp=grwl_fp
             )
-        elif not water_surface_exists:
-            print(f"No extrapolation was done in AEC for reservoir {reservoir_name} because of absence of water surface in AEC.")
         else:
-            if reservoir[shpfile_column_dict['dam_height']] is None:
-                print(f"Dam height is not available to extrapolate AEC for {reservoir_name}.")
-            else:
-                print(f"Dam height can't be used to extrapolate AEC: {dam_height} for {reservoir_name}")
+            print(f"No extrapolation was done in AEC for reservoir {reservoir_name} because of absence of water surface in AEC.")
 
     return 1
