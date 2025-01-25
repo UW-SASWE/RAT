@@ -691,9 +691,8 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             rat_logger.info("Starting Step-9: Preparation of parameter files for Surface Area Calculation")
             #------------- Selection of Reservoirs within the basin begins--------------#
             ###### Preparing basin's reservoir shapefile and it's associated column dictionary for calculating surface area #####
-            ### Creating Basin Reservoir Shapefile, if not exists ###
-            if not os.path.exists(basin_reservoir_shpfile_path):
-                    create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_data,
+            ### Creating Basin Reservoir Shapefile, overwritten if  exists ###
+            create_basin_reservoir_shpfile(config['GEE']['reservoir_vector_file'], reservoirs_gdf_column_dict, basin_data,
                                                                                 config['ROUTING']['station_global_data'], basin_reservoir_shpfile_path)
             ###### Prepared basin's reservoir shapefile and it's associated column dictionary #####
         except:
