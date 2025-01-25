@@ -153,7 +153,7 @@ def create_basin_station_geojson(region_name, basin_name, station_csv_file, save
 
 def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_dict,basin_gpd_df,routing_station_global_data,savepath):
     reservoirs = gpd.read_file(reservoir_shpfile)
-    basin_data_crs_changed = basin_gpd_df.to_crs(reservoirs.crs)
+    basin_data_crs_changed = basin_gpd_df.to_crs(reservoirs.crs)[['geometry']]
     #stations_df = pd.read_csv(station_xy_file,sep='\t',header=None,names=['run','name','x','y','area']).dropna().reset_index(drop=True)
     reservoirs_gdf_column_dict = reservoir_shpfile_column_dict
 
