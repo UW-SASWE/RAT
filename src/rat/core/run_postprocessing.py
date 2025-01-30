@@ -218,10 +218,9 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
 
     # SArea
     sarea_raw_dir = os.path.join(basin_data_dir,'gee', "gee_sarea_tmsos")
-    nssc_raw_dir = os.path.join(basin_data_dir,'gee', "gee_nssc")
 
     ## No of failed files (no_failed_files) is tracked and used to print a warning message in log level 1 file.
-    # DelS calculation & copying of NSSC files
+    # DelS calculation
     if(gee_status):
         log.debug("Calculating ∆S")
         no_failed_files = 0
@@ -232,9 +231,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
                 sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
-                nssc_path = os.path.join(nssc_raw_dir, reservoir_name + ".csv")
                 dels_savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
-                nssc_savepath = os.path.join(nssc_savedir, reservoir_name + ".csv")
                 aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
 
                 if os.path.isfile(sarea_path):
@@ -243,11 +240,6 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 else:
                     raise Exception("Surface area file not found; skipping ∆S calculation")
                 
-                if os.path.isfile(nssc_path):
-                    nssc_df = pd.read_csv(nssc_path)
-                    nssc_df.to_csv(nssc_savepath, index=False)
-                else:
-                    raise Exception("NSSC file not found for {reservoir_name}; skipping copy to RAT Outputs")
             except:
                 log.exception(f"∆S for {reservoir_name} could not be calculated.")
                 no_failed_files += 1 
@@ -256,7 +248,35 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
             log_level1.warning(f"∆S was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     else:
         log.debug("Cannot Calculate ∆S because GEE Run Failed.")
-        
+    
+    # NSSC 
+    nssc_raw_dir = os.path.join(basin_data_dir,'gee', "gee_nssc")
+    # copying of NSSC files
+    if(gee_status):
+        log.debug("Copying NSSC data to RAT outputs.")
+        no_failed_files = 0
+
+        for reservoir_no,reservoir in reservoirs.iterrows():
+            try:
+                # Reading reservoir information
+                reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
+                nssc_path = os.path.join(nssc_raw_dir, reservoir_name + ".csv")
+                nssc_savepath = os.path.join(nssc_savedir, reservoir_name + ".csv")
+                
+                if os.path.isfile(nssc_path):
+                    nssc_df = pd.read_csv(nssc_path)
+                    nssc_df.to_csv(nssc_savepath, index=False)
+                else:
+                    raise Exception(f"NSSC file not found for {reservoir_name}; skipping copy to RAT Outputs")
+                
+            except:
+                log.exception(f"NSSC for {reservoir_name} could not be calculated.")
+                no_failed_files += 1 
+        DELS_STATUS=1
+        if no_failed_files:
+            log_level1.warning(f"NSSC was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+    else:
+        log.debug("Cannot Calculate NSSC because GEE Run Failed.")    
 
     # Evaporation
     if(vic_status and gee_status):
