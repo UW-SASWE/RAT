@@ -187,7 +187,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             
 
         # Defining logger
-        log = init_logger(
+        log, log_file_path = init_logger(
             log_dir= log_dir,
             verbose= False,
             # notify= True,
@@ -225,6 +225,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
         rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']} which includes spin-up.")
     else:
         rat_logger.info(f"Running RAT from {config['BASIN']['start'] } to {config['BASIN']['end']}.")
+    rat_logger.info(f"Level-2 (DETAILED) log for this River Basin is at {log_file_path}")
     if gfs_days:
             rat_logger.info(f"Note 1: Due to low latency availability, GFS daily forecasted data will be used for {gfs_days} most recent days.")
             rat_logger.info(f"Note 2: The GFS data will be removed and replaced in next RAT run by observed data, if available.")
