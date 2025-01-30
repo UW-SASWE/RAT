@@ -317,11 +317,11 @@ def run_rat(config_fn, operational_latency=None ):
                 basins_metadata['ALTIMETER','last_cycle_number'].where(basins_metadata['BASIN','basin_name']!= basin, latest_altimetry_cycle, inplace=True)
                 basins_metadata.to_csv(config_copy['GLOBAL']['basins_metadata'], index=False)
             if(no_errors>0):
-                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
+                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################\n')
             elif(no_errors==0):
-                log.info('############## Successfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
+                log.info('############## Successfully run RAT for '+config_copy['BASIN']['basin_name']+' #################\n')
             else:
-                log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
+                log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################\n')
 
     # Closing logger
     close_logger('rat_run')
