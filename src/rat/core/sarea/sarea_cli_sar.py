@@ -2,11 +2,16 @@ import ee
 import numpy as np
 import pandas as pd
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+from logging import getLogger
 
 from rat.core.sarea.sarea_cli_s2 import TEMPORAL_RESOLUTION
 from rat.ee_utils.ee_utils import poly2feature
 from rat.utils.utils import days_between
+from rat.utils.logging import LOG_NAME, NOTIFICATION
+
+
+log = getLogger(f"{LOG_NAME}.{__name__}")
 
 s1 = ee.ImageCollection("COPERNICUS/S1_GRD")
 
@@ -15,7 +20,10 @@ ANGLE_THRESHOLD_1 = ee.Number(45.4);
 ANGLE_THRESHOLD_2 = ee.Number(31.66)
 REVISIT_TIME = ee.Number(12)
 BUFFER_DIST = 500
-
+SPATIAL_SCALE_SMALL = 10
+SPATIAL_SCALE_MEDIUM = 30
+SPATIAL_SCALE_LARGE = 50
+MISSION_START_DATE = date(2014,1,1) # Rough start date for mission/satellite data
 
 # functions
 def getfirstobs(imcoll):
@@ -42,10 +50,10 @@ def mask_by_angle(img):
     return vv.updateMask(mask2)
 
 # Calculating the water pixels
-def calcWaterPix(img):
+def calcWaterPix(img, scale):
     water_pixels = ee.Algorithms.If(
         img.bandNames().contains('Class'),
-        img.reduceRegion(reducer = ee.Reducer.sum(), geometry = ROI, scale = 10, maxPixels = 10e9).get('Class'),
+        img.reduceRegion(reducer = ee.Reducer.sum(), geometry = ROI, scale = scale, maxPixels = 10e9).get('Class'),
         None)
     return img.set("water_pixels", water_pixels)
 
@@ -76,7 +84,7 @@ def detectWaterSAR(d, ref_image):
     return res
 
 # client side code
-def ee_get_data(ee_Date_Start, ee_Date_End):
+def ee_get_data(ee_Date_Start, ee_Date_End, spatial_scale):
     date_start_str = ee_Date_Start
     date_end_str = ee_Date_End
     ee_Date_Start, ee_Date_End = ee.Date(ee_Date_Start), ee.Date(ee_Date_End)
@@ -84,8 +92,6 @@ def ee_get_data(ee_Date_Start, ee_Date_End):
             .filterBounds(ROI) \
             .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
             .filter(ee.Filter.eq('instrumentMode', 'IW'))
-    
-    print(S1.size().getInfo())
     
     ## Checking that the image collection should not be empty in GEE
     ## Not checking for only cases where time interval is small 
@@ -101,12 +107,12 @@ def ee_get_data(ee_Date_Start, ee_Date_End):
         dates = dates.map(lambda n: first_date.advance(n, 'day'))
 
         classified_water_sar = ee.ImageCollection(dates.map(lambda d: detectWaterSAR(d, ref_image)))
-        classified_water_sar = classified_water_sar.map(calcWaterPix)
+        classified_water_sar = classified_water_sar.map(lambda img: calcWaterPix(img, scale=spatial_scale))
 
         # print('size line 103:',classified_water_sar.size().getInfo())
         # print('size line 104:',ee.Array(classified_water_sar.aggregate_array('water_pixels')).multiply(0.0001).size().getInfo())
 
-        wc = ee.Array(classified_water_sar.aggregate_array('water_pixels')).multiply(0.0001).getInfo() # area in sq. km
+        wc = ee.Array(classified_water_sar.aggregate_array('water_pixels')).multiply(spatial_scale).multiply(spatial_scale).divide(1000000).getInfo() # area in sq. km
         d = classified_water_sar.aggregate_array('system:time_start').getInfo() # convert from miliseconds to seconds from epoch
         
         df = pd.DataFrame({
@@ -125,16 +131,49 @@ def ee_get_data(ee_Date_Start, ee_Date_End):
         return df
 
 def retrieve_sar(start_date, end_date, res='ys'): #ys-year-start frequency
-    date_ranges = list((pd.date_range(start_date, end_date, freq=res).union([pd.to_datetime(start_date), pd.to_datetime(end_date)])).strftime("%Y-%m-%d").tolist()) #ys-year-start frequency
+    # Ensure start_date is not before MISSION_START_DATE
+    print(f'Sentinel 1 mission start date is roughly: {MISSION_START_DATE}. Ensuring start date to extract surface area is greater than or equal to it.')
+    start_date = max(pd.to_datetime(start_date), pd.to_datetime(MISSION_START_DATE))
+
+    # Generate date range, ensuring both start and end dates are included
+    date_ranges = pd.date_range(start_date, end_date, freq=res).union(
+        [pd.to_datetime(start_date), pd.to_datetime(end_date)]
+    ).strftime("%Y-%m-%d").tolist()
+
     print(date_ranges)
     dfs = []
+    scale_to_use = SPATIAL_SCALE_SMALL
     # for begin, end in zip(date_ranges[:-1], date_ranges.shift(1)[:-1]):
     for begin, end in zip(date_ranges[:-1], date_ranges[1:]):
-        # begin_str, end_str = begin.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')
-        print(f"Processing: {begin} - {end} ")
-        dfs.append(ee_get_data(begin, end))
-        print(dfs[-1].head())
-        print(f"Processed: {begin} - {end} ")
+        success_status = 0 # initialize success_status with 0 which will remain 0 on fail attempt and become 1 on successful attempt
+        while (success_status == 0):
+            try:
+                # begin_str, end_str = begin.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')
+                print(f"Processing: {begin} - {end} ")
+                dfs.append(ee_get_data(begin, end, spatial_scale=scale_to_use))
+            except Exception as e:
+                log.error(e)
+                # Adjust results_per_iter only if error includes "Too many concurrent aggregations"
+                if "Computation timed out" in str(e):
+                    if scale_to_use == SPATIAL_SCALE_SMALL:
+                        scale_to_use = SPATIAL_SCALE_MEDIUM
+                        print(f"Trying with larger spatial resolution: {scale_to_use} m.")
+                        success_status = 0
+                        continue
+                    elif scale_to_use == SPATIAL_SCALE_MEDIUM:
+                        scale_to_use = SPATIAL_SCALE_LARGE
+                        print(f"Trying with larger spatial resolution: {scale_to_use} m.")
+                        success_status = 0
+                        continue
+                    else:
+                        print("Trying with larger spatial resolution failed. Moving to next iteration.")
+                        scale_to_use = SPATIAL_SCALE_MEDIUM
+                        success_status = 1
+                        break
+            else:
+                success_status = 1
+                print(dfs[-1].head())
+                print(f"Processed: {begin} - {end} ")
 
     return pd.concat(dfs)
 
