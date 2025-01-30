@@ -39,8 +39,7 @@ def run_rat(config_fn, operational_latency=None ):
 
     # Logging this run
     log_dir = os.path.join(config['GLOBAL']['data_dir'],'runs','logs','')
-    print(f"Logging this run at {log_dir}")
-    log = init_logger(
+    log, log_file_path = init_logger(
         log_dir,
         verbose=False,
         # notify=True,
@@ -49,6 +48,7 @@ def run_rat(config_fn, operational_latency=None ):
         logger_name=LOG_LEVEL1_NAME,
         for_basin=False
     )
+    print(f"Logging this run at {log_file_path}")
 
     log.debug("Initiating Dask Client ... ")
     cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'], threads_per_worker=1)
@@ -139,7 +139,7 @@ def run_rat(config_fn, operational_latency=None ):
             if config.get('PLUGINS', {}).get('forecasting'):
                 # Importing the forecast module
                 try:
-                    from plugins.forecasting.forecast_basin import forecast
+                    from rat.plugins.forecasting.forecast_basin import forecast
                 except:
                     log.exception("Failed to import Forecast plugin due to missing package(s).")
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
@@ -298,7 +298,7 @@ def run_rat(config_fn, operational_latency=None ):
                 if config.get('PLUGINS', {}).get('forecasting'):
                     # Importing the forecast module
                     try:
-                        from plugins.forecasting.forecast_basin import forecast
+                        from rat.plugins.forecasting.forecast_basin import forecast
                     except:
                         log.exception("Failed to import Forecast plugin due to missing package(s).")
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
