@@ -49,6 +49,7 @@ start_date = ee.Date('2019-01-01')
 end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 16
 RESULTS_PER_ITER = 5
+MIN_RESULTS_PER_ITER = 1
 QUALITY_PIXEL_BAND_NAME = 'QA_PIXEL'
 BLUE_BAND_NAME = 'SR_B2'
 GREEN_BAND_NAME = 'SR_B3'
@@ -416,7 +417,7 @@ def get_first_obs(start_date, end_date):
     str_fmt = 'YYYY-MM-dd'
     return ee.Date.parse(str_fmt, ee.Date(first_im.get('system:time_start')).format(str_fmt))
 
-def run_process_long(res_name, res_polygon, start, end, datadir):
+def run_process_long(res_name, res_polygon, start, end, datadir, results_per_iter=RESULTS_PER_ITER):
     fo = start
     enddate = end
 
@@ -462,88 +463,102 @@ def run_process_long(res_name, res_polygon, start, end, datadir):
         print(f"Extracting SA for the period {fo} -> {enddate}")
 
         dates = pd.date_range(fo, enddate, freq=f'{TEMPORAL_RESOLUTION}D')
-        grouped_dates = grouper(dates, RESULTS_PER_ITER)
+        grouped_dates = grouper(dates, results_per_iter)
 
-        # # redo the calculations part and see where it is complaining about too many aggregations
-        # subset_dates = next(grouped_dates)
-        # dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
-
-        # print(subset_dates)
-        # res = generate_timeseries(dates).filterMetadata('s2_images', 'greater_than', 0)
-        # pprint.pprint(res.aggregate_array('s2_images').getInfo())
-
-        # uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'water_area_NDWI', 'non_water_area_NDWI', 'cloud_area', 's2_images']
-        # uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
-        # uncorrected_final_data = uncorrected_final_data_ee.getInfo()
-        
-        for subset_dates in grouped_dates:
+        # Until results per iteration is less than min results per iteration
+        while results_per_iter >= MIN_RESULTS_PER_ITER:
+            # try to run for each subset of dates
             try:
-                print(subset_dates)
-                dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
-                
-                res = generate_timeseries(dates).filterMetadata('l8_images', 'greater_than', 0)
-                # pprint.pprint(res.getInfo())
+                for subset_dates in grouped_dates:
+                    try:
+                        print(subset_dates)
+                        dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
+                        
+                        res = generate_timeseries(dates).filterMetadata('l8_images', 'greater_than', 0)
+                        # pprint.pprint(res.getInfo())
 
-                uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images',
-                                                  'water_red_sum', 'water_green_sum', 'water_nir_sum','water_red_green_mean','water_nir_red_mean']
-                uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
-                uncorrected_final_data = uncorrected_final_data_ee.getInfo()
-                print("Uncorrected", uncorrected_final_data)
+                        uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images',
+                                                        'water_red_sum', 'water_green_sum', 'water_nir_sum','water_red_green_mean','water_nir_red_mean']
+                        uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
+                        uncorrected_final_data = uncorrected_final_data_ee.getInfo()
+                        print("Uncorrected", uncorrected_final_data)
 
-                res_corrected_cordeiro = res.map(lambda im: postprocess_wrapper(im, 'water_map_cordeiro', im.get('water_area_cordeiro')))
-                corrected_columns_to_extract = ['to_date', 'corrected_area']
-                corrected_final_data_cordeiro_ee = res_corrected_cordeiro \
-                                                    .filterMetadata('corrected_area', 'not_equals', None) \
-                                                    .reduceColumns(
-                                                        ee.Reducer.toList(
-                                                            len(corrected_columns_to_extract)), 
-                                                            corrected_columns_to_extract
-                                                            ).get('list')
-                corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
-                print("Corrected - Cordeiro", corrected_final_data_cordeiro)
+                        res_corrected_cordeiro = res.map(lambda im: postprocess_wrapper(im, 'water_map_cordeiro', im.get('water_area_cordeiro')))
+                        corrected_columns_to_extract = ['to_date', 'corrected_area']
+                        corrected_final_data_cordeiro_ee = res_corrected_cordeiro \
+                                                            .filterMetadata('corrected_area', 'not_equals', None) \
+                                                            .reduceColumns(
+                                                                ee.Reducer.toList(
+                                                                    len(corrected_columns_to_extract)), 
+                                                                    corrected_columns_to_extract
+                                                                    ).get('list')
+                        corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
+                        print("Corrected - Cordeiro", corrected_final_data_cordeiro)
 
-                # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
-                # corrected_final_data_NDWI_ee = res_corrected_NDWI \
-                #                                     .filterMetadata('corrected_area', 'not_equals', None) \
-                #                                     .reduceColumns(
-                #                                         ee.Reducer.toList(
-                #                                             len(corrected_columns_to_extract)), 
-                #                                             corrected_columns_to_extract
-                #                                             ).get('list')
-                
-                # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
-                
-                # print(uncorrected_final_data, corrected_final_data_cordeiro)
-                if len(uncorrected_final_data) == 0:
-                    continue
-                uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
-                corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
-                # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
-                # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
-                df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
+                        # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
+                        # corrected_final_data_NDWI_ee = res_corrected_NDWI \
+                        #                                     .filterMetadata('corrected_area', 'not_equals', None) \
+                        #                                     .reduceColumns(
+                        #                                         ee.Reducer.toList(
+                        #                                             len(corrected_columns_to_extract)), 
+                        #                                             corrected_columns_to_extract
+                        #                                             ).get('list')
+                        
+                        # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
+                        
+                        # print(uncorrected_final_data, corrected_final_data_cordeiro)
+                        if len(uncorrected_final_data) == 0:
+                            continue
+                        uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
+                        corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
+                        # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
+                        # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
+                        df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
 
-                df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
-                df['to_date'] = pd.to_datetime(df['to_date'], format="%Y-%m-%d")
-                df['mosaic_enddate'] = df['to_date'] - pd.Timedelta(1, unit='day')
-                df = df.set_index('mosaic_enddate')
-                print(df.head(2))
+                        df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
+                        df['to_date'] = pd.to_datetime(df['to_date'], format="%Y-%m-%d")
+                        df['mosaic_enddate'] = df['to_date'] - pd.Timedelta(1, unit='day')
+                        df = df.set_index('mosaic_enddate')
+                        print(df.head(2))
 
-                fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
-                df.to_csv(fname)
+                        fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
+                        df.to_csv(fname)
 
-                s_time = randint(20, 30)
-                print(f"Sleeping for {s_time} seconds")
-                time.sleep(randint(20, 30))
+                        s_time = randint(20, 30)
+                        print(f"Sleeping for {s_time} seconds")
+                        time.sleep(randint(20, 30))
 
-                if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
-                    print(f"Quitting: Reached enddate {enddate}")
-                    break
-                elif df.index[-1].strftime('%Y-%m-%d') == fo:
-                    print(f"Reached last available observation - {fo}")
-                    break
+                        if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
+                            print(f"Quitting: Reached enddate {enddate}")
+                            break
+                        elif df.index[-1].strftime('%Y-%m-%d') == fo:
+                            print(f"Reached last available observation - {fo}")
+                            break
+                    except Exception as e:
+                        log.error(e)
+                        # Adjust results_per_iter only if error includes "Too many concurrent aggregations"
+                        if "Too many concurrent aggregations" in str(e):
+                            results_per_iter -= 1
+                            print(f"Reducing Results per iteration to {results_per_iter} due to error.")
+                            if results_per_iter < MIN_RESULTS_PER_ITER:
+                                print("Minimum Results per iteration reached. Continuing to next group of dates.")
+                                results_per_iter = MIN_RESULTS_PER_ITER
+                                continue
+                            else:
+                                raise Exception(f'Reducing Results per iteration to {results_per_iter}.')
+                        else:
+                            continue
+            # This exception will be only raised if the error is "Too many concurrent aggregations".
+            # and Results per iteration will be reduced but still be greater than or equal to minimum results per iteration.
+            # We will continue while loop and for loop within while loop from the left over grouped dates.
             except Exception as e:
-                log.error(e)
+                dates = pd.date_range(subset_dates[0], enddate, freq=f'{TEMPORAL_RESOLUTION}D')
+                grouped_dates = grouper(dates, results_per_iter)
                 continue
+            # In case no exception is raised and the complete for loop ran succesfully, break the while loop 
+            # because we need to run the for loop only once.
+            else:
+                break
         
 
 
