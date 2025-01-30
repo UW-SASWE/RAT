@@ -126,13 +126,15 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False, lo
 
     logger.info('-------------------- INITIALIZED RAT-'+basin_name+' LOG ------------------')
     logger.info('TIME: %s', datetime.datetime.now())
-    logger.info('LOG DETAIL: %s', log_detail)  
-    logger.info('LOG MODE: %s', log_mode) 
     logger.info('LOG LEVEL: %s', log_level)
     logger.info('Logging To Console: %s', verbose)
     logger.info('LOG FILE: %s', log_file)
     logger.info('NOTIFY: %s', notify)
-    logger.info('----------------------------------------------------------\n')
+    logger.info('--------------------------------------------------------------------------')
+    logger.info('--------------------------------------------------------------------------')
+    logger.info('LOG DETAIL: %s', log_detail)  
+    logger.info('LOG MODE: %s', log_mode) 
+    logger.info('--------------------------------------------------------------------------\n')
 
     return logger, log_file
 # -------------------------------------------------------------------- #
