@@ -130,11 +130,10 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False, lo
     logger.info('Logging To Console: %s', verbose)
     logger.info('LOG FILE: %s', log_file)
     logger.info('NOTIFY: %s', notify)
-    logger.info('--------------------------------------------------------------------------')
-    logger.info('--------------------------------------------------------------------------')
+    logger.info('----------------------------------------------------------------')
     logger.info('LOG DETAIL: %s', log_detail)  
     logger.info('LOG MODE: %s', log_mode) 
-    logger.info('--------------------------------------------------------------------------\n')
+    logger.info('----------------------------------------------------------------\n')
 
     return logger, log_file
 # -------------------------------------------------------------------- #

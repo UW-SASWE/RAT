@@ -67,7 +67,7 @@ def run_rat(config_fn, operational_latency=None ):
         with StringIO() as fake_stderr, redirect_stderr(fake_stderr):
             ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
             ee.Initialize(ee_credentials)
-        log.info("Connected to earth engine successfully.")
+        log.info("Connected to earth engine successfully.\n")
     except Exception as e:
         log.error(f"Failed to connect to Earth Engine. RAT will not be able to use Surface Area Estimations. Error: {e}")
     finally:
