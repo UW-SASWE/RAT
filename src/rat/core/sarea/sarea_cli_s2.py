@@ -210,17 +210,13 @@ def process_image(im, spatial_scale):
     # NDWI based water map: Classify water wherever NDWI is greater than NDWI_THRESHOLD and add water_map_NDWI band.
     im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
     
-    cloud_free_pixels = im.select('cloud').Not().reduceRegion(
+    cloud_pixel_number = aoi.area().subtract(im.select('cloud').Not().reduceRegion(
         reducer = ee.Reducer.sum(),
         geometry = aoi,
         scale = spatial_scale,
         maxPixels = 1e10
-    ).get('cloud')
-    # Convert pixel count to area
-    cloud_free_area = ee.Number(cloud_free_pixels).multiply(spatial_scale**2)
-
-    # Compute cloud-covered area
-    cloud_area = aoi.area().subtract(cloud_free_area)
+    ).get('cloud'))
+    cloud_area = ee.Number(cloud_pixel_number).multiply(spatial_scale).multiply(spatial_scale)
     cloud_percent = cloud_area.multiply(100).divide(aoi.area())
     
     CLOUD_LIMIT_SATISFIED = cloud_percent.lt(CLOUD_COVER_LIMIT)
