@@ -210,12 +210,13 @@ def process_image(im, spatial_scale):
     # NDWI based water map: Classify water wherever NDWI is greater than NDWI_THRESHOLD and add water_map_NDWI band.
     im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
     
-    cloud_area = aoi.area().subtract(im.select('cloud').Not().multiply(ee.Image.pixelArea()).reduceRegion(
+    cloud_pixel_number = aoi.area().subtract(im.select('cloud').Not().reduceRegion(
         reducer = ee.Reducer.sum(),
         geometry = aoi,
         scale = spatial_scale,
         maxPixels = 1e10
     ).get('cloud'))
+    cloud_area = ee.Number(cloud_pixel_number).multiply(spatial_scale).multiply(spatial_scale)
     cloud_percent = cloud_area.multiply(100).divide(aoi.area())
     
     CLOUD_LIMIT_SATISFIED = cloud_percent.lt(CLOUD_COVER_LIMIT)
@@ -237,24 +238,24 @@ def process_image(im, spatial_scale):
     water_area_clustering = ee.Number(
         ee.Algorithms.If(
             CLOUD_LIMIT_SATISFIED,
-            ee.Number(im.select('water_map_clustering').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
+            ee.Number(im.select('water_map_clustering').eq(1).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
                 scale = spatial_scale, 
                 maxPixels = 1e10
-            ).get('water_map_clustering')),
+            ).get('water_map_clustering').multiply(spatial_scale**2)),
             ee.Number(-1e6)
         )
     )
     non_water_area_clustering = ee.Number(
         ee.Algorithms.If(
             CLOUD_LIMIT_SATISFIED,
-            ee.Number(im.select('water_map_clustering').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
+            ee.Number(im.select('water_map_clustering').neq(1).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
                 scale = spatial_scale, 
                 maxPixels = 1e10
-            ).get('water_map_clustering')),
+            ).get('water_map_clustering').multiply(spatial_scale**2)),
             ee.Number(-1e6)
         )
     )
@@ -364,12 +365,12 @@ def postprocess(im, spatial_scale, bandName='water_map_clustering'):
         
         improved = ee.ImageCollection([water_map, gswd_improvement]).mosaic().select(['water_map'], ['water_map_zhao_gao'])
         
-        corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
+        corrected_area = ee.Number(improved.select('water_map_zhao_gao').reduceRegion(
             reducer = ee.Reducer.sum(), 
             geometry = aoi, 
             scale = spatial_scale, 
             maxPixels = 1e10
-        ).get('water_map_zhao_gao'))
+        ).get('water_map_zhao_gao').multiply(spatial_scale**2))
         
         improved = improved.set("corrected_area", corrected_area.multiply(1e-6));
         improved = improved.set("POSTPROCESSING_SUCCESSFUL", 1);
