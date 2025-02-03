@@ -157,16 +157,16 @@ def retrieve_sar(start_date, end_date, res='ys'): #ys-year-start frequency
                 if "Computation timed out" in str(e):
                     if scale_to_use == SPATIAL_SCALE_SMALL:
                         scale_to_use = SPATIAL_SCALE_MEDIUM
-                        print(f"Trying with larger spatial resolution: {scale_to_use} m.")
+                        log.warning(f"Trying with larger spatial resolution: {scale_to_use} m.")
                         success_status = 0
                         continue
                     elif scale_to_use == SPATIAL_SCALE_MEDIUM:
                         scale_to_use = SPATIAL_SCALE_LARGE
-                        print(f"Trying with larger spatial resolution: {scale_to_use} m.")
+                        log.warning(f"Trying with larger spatial resolution: {scale_to_use} m.")
                         success_status = 0
                         continue
                     else:
-                        print("Trying with larger spatial resolution failed. Moving to next iteration.")
+                        log.error("Trying with larger spatial resolution failed. Moving to next iteration.")
                         scale_to_use = SPATIAL_SCALE_MEDIUM
                         success_status = 1
                         break
