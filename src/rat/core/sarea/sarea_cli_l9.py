@@ -578,13 +578,16 @@ def run_process_long(res_name, res_polygon, start, end, datadir, results_per_ite
 
         # Combine the files into one database
         to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
+        if len(to_combine):
+            files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
+            data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
 
-        files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
-        data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
+            data.to_csv(savepath)
 
-        data.to_csv(savepath)
-
-        return savepath
+            return savepath
+        else:
+            print(f"Observed data between {start} and {end} could not be processed to get surface area. It may be due to cloud cover or other issues, Quitting!")
+            return None
     
     else:
         print(f"No observation observed between {start} and {end}. Quitting!")
