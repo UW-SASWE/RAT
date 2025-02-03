@@ -243,7 +243,7 @@ def process_image(im, spatial_scale):
                 geometry = aoi, 
                 scale = spatial_scale, 
                 maxPixels = 1e10
-            ).get('water_map_clustering').multiply(spatial_scale**2)),
+            ).get('water_map_clustering')).multiply(spatial_scale**2),
             ee.Number(-1e6)
         )
     )
@@ -255,7 +255,7 @@ def process_image(im, spatial_scale):
                 geometry = aoi, 
                 scale = spatial_scale, 
                 maxPixels = 1e10
-            ).get('water_map_clustering').multiply(spatial_scale**2)),
+            ).get('water_map_clustering')).multiply(spatial_scale**2),
             ee.Number(-1e6)
         )
     )
@@ -370,7 +370,7 @@ def postprocess(im, spatial_scale, bandName='water_map_clustering'):
             geometry = aoi, 
             scale = spatial_scale, 
             maxPixels = 1e10
-        ).get('water_map_zhao_gao').multiply(spatial_scale**2))
+        ).get('water_map_zhao_gao')).multiply(spatial_scale**2)
         
         improved = improved.set("corrected_area", corrected_area.multiply(1e-6));
         improved = improved.set("POSTPROCESSING_SUCCESSFUL", 1);
