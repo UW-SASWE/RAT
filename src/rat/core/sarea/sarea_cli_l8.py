@@ -413,9 +413,18 @@ def generate_timeseries(dates):
     return imcoll
 
 def get_first_obs(start_date, end_date):
-    first_im = l8.filterBounds(aoi).filterDate(start_date, end_date).first()
-    str_fmt = 'YYYY-MM-dd'
-    return ee.Date.parse(str_fmt, ee.Date(first_im.get('system:time_start')).format(str_fmt))
+    # Filter collection, sort by date, and get the first image's timestamp
+    first_im = (
+        l8.filterBounds(aoi)
+        .filterDate(start_date, end_date)
+        .limit(1, 'system:time_start')  # Explicitly limit by earliest date
+        .reduceColumns(ee.Reducer.first(), ['system:time_start'])
+    )
+    
+    # Convert timestamp to formatted date
+    first_date = ee.Date(first_im.get('first')).format('YYYY-MM-dd')
+    
+    return first_date
 
 def run_process_long(res_name, res_polygon, start, end, datadir, results_per_iter=RESULTS_PER_ITER):
     fo = start
@@ -431,7 +440,7 @@ def run_process_long(res_name, res_polygon, start, end, datadir, results_per_ite
         number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
     
     if(number_of_images):
-        fo = get_first_obs(start, end).format('YYYY-MM-dd').getInfo()
+        fo = get_first_obs(start, end).getInfo()
         first_obs = datetime.strptime(fo, '%Y-%m-%d')
 
         scratchdir = os.path.join(datadir, "_scratch")
