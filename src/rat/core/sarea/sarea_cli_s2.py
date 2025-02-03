@@ -578,91 +578,94 @@ def run_process_long(res_name,res_polygon, start, end, datadir, results_per_iter
                                     else:
                                         print("Trying with larger spatial resolution failed. Moving to next iteration.")
                                         scale_to_use = SPATIAL_SCALE_MEDIUM
-                                        success_status = 1
+                                        success_status = -1
                                         break
                             else:
                                 success_status = 1
-                        # Parse the data to create dataframe
-                        PROCESSING_STATUSES = []
-                        POSTPROCESSING_STATUSES = []
-                        cloud_areas = []
-                        cloud_percents = []
-                        from_dates = []
-                        to_dates = []
-                        obs_dates = []
-                        non_water_areas = []
-                        water_areas = []
-                        water_areas_zhaogao = []
-                        water_red_sums = []
-                        water_green_sums = []
-                        water_nir_sums = []
-                        water_red_green_means = []
-                        water_nir_red_means = []
-                        for f, f_postprocessed in zip(ts_imcoll_L['features'], postprocessed_ts_imcoll_L['features']):
-                            PROCESSING_STATUS = f['properties']['PROCESSING_SUCCESSFUL']
-                            PROCESSING_STATUSES.append(PROCESSING_STATUS)
-                            POSTPROCESSING_STATUS = f_postprocessed['properties']['POSTPROCESSING_SUCCESSFUL']
-                            POSTPROCESSING_STATUSES.append(POSTPROCESSING_STATUS)
-                            obs_dates.append(pd.to_datetime(f['properties']['system:time_start']))
-                            from_dates.append(pd.to_datetime(f['properties']['from_date']))
-                            to_dates.append(pd.to_datetime(f['properties']['to_date']))
-                            if PROCESSING_STATUS:
-                                water_areas.append(f['properties']['water_area_clustering'])
-                                non_water_areas.append(f['properties']['non_water_area_clustering'])
-                                cloud_areas.append(f['properties']['cloud_area'])
-                                cloud_percents.append(f['properties']['cloud_percent'])
-                                water_red_sums.append(f['properties']['water_red_sum'])
-                                water_green_sums.append(f['properties']['water_green_sum'])
-                                water_nir_sums.append(f['properties']['water_nir_sum'])
-                                water_red_green_means.append(f['properties']['water_red_green_mean'])
-                                water_nir_red_means.append(f['properties']['water_nir_red_mean'])
-                            else:
-                                water_areas.append(np.nan)
-                                non_water_areas.append(np.nan)
-                                cloud_areas.append(np.nan)
-                                cloud_percents.append(np.nan)
-                                water_red_sums.append(np.nan)
-                                water_green_sums.append(np.nan)
-                                water_nir_sums.append(np.nan)
-                                water_red_green_means.append(np.nan)
-                                water_nir_red_means.append(np.nan)
-                            if POSTPROCESSING_STATUS:
-                                water_areas_zhaogao.append(f_postprocessed['properties']['corrected_area'])
-                            else:
-                                water_areas_zhaogao.append(np.nan)
-                        
-                        df = pd.DataFrame({
-                            'date': obs_dates,
-                            'PROCESSING_STATUS': PROCESSING_STATUSES,
-                            'POSTPROCESSING_STATUS': POSTPROCESSING_STATUSES,
-                            'from_date': from_dates,
-                            'to_date': to_dates,
-                            'cloud_area': cloud_areas,
-                            'cloud_percent': cloud_percents,
-                            'water_area_uncorrected': water_areas,
-                            'non_water_area': non_water_areas,
-                            'water_area_corrected': water_areas_zhaogao,
-                            'water_red_sum': water_red_sums,
-                            'water_green_sum': water_green_sums,
-                            'water_nir_sum': water_nir_sums,
-                            'water_red_green_mean': water_red_green_means,
-                            'water_nir_red_mean': water_nir_red_means
-                        }).set_index('date')
+                        if success_status==1:
+                            # Parse the data to create dataframe
+                            PROCESSING_STATUSES = []
+                            POSTPROCESSING_STATUSES = []
+                            cloud_areas = []
+                            cloud_percents = []
+                            from_dates = []
+                            to_dates = []
+                            obs_dates = []
+                            non_water_areas = []
+                            water_areas = []
+                            water_areas_zhaogao = []
+                            water_red_sums = []
+                            water_green_sums = []
+                            water_nir_sums = []
+                            water_red_green_means = []
+                            water_nir_red_means = []
+                            for f, f_postprocessed in zip(ts_imcoll_L['features'], postprocessed_ts_imcoll_L['features']):
+                                PROCESSING_STATUS = f['properties']['PROCESSING_SUCCESSFUL']
+                                PROCESSING_STATUSES.append(PROCESSING_STATUS)
+                                POSTPROCESSING_STATUS = f_postprocessed['properties']['POSTPROCESSING_SUCCESSFUL']
+                                POSTPROCESSING_STATUSES.append(POSTPROCESSING_STATUS)
+                                obs_dates.append(pd.to_datetime(f['properties']['system:time_start']))
+                                from_dates.append(pd.to_datetime(f['properties']['from_date']))
+                                to_dates.append(pd.to_datetime(f['properties']['to_date']))
+                                if PROCESSING_STATUS:
+                                    water_areas.append(f['properties']['water_area_clustering'])
+                                    non_water_areas.append(f['properties']['non_water_area_clustering'])
+                                    cloud_areas.append(f['properties']['cloud_area'])
+                                    cloud_percents.append(f['properties']['cloud_percent'])
+                                    water_red_sums.append(f['properties']['water_red_sum'])
+                                    water_green_sums.append(f['properties']['water_green_sum'])
+                                    water_nir_sums.append(f['properties']['water_nir_sum'])
+                                    water_red_green_means.append(f['properties']['water_red_green_mean'])
+                                    water_nir_red_means.append(f['properties']['water_nir_red_mean'])
+                                else:
+                                    water_areas.append(np.nan)
+                                    non_water_areas.append(np.nan)
+                                    cloud_areas.append(np.nan)
+                                    cloud_percents.append(np.nan)
+                                    water_red_sums.append(np.nan)
+                                    water_green_sums.append(np.nan)
+                                    water_nir_sums.append(np.nan)
+                                    water_red_green_means.append(np.nan)
+                                    water_nir_red_means.append(np.nan)
+                                if POSTPROCESSING_STATUS:
+                                    water_areas_zhaogao.append(f_postprocessed['properties']['corrected_area'])
+                                else:
+                                    water_areas_zhaogao.append(np.nan)
+                            
+                            df = pd.DataFrame({
+                                'date': obs_dates,
+                                'PROCESSING_STATUS': PROCESSING_STATUSES,
+                                'POSTPROCESSING_STATUS': POSTPROCESSING_STATUSES,
+                                'from_date': from_dates,
+                                'to_date': to_dates,
+                                'cloud_area': cloud_areas,
+                                'cloud_percent': cloud_percents,
+                                'water_area_uncorrected': water_areas,
+                                'non_water_area': non_water_areas,
+                                'water_area_corrected': water_areas_zhaogao,
+                                'water_red_sum': water_red_sums,
+                                'water_green_sum': water_green_sums,
+                                'water_nir_sum': water_nir_sums,
+                                'water_red_green_mean': water_red_green_means,
+                                'water_nir_red_mean': water_nir_red_means
+                            }).set_index('date')
 
-                        fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
-                        df.to_csv(fname)
-                        print(df.tail())
+                            fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
+                            df.to_csv(fname)
+                            print(df.tail())
 
-                        s_time = randint(5, 10)
-                        print(f"Sleeping for {s_time} seconds")
-                        time.sleep(s_time)
+                            s_time = randint(5, 10)
+                            print(f"Sleeping for {s_time} seconds")
+                            time.sleep(s_time)
 
-                        if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
-                            print(f"Quitting: Reached enddate {enddate}")
-                            break
-                        elif df.index[-1].strftime('%Y-%m-%d') == fo:
-                            print(f"Reached last available observation - {fo}")
-                            break
+                            if (datetime.strptime(enddate, "%Y-%m-%d")-df.index[-1]).days < TEMPORAL_RESOLUTION:
+                                print(f"Quitting: Reached enddate {enddate}")
+                                break
+                            elif df.index[-1].strftime('%Y-%m-%d') == fo:
+                                print(f"Reached last available observation - {fo}")
+                                break
+                        else:
+                            raise Exception("Skipping this iteration of dates due to failed attempt(s).")
                     # If exception is "Too many concurrent aggregations", reduce results_per_iter 
                     # and rerun for loop for leftover dates by raising Exception. 
                     # Else just print the exception and continue.
