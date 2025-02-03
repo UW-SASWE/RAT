@@ -153,7 +153,7 @@ def retrieve_sar(start_date, end_date, res='ys'): #ys-year-start frequency
                 dfs.append(ee_get_data(begin, end, spatial_scale=scale_to_use))
             except Exception as e:
                 log.error(e)
-                # Adjust results_per_iter only if error includes "Too many concurrent aggregations"
+                # Adjust scale_to_use only if error includes "Computation timed out"
                 if "Computation timed out" in str(e):
                     if scale_to_use == SPATIAL_SCALE_SMALL:
                         scale_to_use = SPATIAL_SCALE_MEDIUM

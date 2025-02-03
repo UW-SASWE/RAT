@@ -36,7 +36,9 @@ gswd = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
 rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
 NDWI_THRESHOLD = 0.3;
-SMALL_SCALE = 20;
+SPATIAL_SCALE_SMALL = 20;
+SPATIAL_SCALE_MEDIUM = 30;
+SPATIAL_SCALE_LARGE = 50;
 MEDIUM_SCALE = 120;
 LARGE_SCALE = 500;
 BUFFER_DIST = 500
@@ -73,7 +75,7 @@ def scl_cloud_mask(im):
     # cloud_area = cloudmask.reduceRegion(
     #     reducer = ee.Reducer.sum(),
     #     geometry = aoi,
-    #     scale = SMALL_SCALE,
+    #     scale = SPATIAL_SCALE_SMALL,
     #     maxPixels = 1e10
     # ).get('')
     im = im.addBands(cloudmask)
@@ -122,14 +124,14 @@ def identify_water_cluster(im, max_cluster_value):
     return water_cluster
 
 
-def clustering(im):
+def clustering(im, spatial_scale):
     ## Agglomerative Clustering isn't available, using Cascade K-Means Clustering based on
     ##  calinski harabasz's work
     ## https:##developers.google.com/earth-engine/apidocs/ee-clusterer-wekacascadekmeans
     band_subset = ee.List(['NDWI', 'B12'])
     sampled_pts = im.select(band_subset).sample(
         region = aoi,
-        scale = SMALL_SCALE,
+        scale = SPATIAL_SCALE_SMALL,
         numPixels = 4999  ## limit of 5k points, staying at 4k
     )
     no_sampled_pts = sampled_pts.size()
@@ -189,7 +191,7 @@ def clustering(im):
     return im
 
 
-def process_image(im):
+def process_image(im, spatial_scale):
     # Process Image
     
     ndwi = im.normalizedDifference(['B3', 'B8']).rename('NDWI');
@@ -211,7 +213,7 @@ def process_image(im):
     cloud_area = aoi.area().subtract(im.select('cloud').Not().multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(),
         geometry = aoi,
-        scale = SMALL_SCALE,
+        scale = spatial_scale,
         maxPixels = 1e10
     ).get('cloud'))
     cloud_percent = cloud_area.multiply(100).divide(aoi.area())
@@ -224,7 +226,7 @@ def process_image(im):
         ee.Image(
             ee.Algorithms.If(
                 CLOUD_LIMIT_SATISFIED, 
-                clustering(im), 
+                clustering(im, spatial_scale), 
                 ee.Image.constant(-1e6)
             )
         )
@@ -238,7 +240,7 @@ def process_image(im):
             ee.Number(im.select('water_map_clustering').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -250,7 +252,7 @@ def process_image(im):
             ee.Number(im.select('water_map_clustering').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -263,7 +265,7 @@ def process_image(im):
             ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(RED_BAND_NAME)).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -276,7 +278,7 @@ def process_image(im):
             ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(GREEN_BAND_NAME)).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -289,7 +291,7 @@ def process_image(im):
             ee.Number(im.select('water_map_clustering').eq(1).multiply(im.select(NIR_BAND_NAME)).reduceRegion(
                 reducer = ee.Reducer.sum(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -303,7 +305,7 @@ def process_image(im):
                     GREEN_BAND_NAME)).reduceRegion(
                 reducer = ee.Reducer.mean(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -317,7 +319,7 @@ def process_image(im):
                     RED_BAND_NAME)).reduceRegion(
                 reducer = ee.Reducer.mean(), 
                 geometry = aoi, 
-                scale = SMALL_SCALE, 
+                scale = spatial_scale, 
                 maxPixels = 1e10
             ).get('water_map_clustering')),
             ee.Number(-1e6)
@@ -337,13 +339,13 @@ def process_image(im):
     
     return im
 
-def postprocess(im, bandName='water_map_clustering'):
+def postprocess(im, spatial_scale, bandName='water_map_clustering'):
     gswd_masked = gswd.updateMask(im.select(bandName).eq(1))
     
     hist = ee.List(gswd_masked.reduceRegion(
         reducer = ee.Reducer.autoHistogram(minBucketWidth = 1),
         geometry = aoi,
-        scale = SMALL_SCALE,
+        scale = spatial_scale,
         maxPixels = 1e10
     ).get('occurrence'))
     
@@ -365,7 +367,7 @@ def postprocess(im, bandName='water_map_clustering'):
         corrected_area = ee.Number(improved.select('water_map_zhao_gao').multiply(ee.Image.pixelArea()).reduceRegion(
             reducer = ee.Reducer.sum(), 
             geometry = aoi, 
-            scale = SMALL_SCALE, 
+            scale = spatial_scale, 
             maxPixels = 1e10
         ).get('water_map_zhao_gao'))
         
@@ -387,7 +389,7 @@ def postprocess(im, bandName='water_map_clustering'):
     ))
     return improved
     
-def postprocess_wrapper(im, bandName='water_map_clustering'):
+def postprocess_wrapper(im, spatial_scale, bandName='water_map_clustering'):
 
     def do_not_postprocess():
         default_im = ee.Image.constant(-1).rename(bandName)
@@ -404,7 +406,7 @@ def postprocess_wrapper(im, bandName='water_map_clustering'):
 
     improved = ee.Image(ee.Algorithms.If(
         processing_successful,
-        postprocess(im, bandName),
+        postprocess(im, spatial_scale, bandName),
         do_not_postprocess()
     ))
 
@@ -417,7 +419,7 @@ def postprocess_wrapper(im, bandName='water_map_clustering'):
 def calc_ndwi(im):
     return im.addBands(im.normalizedDifference(['B3', 'B8']).rename('NDWI'))
 
-def process_date(date):
+def process_date(date, spatial_scale):
     date = ee.Date(date)
     to_date = date.advance(1, 'day')
     from_date = date.advance(-(TEMPORAL_RESOLUTION-1), 'day')
@@ -441,7 +443,7 @@ def process_date(date):
     im = ee.Image(
         ee.Algorithms.If(
             ENOUGH_IMAGES, 
-            process_image(im), 
+            process_image(im, spatial_scale), 
             not_enough_images()
         )
     )
@@ -455,9 +457,9 @@ def process_date(date):
     return ee.Image(im)
 
 
-def generate_timeseries(dates):
+def generate_timeseries(dates, spatial_scale):
     # raw_ts = process_date(dates.get(4))
-    raw_ts = dates.map(process_date)
+    raw_ts = dates.map(lambda date: process_date(date,spatial_scale))
     # raw_ts = raw_ts.removeAll([0]);
     imcoll = ee.ImageCollection.fromImages(raw_ts)
 
@@ -542,17 +544,44 @@ def run_process_long(res_name,res_polygon, start, end, datadir, results_per_iter
         while results_per_iter >= MIN_RESULTS_PER_ITER:
             # try to run for each subset of dates
             try:
+                scale_to_use = SPATIAL_SCALE_SMALL
                 for subset_dates in grouped_dates:
                     # try to run for subset_dates with results_per_iter
                     try:
                         print(subset_dates)
                         dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
                         
-                        ts_imcoll = generate_timeseries(dates)
-                        postprocessed_ts_imcoll = ts_imcoll.map(postprocess_wrapper)
-                        # Download the data locally
-                        ts_imcoll_L = ts_imcoll.getInfo()
-                        postprocessed_ts_imcoll_L = postprocessed_ts_imcoll.getInfo()
+                        success_status = 0 # initialize success_status with 0 which will remain 0 on fail attempt and become 1 on successful attempt
+                        while (success_status == 0):
+                            try:
+                                ts_imcoll = generate_timeseries(dates, spatial_scale=scale_to_use)
+                                # Postprocess the image collection
+                                postprocessed_ts_imcoll = ts_imcoll.map(lambda img: postprocess_wrapper(img, spatial_scale=scale_to_use))
+                                # Run the generate timeseries
+                                ts_imcoll_L = ts_imcoll.getInfo()
+                                # Run thw postprocess of image collection
+                                postprocessed_ts_imcoll_L = postprocessed_ts_imcoll.getInfo()
+                            except Exception as e:
+                                log.error(e)
+                                # Adjust scale_to_use only if error includes "Computation timed out"
+                                if "Computation timed out" in str(e):
+                                    if scale_to_use == SPATIAL_SCALE_SMALL:
+                                        scale_to_use = SPATIAL_SCALE_MEDIUM
+                                        print(f"Trying with larger spatial resolution: {scale_to_use} m.")
+                                        success_status = 0
+                                        continue
+                                    elif scale_to_use == SPATIAL_SCALE_MEDIUM:
+                                        scale_to_use = SPATIAL_SCALE_LARGE
+                                        print(f"Trying with larger spatial resolution: {scale_to_use} m.")
+                                        success_status = 0
+                                        continue
+                                    else:
+                                        print("Trying with larger spatial resolution failed. Moving to next iteration.")
+                                        scale_to_use = SPATIAL_SCALE_MEDIUM
+                                        success_status = 1
+                                        break
+                            else:
+                                success_status = 1
                         # Parse the data to create dataframe
                         PROCESSING_STATUSES = []
                         POSTPROCESSING_STATUSES = []
