@@ -541,7 +541,7 @@ def run_process_long(res_name, res_polygon, start, end, datadir, results_per_ite
 
             return savepath
         else:
-            print("Observed data could not be processed to get surface area.")
+            print(f"Observed data between {start} and {end} could not be processed to get surface area. It may be due to cloud cover or other issues, Quitting!")
             return None
     else:
         print(f"No observation observed between {start} and {end}. Quitting!")
