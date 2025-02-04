@@ -417,7 +417,10 @@ def postprocess_wrapper(im, spatial_scale, bandName='water_map_clustering'):
 ## Code from here takes care of the time-series generation   ##
 ############################################################/
 def calc_ndwi(im):
-    return im.addBands(im.normalizedDifference(['B3', 'B8']).rename('NDWI'))
+    im = im.addBands(im.normalizedDifference(['B3', 'B8']).rename('NDWI'))
+    # Sort the bands in ascending order of their name for consistency
+    im = im.select(im.bandNames().sort())
+    return im
 
 def process_date(date, spatial_scale):
     date = ee.Date(date)
