@@ -1,5 +1,6 @@
 import numpy as np
 import ee
+import math
 
 # Coverts a polygon geometry object to earth engine feature
 def poly2feature(polygon,buffer_distance):
