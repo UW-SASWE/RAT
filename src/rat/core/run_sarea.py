@@ -3,6 +3,7 @@ import geopandas as gpd
 
 from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION, LOG_LEVEL1_NAME
+from rat.ee_utils.ee_utils import simplify_geometry
 
 from rat.core.sarea.sarea_cli_s2 import sarea_s2
 from rat.core.sarea.sarea_cli_l5 import sarea_l5
@@ -66,8 +67,12 @@ def run_sarea(start_date, end_date, sarea_save_dir, reservoirs_shpfile, shpfile_
         else:
             bot_filter(sarea_save_dir,shpfile_column_dict,reservoirs_shpfile,**filt_options)    
 
-def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, sarea_save_dir, nssc_save_dir):
-
+def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, sarea_save_dir, nssc_save_dir, simplication=True):
+    
+    if simplication:
+        # Below function simplifies geometry with shape index (complexity) higher than a threshold, otherwise original geometry is retained
+        reservoir_polygon = simplify_geometry(reservoir_polygon)
+    
     # Obtain surface areas
     # Sentinel-2
     log.debug(f"Reservoir: {reservoir_name}; Downloading Sentinel-2 data from {start_date} to {end_date}")
