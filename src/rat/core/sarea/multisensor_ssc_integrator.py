@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import os
 from sklearn.preprocessing import MinMaxScaler
@@ -127,15 +128,19 @@ def normalize_ssc(df):
         non_na_data = df['water_nir_red_mean'].dropna().values.reshape(-1, 1)
         df.loc[df['water_nir_red_mean'].notna(), 'nssc_nr_rd_px'] = scaler.fit_transform(non_na_data).flatten()
     
-    # Calculate reservoir-level SSC ratios and normalize, ignoring NaNs
-    valid_ratio_rd_gn = (df['water_red_sum'] / df['water_green_sum']).dropna()
-    if valid_ratio_rd_gn.any():
-        scaled_data = scaler.fit_transform(valid_ratio_rd_gn.values.reshape(-1, 1)).flatten()
+    ## Calculate reservoir-level SSC ratios and normalize, ignoring NaNs
+    valid_ratio_rd_gn = (df['water_red_sum'] / df['water_green_sum'])
+    # Replace infinities with NaN and drop NaNs
+    valid_ratio_rd_gn = valid_ratio_rd_gn.replace([np.inf, -np.inf], np.nan).dropna()
+    # Ensure there are valid values before scaling
+    if not valid_ratio_rd_gn.empty:
+        scaled_data = scaler.fit_transform(valid_ratio_rd_gn.to_numpy().reshape(-1, 1)).flatten()
         df.loc[valid_ratio_rd_gn.index, 'nssc_rd_gn_res'] = scaled_data
     
-    valid_ratio_nr_rd = (df['water_nir_sum'] / df['water_red_sum']).dropna()
-    if valid_ratio_nr_rd.any():
-        scaled_data = scaler.fit_transform(valid_ratio_nr_rd.values.reshape(-1, 1)).flatten()
+    valid_ratio_nr_rd = (df['water_nir_sum'] / df['water_red_sum'])
+    valid_ratio_nr_rd = valid_ratio_nr_rd.replace([np.inf, -np.inf], np.nan).dropna()
+    if not valid_ratio_nr_rd.empty:
+        scaled_data = scaler.fit_transform(valid_ratio_nr_rd.to_numpy().reshape(-1, 1)).flatten()
         df.loc[valid_ratio_nr_rd.index, 'nssc_nr_rd_res'] = scaled_data
     
     return df
