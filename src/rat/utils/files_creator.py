@@ -61,13 +61,23 @@ def create_vic_domain_param_file(global_vic_param_file,global_vic_domain_file,ba
 
     #Inserting run_cell as mask of basin_grid in vic_param.nc
     basin_vic_param=gl_param.interp(lon=np.array([round_up(x,5) for x in basin_grid.lon.data ]),lat=np.array([round_up(x,5) for x in basin_grid.lat.data ]),method='nearest')
+    # Identify cells where 'run_cell' is NaN in original vic soil params (coz of oceanic region)
+    mask = basin_vic_param['run_cell'].isnull()
+    # Change run_cell to basin grid cells
     basin_vic_param['run_cell']=(('lat','lon'),basin_grid.data.astype('int32'))
+    if mask.sum()!=0:
+        # Make run_cell 0 over the null cells of original vic soil params (oceanic regions)
+        basin_vic_param['run_cell'] = basin_vic_param['run_cell'].where(~mask, 0)
+    
     #Saving vic_param.nc
     basin_vic_param.to_netcdf(os.path.join(output_dir_path,'vic_soil_param.nc'))
 
-    #Inserting run_cell as mask of basin_grid in vic_param.nc
+    #Inserting mask as mask of basin_grid in vic_param.nc
     basin_vic_domain=gl_domain.interp(lon=np.array([round_up(x,5) for x in basin_grid.lon.data ]),lat=np.array([round_up(x,5) for x in basin_grid.lat.data ]),method='nearest')
     basin_vic_domain['mask']=(('lat','lon'),basin_grid.data.astype('int32'))
+    if mask.sum()!=0:
+        # Make mask 0 over the null cells of original vic soil params (oceanic regions)
+        basin_vic_domain['mask'] = basin_vic_domain['mask'].where(~mask, 0)
     #Saving vic_domain.nc
     basin_vic_domain.to_netcdf(os.path.join(output_dir_path,'vic_domain.nc'))
 
