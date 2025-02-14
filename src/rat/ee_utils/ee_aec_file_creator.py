@@ -4,11 +4,12 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from itertools import zip_longest,chain
-from rat.ee_utils.ee_utils import poly2feature
+from rat.ee_utils.ee_utils import poly2feature, simplify_geometry
 from pathlib import Path
 from scipy.optimize import minimize
 from scipy.integrate import cumulative_trapezoid
 from shapely.geometry import Point
+
 
 WATER_SAREA_DIFF_Z_THRESHOLD = 3.0
 BUFFER_DIST = 500
@@ -412,7 +413,7 @@ def extrapolate_reservoir(
     return predicted_storage_df
 
 
-def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=False):
+def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=False, simplification=True):
     """
     Generates an observed Area-Elevation Curve (AEC) file for a given reservoir using SRTM data.
     The function checks if an AEC file already exists for the given reservoir. If it does, it reads the file and returns the data.
@@ -424,6 +425,7 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
         reservoir (object): The reservoir object containing geometry information.
         reservoir_name (str): The name of the reservoir.
         clip_to_water_surf (bool): If True, clips the AEC data to elevations above the water surface. Default is False.
+        simplification (bool): If true, reservoir geometry will be simplified before use (only if shape index is extremely high). Default is True.
         
     Returns:
         pd.DataFrame: A DataFrame containing the elevation and cumulative area data.
@@ -444,6 +446,9 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
             clip_to_water_surf = False # in this case, clipping is not required. set it to false
     else:
         reservoir_polygon = reservoir.geometry
+        if simplification:
+            # Below function simplifies geometry with shape index (complexity) higher than a threshold, otherwise original geometry is retained
+            reservoir_polygon = simplify_geometry(reservoir_polygon)
         aoi = poly2feature(reservoir_polygon,BUFFER_DIST).geometry()
         min_elev = DEM.reduceRegion( reducer = ee.Reducer.min(),
                             geometry = aoi,

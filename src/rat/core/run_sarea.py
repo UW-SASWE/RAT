@@ -67,9 +67,9 @@ def run_sarea(start_date, end_date, sarea_save_dir, reservoirs_shpfile, shpfile_
         else:
             bot_filter(sarea_save_dir,shpfile_column_dict,reservoirs_shpfile,**filt_options)    
 
-def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, sarea_save_dir, nssc_save_dir, simplication=True):
+def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, sarea_save_dir, nssc_save_dir, simplification=True):
     
-    if simplication:
+    if simplification:
         # Below function simplifies geometry with shape index (complexity) higher than a threshold, otherwise original geometry is retained
         reservoir_polygon = simplify_geometry(reservoir_polygon)
     
