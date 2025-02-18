@@ -60,6 +60,7 @@ nav:
 - Plugins:
     - 'Forecasting': 'Plugins/Forecasting.md'
     - 'ResORR': 'Plugins/Resorr.md'
+    - 'Low Latency': 'Plugins/low_latency_mode.md'
 - Data Description:
     - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
     - 'Global Database': 'RAT_Data/GlobalDatabase.md'

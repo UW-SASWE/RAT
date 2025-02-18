@@ -48,7 +48,7 @@ Usage example of the command:
     ```
 
 !!! warning_note "Warning"
-    Default global-database is 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space in rat_project directory, you can use `-gp or --global_data_dir` or initialize without downloading global-database using `rat init -d ./rat_project/`.
+    Default global-database is more than 129 GB in size and therefore it is recommended to have at least 140GB disc space in rat_project directory. If you don't have enough space in rat_project directory, you can use `-gp or --global_data_dir` or initialize without downloading global-database using `rat init -d ./rat_project/`.
 
 !!! note
     A ‘rat_config.yaml’ file is prepared using ‘rat_config_template’ in `project_dir`>‘Params’ which is created after initializing RAT. 
@@ -138,7 +138,7 @@ Usage example of the command:
 !!! note
     A ‘test_config.yaml’ file is prepared using ‘rat_config_template’ in `project_dir`>‘Params’ which is created after initializing RAT. 
 
-## Execution/Operationalization
+## Execution/Operationalization 
 `run` command executes RAT {{rat_version.major}}.{{rat_version.minor}}. You can use this command to run RAT according to the configuration file as it is or by updating the last configuration file in an inteligent manner.
 
 It has the following parameters:
@@ -170,7 +170,11 @@ Usage example of the command to operationalize RAT:
     RAT operational feature should only be used if RAT {{rat_version.major}}.{{rat_version.minor}} has already been executed once before, for that particular river basin.
 
 !!! tip_note "Tip"
-    To operationalize RAT, set a daily cron job for the following command:
+    1. To operationalize RAT, set a daily cron job for the following command:
     ```
         rat run -p <PATH_OF_CONFIGURATION_FILE> -o 3
-    ``` 
+    ```
+    2. Now RAT {{rat_version.major}}.{{rat_version.minor}} can run operationally in [0 latency mode](../Plugins/0_latency_mode) using the following command:
+    ```
+        rat run -p <PATH_OF_CONFIGURATION_FILE> -o 0
+    ```
