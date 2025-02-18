@@ -118,7 +118,7 @@ RAT config file has 12 major sections that defines several parameters which are 
         2. Default elevation raster 'geotif' file is downloaded along with global-database and uses SRTM-30_Plus version-8 data product which is provided by [University of California San Diego (UCSD)](https://eatlas.org.au/data/uuid/80301676-97fb-4bdf-b06c-e961e5c0cb0b). This dataset is a 30-arc second resolution global topography/bathymetry grid developed from a wide variety of data sources. 
 
 * <h6 class="parameter_heading">*`multiple_basin_run`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if you want to run RAT for multiple basins using `rat run` command according to the parameters `basins_metadata` and `basins_to_process`. `False` otherwise. For more information, please look [multiple basin run](../basins_metadata).
 
@@ -131,9 +131,9 @@ RAT config file has 12 major sections that defines several parameters which are 
     ```
 
 * <h6 class="parameter_heading">*`basins_metadata`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: Absolute path of the basins metadata file in csv format. It is a csv file that is multi-indexed and have same index as this configuration file. For more information, please look [multiple basin run](../basins_metadata).
+    <span class="parameter_property">Description </span>: Absolute path of the basins metadata file in csv format. It is a csv file that is multi-indexed and have same index as this configuration file. It is required if `multiple_basin_run` is `True`. For more information, please look [multiple basin run](../basins_metadata).
 
     <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
 
@@ -143,17 +143,17 @@ RAT config file has 12 major sections that defines several parameters which are 
         basins_metadata: /Cheetah/rat_project/params/basins_metadata_sample.csv
     ```
 
-* <h6 class="parameter_heading">*`basins_to_process`* :</h6> 
-    <span class="requirement">Required parameter</span>
+* <h6 class="parameter_heading">*`cleaning`* :</h6> 
+    <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: List of basins to run RAT for within the `basins_metadata`. The list values must match with the values of `basin_name` in `BASIN` section in `basins_metadata`.  For more information, please look [multiple basin run](../basins_metadata).
+    <span class="parameter_property">Description </span>: `True` if you want RAT to clean up files before (for previous outputs) or after execution (for current outputs). User can decide which output files to be removed using [Clean Up](#clean-up) section of the config file. If `cleaning` is `False`, the [Clean Up](#clean-up) section will be ignored completely.
 
-    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+    <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to run RAT for basins Sabine and Nueces, then
+    <span class="parameter_property">Syntax </span>: If you want to use Clean Up section in config file of RAT, then
     ```
     GLOBAL:
-        basins_to_process: ['Sabine','Nueces']
+        cleaning: True
     ```
 
 ### Basin 
@@ -197,6 +197,19 @@ RAT config file has 12 major sections that defines several parameters which are 
     ```
     BASIN:
         basin_id: 2341
+    ```
+
+* <h6 class="parameter_heading">*`run`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Flag indicating whether to run RAT for this basin. It is only required in `basins_metadata` when `multiple_basin_run` is `True`. For more information, please look [multiple basin run](../basins_metadata).
+
+    <span class="parameter_property">Default </span>: It is blank (or not provided) by default.
+
+    <span class="parameter_property">Syntax </span>: If you want to run RAT for, say 'Sabine' basin, then
+    ```
+    BASIN:
+        run: 1
     ```
 
 * <h6 class="parameter_heading">*`spin_up`* :</h6> 
@@ -710,25 +723,60 @@ This section of the configuration file describes the parameters defined by `rout
     1. If `station_global_data` is `True`, AEC file names should be <'id_column' value>_<'dam_name_column' value where spaces are replaced by '_'>. For example, the file name for a reservoir with 'dam_name' as 'Tehri Dam' and 'id' as 115 will be '115_Tehri_Dam.csv'.
     <br><br>
     2. If `station_global_data` is `False`, AEC file names should be <'dam_name_column' value where spaces are replaced by '_'>. For example, the file name for a reservoir with 'dam_name' as 'Tehri Dam' will be 'Tehri_Dam.csv'.
+    <br><br>
     3. Each AEC file should have two columns with headers as 'Elevation' and 'CumArea'. 'Elevation' should be in meters and 'CumArea' should be in square Kilometers.
+
+* <h6 class="parameter_heading">*`catchment_vector_file`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Absolute path of the vector file containing catchment geometries for all reservoirs. It can have unique id and dam name column.
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If `catchment_vector_file` has the path *'/Cheetah/rat_project/custom_files/reservoir_catchments.geojson'*, then
+    ```
+    POST_PROCESSING:
+        catchment_vector_file : /Cheetah/rat_project/custom_files/reservoir_catchments.geojson
+    ```
+
+* <h6 class="parameter_heading">*`catchment_vector_file_columns_dict`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: Dictionary of column names for `catchment_vector_file`. The dictionary must have keys 'id_column' and 'dam_name_column' and their values should be the actual name of the corresponding columns respectively.
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If `catchment_vector_file` has column names 'GRAND_ID' and 'DAM_NAME', then
+    ```
+    POST_PROCESSING:
+        catchment_vector_file_columns_dict : {id_column: 'GRAND_ID', dam_name_column: 'DAM_NAME'}
+    ```
+    !!! note
+    1. If `station_global_data` is True, the values of 'id_column' and 'dam_name_column' in `catchment_vector_file` should match with that of 'id_column' and 'name_column' in `stations_vector_file`.
+    <br><br>
+    2. If `station_global_data` is False, the values of 'dam_name_column' in `catchment_vector_file` should match with that of 'name' column in `station_latlon_path`. 'id_column' is not required in this case and will be ignored if provided.
+    <br><br>
 
 ### Clean Up
 
-* <h6 class="parameter_heading">*`clean_preprocessing`* :</h6> 
-    <span class="requirement">Required parameter</span>
+!!! tip_note "Tip"
+    To use this section of the configuration file, `cleaning` should be `True` in the [Global section](#global). Otherwise, this section is ignored. 
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate pre-processed data for a river basin except global raw data downloaded from servers after the RAT run. Otherwise, `False`.
+* <h6 class="parameter_heading">*`clean_processing`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate pre-processed and post-processed data for a river basin except global raw data downloaded from servers after the RAT run and the basin meterological data in combined NetCDF file. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to delete intermediate pre-processed data for a river basin, 
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate pre and post-processed data for a river basin, 
     ```
     CLEAN_UP:
-        clean_preprocessing: True
+        clean_processing: True
     ```
 
 * <h6 class="parameter_heading">*`clean_metsim`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate metsim outputs for a river basin after the RAT run. Otherwise, `False`.
 
@@ -741,20 +789,20 @@ This section of the configuration file describes the parameters defined by `rout
     ```
 
 * <h6 class="parameter_heading">*`clean_vic`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 15 days for a river basin, 
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 20 days for a river basin, 
     ```
     CLEAN_UP:
         clean_vic: True
     ```
 
 * <h6 class="parameter_heading">*`clean_routing`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
 
@@ -767,9 +815,9 @@ This section of the configuration file describes the parameters defined by `rout
     ```
 
 * <h6 class="parameter_heading">*`clean_gee`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete gee produced small chunk files of surface area time series for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete gee produced small chunk files of surface area time series for a river basin after the RAT run. Otherwise, `False`. To delete all the surface area time series files, please use `clean_previous_outputs`.
 
     <span class="parameter_property">Default </span>: `False`
 
@@ -782,7 +830,7 @@ This section of the configuration file describes the parameters defined by `rout
         If `clean_gee` is `True`, it will not delete the final gee outputs that will be appended with new data in next RAT run. To delete that, use `clean_previous_outputs`.
 
 * <h6 class="parameter_heading">*`clean_altimetry`* :</h6> 
-    <span class="requirement">Required parameter</span>
+    <span class="requirement">Optional parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete raw altimetry data that takes a lot of time to download for a river basin after the RAT run. Otherwise, `False`.
 
@@ -796,14 +844,40 @@ This section of the configuration file describes the parameters defined by `rout
     !!!note
         If `clean_altimetry` is `True`, it will not delete the extracted altimetry data that will be appended with new data in next RAT run. To delete that, use `clean_previous_outputs`.
 
-* <h6 class="parameter_heading">*`clean_previous_outputs`* :</h6> 
-    <span class="requirement">Required parameter</span>
+* <h6 class="parameter_heading">*`clean_basin_parameter_files`* :</h6> 
+    <span class="requirement">Optional parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete previous outputs, gee extracted surface area time series and altimetry extracted height data produced by last RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete basin parameter files like that for vic, routing, gee or any other basin parameters specific static files. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to delete raw altimetry data that takes a lot of time to download for a river basin, 
+    <span class="parameter_property">Syntax </span>: If you want to delete all basin specific parameter files, 
+    ```
+    CLEAN_UP:
+        clean_basin_parameter_files: True
+    ```
+
+* <h6 class="parameter_heading">*`clean_basin_meteorological_data`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete basin meteorlogical combined NetCDF file in preprocessing.Otherwise, `False`. Please note that this file is needed to run RAT in an operational set up or if you want to continue running RAT from the last `end` date. 
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete basin meteorlogical combined NetCDF file, 
+    ```
+    CLEAN_UP:
+        clean_basin_meteorological_data: True
+    ```
+
+* <h6 class="parameter_heading">*`clean_previous_outputs`* :</h6> 
+    <span class="requirement">Optional parameter</span>
+
+    <span class="parameter_property">Description </span>: `True` if  you want to delete previous outputs, gee extracted surface area and NSSC time series and altimetry extracted height data produced by last RAT run. Otherwise, `False`.
+
+    <span class="parameter_property">Default </span>: `False`
+
+    <span class="parameter_property">Syntax </span>: If you want to delete previous RAT outputs and don't want the new outputs to get appended to the existing ones, 
     ```
     CLEAN_UP:
         clean_previous_outputs: True
