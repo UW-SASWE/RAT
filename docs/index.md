@@ -2,7 +2,7 @@
 
 <h5>A scalable and easy-to-apply python based software architecture to empower the global water community</h5>
 
-The [Reservoir Assessment Tool (RAT)](https://depts.washington.edu/saswe/rat) uses satellite remote sensing data to monitor water surface area and water level changes in artificial reservoirs. It uses this information, along with topographical information (either derived from satellite data, or in-situ topo maps) to estimate the Storage Change (∆S) in the reservoirs. Additionally, RAT models the Inflow (I) and the Evaporation (E) of each reservoir. Finally, RAT uses the modeled I, and E, and estimated ∆S, to estimate the Outflow (O) from reservoirs.
+The [Reservoir Assessment Tool (RAT)](https://depts.washington.edu/saswe/rat) uses satellite remote sensing data to monitor water surface area and water level changes in artificial reservoirs. It uses this information, along with topographical information (either derived from satellite data, or in-situ topo maps) to estimate the Storage Change (∆S) in the reservoirs. Additionally, RAT models the Inflow (I) and the Evaporation (E) of each reservoir. Finally, RAT uses the modeled I, and E, and estimated ∆S, to estimate the Outflow (O) from reservoirs. It also provides Normalized Suspended Sediment Concentration (NSSC) time series for each reservoir.
 
 !!! tip_note "Tip"
     If RAT was working fine previously but you've recently encountered errors, please check out [Recent Adjustments](https://rat-satellitedams.readthedocs.io/en/latest/Development/RecentAdjustments/) for potential issues and their solutions.

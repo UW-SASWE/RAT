@@ -26,7 +26,7 @@ The [VIC Routing model](https://vic.readthedocs.io/en/vic.4.2.d/Documentation/Ro
 
 ## Surface Area
 
-A novel multi-sensor surface area estimation algorithm known as TMS-OS with a tiered self-correction process was developed for RAT by [Das et al.(2022)](https://doi.org/10.1016/j.envsoft.2022.105533). This method takes advantage of the strengths of both optical and SAR sensors in a teamwork fashion. Optical sensors can very accurately estimate the water area, but they can be highly limited by the presence of clouds. They also can be uncertain around dendritic reservoir shorelines if the perimeter is significantly larger than the nominal surface area. On the other hand, SAR can penetrate clouds and is hence not affected by the presence of clouds. However, SAR backscatter threshold-based water extent estimation methods are highly sensitive to the choice of the chosen threshold, and have a tendency to underestimate the surface areas in inundated vegetation. This method combines the high accuracy of optical sensors with the cloud penetrating property of SAR sensors. This method is referred to as TMS-OS (Tiered Multi-Sensor approach – Optical, SAR, pronounced as Teams-OS) throughout the documentation of RAT. Below flowchart summarizes the TMS-OS algorithm. Please note that currently landsat 9 is also being used with landsat 8 in this approach, even though it is not depicted in the flowchart.
+A novel multi-sensor surface area estimation algorithm known as TMS-OS with a tiered self-correction process was developed for RAT by [Das et al.(2022)](https://doi.org/10.1016/j.envsoft.2022.105533). This method takes advantage of the strengths of both optical and SAR sensors in a teamwork fashion. Optical sensors can very accurately estimate the water area, but they can be highly limited by the presence of clouds. They also can be uncertain around dendritic reservoir shorelines if the perimeter is significantly larger than the nominal surface area. On the other hand, SAR can penetrate clouds and is hence not affected by the presence of clouds. However, SAR backscatter threshold-based water extent estimation methods are highly sensitive to the choice of the chosen threshold, and have a tendency to underestimate the surface areas in inundated vegetation. This method combines the high accuracy of optical sensors with the cloud penetrating property of SAR sensors. This method is referred to as TMS-OS (Tiered Multi-Sensor approach – Optical, SAR, pronounced as Teams-OS) throughout the documentation of RAT. Below flowchart summarizes the TMS-OS algorithm. Please note that currently landsat 5,7 and 9 are also being used with landsat 8 in this approach, even though it is not depicted in the flowchart.
 
 ![TMS-OS Algorithm](../images/sarea/ss1.jpg)
 
@@ -55,3 +55,34 @@ where, \(E\) is the evaporation; \(\Delta\) is the slope of the saturation vapor
 The dynamic state of the reservoir is modeled using the modeled fluxes to the reservoir and observed change in reservoir. At each reservoir, an assumption of conservation of mass is made –
 $$ O = I - E - \Delta S $$
 where, \(O\) is the outflow from the reservoir, \(I\) is the [inflow](#inflow) to the reservoir, \(E\) is the [evaporation](#evaporation) from the reservoir, and \(\Delta S\) is the [storage change](#storage-change) of the reservoir. Ground seepage and precipitation on the reservoir are assumed to be negligible components of the reservoir mass balance.
+
+## Suspended Sediment Concentration
+RAT extracts Suspended Sediment Concentration (SSC) from Google Earth Engine (GEE) using satellite data. However, due to the lack of in situ SSC measurements, calibrating SSC for all reservoirs worldwide is not feasible. To address this, RAT provides a normalized SSC (NSSC), which is unitless, using Min-Max normalization.
+
+For each reservoir, NSSC is estimated in four different ways, as described below. The same Min-Max normalization is applied uniformly across all cases.
+
+!!! note  
+    In the following expressions, 'n' represents the total number of pixels within the reservoir in a satellite image.
+
+1. Reservoir-Level Red-Green Ratio (nssc_rd_gn_res)  
+The ratio of the total reflectance in the red and green bands over the entire reservoir:
+$$
+\text{nssc_rd_gn_res} = \frac{\sum_{i=1}^n \text{RED}}{\sum_{i=1}^n \text{GREEN}}
+$$
+2. Reservoir-Level NIR-Red Ratio (nssc_nr_rd_res)  
+The ratio of the total reflectance in the near-infrared (NIR) and red bands over the entire reservoir:
+$$
+\text{nssc_nr_rd_res} = \frac{\sum_{i=1}^n \text{NIR}}{\sum_{i=1}^n \text{RED}}
+$$
+3. Pixel-Level Mean Red-Green Ratio (nssc_rd_gn_px)  
+The average ratio of red to green reflectance across all pixels in the reservoir:
+$$
+\text{nssc_rd_gn_px} = \frac{\sum_{i=1}^n \frac{\text{RED}}{\text{GREEN}}}{n}
+$$
+4. Pixel-Level Mean NIR-Red Ratio (nssc_nr_rd_px)  
+The average ratio of NIR to red reflectance across all pixels in the reservoir:
+$$
+\text{nssc_nr_rd_px} = \frac{\sum_{i=1}^n \frac{\text{NIR}}{\text{RED}}}{n}
+$$
+!!! tip_note "Tip"
+    NSSC can be calibrated using in situ measurements to estimate actual SSC values for a reservoir.

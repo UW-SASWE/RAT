@@ -108,10 +108,11 @@ The workflow diagram shown below summarizes the comprehensive process employed b
 
 ## Step-10
 <sup class='step_heading'>TMS-OS Surface Area Calculation from GEE</sup> <br>
-<span class='step_property'> Task: </span> Calculate and extract surface area time series for each reservoir using Google Earth Engine (GEE). To extract data from GEE, data is downloaded in chunks (like for 5 dates at a time for each optical sensor based satellite and for each reservoir) and in between the downloading of these chunk datas, the system sleeps for 5-15 seconds.Therefore this step can take time for a longer duration but should be faster while operationalizing or for small durations.<br><br>
+<span class='step_property'> Task: </span> Calculate and extract surface area and normalized suspended sediment concentration (NSSC) time series for each reservoir using Google Earth Engine (GEE). To extract data from GEE, data is downloaded in chunks (like for 5 dates at a time for each optical sensor based satellite and for each reservoir) and in between the downloading of these chunk datas, the system sleeps for 5-15 seconds.Therefore this step can take time for a longer duration but should be faster while operationalizing or for small durations.<br><br>
 <span class='step_property'> Input Files: </span> 1. River basin's reservoir vector file ( <b>basin_reservoirs.shp</b> - created by step-9; OR provided by user - if step 9 is not executed and `station_global_data` is `False`). <br><br>
 <span class='step_property'> Output Files: </span> 1. Small chunk files for each satellite (optical sensors) and each reservoir (<b>l8/s9/s2>_scratch</b>), which are used to form a complete file (<b>l8/s9/s2>&lt;dam&gt;.csv</b>). In case of SAR only the complete file is generated (<b>l8/s9/s2>&lt;dam&gt;.csv</b>). <br>
-2. Finally a single surface area time series file is created for each reservoir using files from all the satellite missions if possible by using TMS-OS algorithm (<b>&lt;dam&gt;.csv</b>). <br>
+2. Finally a single surface area time series file is created for each reservoir using files from all the satellite missions if possible by using TMS-OS algorithm (<b>gee/gee_sarea_tmsos/&lt;dam&gt;.csv</b>). <br>
+3. Normalized suspended sediment concentration (NSSC) time series file is also created using files from all the satellite missions if possible by using Min-Max normalization. (<b>gee/gee_nssc/&lt;dam&gt;.csv</b>). <br>
 
 ## Step-11
 <sup class='step_heading'>Elevation extraction from Altimeter</sup> <br>
@@ -147,10 +148,13 @@ The workflow diagram shown below summarizes the comprehensive process employed b
 <sup class='step_heading'>Conversion of output data to final format as time series</sup> <br>
 <span class='step_property'> Task: </span> Create final outputs in a time-series format (with proper units) to be used by the user directly for analysis. It then also cleans up memory by removing intermediate outputs as instructed by the user in [`CLEAN_UP` section](../../Configuration/rat_config/#clean-up).<br><br>
 <span class='step_property'> Input Files: </span> 1. All inflow, evaporation, storage change, aec and outflow outputs that were created in step-13.<br>
-2. Each reservoir's surface area time series (&lt;dam&gt;.csv - created in step-10) are required.<br><br>
+2. Each reservoir's surface area and NSSC time series (&lt;dam&gt;.csv - created in step-10) are required.<br>
+3. Vector file containing each reservoir's catchment geometry and should have the columns: 'id_column' and 'dam_name_column' (has to be provided by the user)- OPTIONAL. <br><br>
 <span class='step_property'> Output Files: </span> 1. Inflow for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> inflow>&lt;dam&gt;.csv</b>). <br>
 2. Storage change for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> dels>&lt;dam&gt;.csv</b>). <br>
 3. Evapofialion for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> evaporation>&lt;dam&gt;.csv</b>). <br>
 4. Outflow for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> outflow>&lt;dam&gt;.csv</b>). <br>
 5. AEC for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> aec>&lt;dam&gt;.csv</b>). <br>
 6. Surface area for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> sarea_tmsos>&lt;dam&gt;.csv</b>). <br>
+7. NSSC for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> nssc>&lt;dam&gt;.csv</b>). <br>
+8. Catchment climate for each reservoir (<b>`data_dir`>`region_name`>basins> `basin_name`>final_outputs> catchment_climate>&lt;dam&gt;.csv</b>) - OPTIONAL. <br>
