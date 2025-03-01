@@ -168,11 +168,11 @@ def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_di
     reservoirs_gdf_column_dict = reservoir_shpfile_column_dict
 
     if routing_station_global_data:
-        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, "inner")[reservoirs.columns]
+        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, predicate="within", how="inner")[reservoirs.columns]
         reservoirs_spatialjoin['uniq_id'] = reservoirs_spatialjoin[reservoirs_gdf_column_dict['id_column']].astype(str)+'_'+ \
                             reservoirs_spatialjoin[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
     else:
-        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, "inner")[reservoirs.columns]
+        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, predicate="within", how="inner")[reservoirs.columns]
     
     if(reservoirs_spatialjoin.empty):
         raise Exception('Reservoir names in reservoir shapefile are not matching with the station names in the station file used for routing.')
