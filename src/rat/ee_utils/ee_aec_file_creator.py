@@ -37,7 +37,9 @@ def _aec(n,elev_dem,roi, scale=30):
     DEM141Count = DEM141.reduceRegion(
         geometry= roi,
         scale= scale,
-        reducer= ee.Reducer.sum()
+        reducer= ee.Reducer.sum(),
+        maxPixels = 1e16,
+        bestEffort=True
     )
     area=ee.Number(DEM141Count.get('elevation')).multiply(30*30).divide(1e6)
     return area
