@@ -290,13 +290,14 @@ class TMS():
                 sar.loc[extrapolated_date, "sarea"] = extrapolated_value
 
                 sar = sar.rename({'sarea': 'area'}, axis=1)
+                sar_correction = 'Possible'
             # If SAR has less than 3 points
             else:
-                sar = None
+                sar_correction = 'Not Possible'
                 print("Sentinel-1 SAR has less than 3 data points.")
         # If SAR file does not exist
         else:
-            sar = None
+            sar_correction = 'Not Possible'
             print("Sentinel-1 SAR file does not exist.")
         # combine opticals into one dataframes
         
@@ -304,66 +305,75 @@ class TMS():
         optical = optical.loc[~optical.index.duplicated(keep='last')] # when both s2 and l8 are present, keep s2
         optical.rename({'water_area_corrected': 'area'}, axis=1, inplace=True)
 
-
+        error_message = None
         # Apply the trend based corrections
-        if(sar is not None):
-            # If Optical begins before SAR and has a difference of more than 15 days
-            if(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
-                # Optical without SAR
-                optical_with_no_sar = optical[optical.index[0]:sar.index[0]].copy()
-                optical_with_no_sar['non-smoothened optical area'] = optical_with_no_sar['area']
-                optical_with_no_sar.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
-                # Calculate smoothed values with moving weighted average method if more than 7 values; weights are calculated using cloud percent.
-                if len(optical_with_no_sar)>7:
-                    # Temporarily interpolate missing values
-                    optical_with_no_sar['interpolated_area'] = optical_with_no_sar['non-smoothened optical area'].interpolate(method='linear')
-                    
-                    # Apply weighted moving average using interpolated values
-                    optical_with_no_sar['smoothed_area'] = weighted_moving_average(
-                        optical_with_no_sar['interpolated_area'], 
-                        weights=(101 - optical_with_no_sar['cloud_percent']), 
-                        window_size=3
-                    )
-                    
-                    # Restore NaN values to preserve the original structure
-                    optical_with_no_sar['filled_area'] = optical_with_no_sar['smoothed_area'].where(
-                        ~optical_with_no_sar['non-smoothened optical area'].isna()
-                    )
-                    
-                    # Drop temporary columns
-                    optical_with_no_sar = optical_with_no_sar.drop(['interpolated_area', 'smoothed_area'], axis=1)
-                    
-                # Drop 'area' column from optical_with_no_sar
-                optical_with_no_sar = optical_with_no_sar.drop('area',axis=1)
-                # Optical with SAR
-                optical_with_sar = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
-                # Merge both
-                result = pd.concat([optical_with_no_sar,optical_with_sar],axis=0)
-                # Smoothen the combined surface area estimates to avoid noise or peaks using savgol_filter if more than 9 values (to increase smoothness and include more points as we have both TMS-OS and Optical)
-                if len(result)>9:    
-                    # Temporarily interpolate missing values for smoothing
-                    result['interpolated_area'] = result['filled_area'].interpolate(method='linear')
-                    
-                    # Apply Savitzky-Golay filter
-                    result['smoothed_filled_area'] = savgol_filter(
-                        result['interpolated_area'], window_length=7, polyorder=3
-                    )
-                    
-                    # Restore NaN values
-                    filled_area_with_nans = result['smoothed_filled_area'].where(
-                        ~result['filled_area'].isna()
-                    )
-                    result['filled_area'] = filled_area_with_nans
-                    
-                    # Drop temporary columns
-                    result = result.drop(['interpolated_area', 'smoothed_filled_area'], axis=1)
-                    
-                method = 'Combine'
-            # If SAR begins before Optical
-            else:
-                result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
-                method = 'TMS-OS'
-        else:
+        if(sar_correction == 'Possible'):
+            try:
+                # If Optical begins before SAR and has a difference of more than 15 days
+                if(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
+                    # Optical without SAR
+                    optical_with_no_sar = optical[optical.index[0]:sar.index[0]].copy()
+                    optical_with_no_sar['non-smoothened optical area'] = optical_with_no_sar['area']
+                    optical_with_no_sar.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
+                    # Calculate smoothed values with moving weighted average method if more than 7 values; weights are calculated using cloud percent.
+                    if len(optical_with_no_sar)>7:
+                        # Temporarily interpolate missing values
+                        optical_with_no_sar['interpolated_area'] = optical_with_no_sar['non-smoothened optical area'].interpolate(method='linear')
+                        
+                        # Apply weighted moving average using interpolated values
+                        optical_with_no_sar['smoothed_area'] = weighted_moving_average(
+                            optical_with_no_sar['interpolated_area'], 
+                            weights=(101 - optical_with_no_sar['cloud_percent']), 
+                            window_size=3
+                        )
+                        
+                        # Restore NaN values to preserve the original structure
+                        optical_with_no_sar['filled_area'] = optical_with_no_sar['smoothed_area'].where(
+                            ~optical_with_no_sar['non-smoothened optical area'].isna()
+                        )
+                        
+                        # Drop temporary columns
+                        optical_with_no_sar = optical_with_no_sar.drop(['interpolated_area', 'smoothed_area'], axis=1)
+                        
+                    # Drop 'area' column from optical_with_no_sar
+                    optical_with_no_sar = optical_with_no_sar.drop('area',axis=1)
+                    # Optical with SAR
+                    optical_with_sar = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                    # Merge both
+                    result = pd.concat([optical_with_no_sar,optical_with_sar],axis=0)
+                    # Smoothen the combined surface area estimates to avoid noise or peaks using savgol_filter if more than 9 values (to increase smoothness and include more points as we have both TMS-OS and Optical)
+                    if len(result)>9:    
+                        # Temporarily interpolate missing values for smoothing
+                        result['interpolated_area'] = result['filled_area'].interpolate(method='linear')
+                        
+                        # Apply Savitzky-Golay filter
+                        result['smoothed_filled_area'] = savgol_filter(
+                            result['interpolated_area'], window_length=7, polyorder=3
+                        )
+                        
+                        # Restore NaN values
+                        filled_area_with_nans = result['smoothed_filled_area'].where(
+                            ~result['filled_area'].isna()
+                        )
+                        result['filled_area'] = filled_area_with_nans
+                        
+                        # Drop temporary columns
+                        result = result.drop(['interpolated_area', 'smoothed_filled_area'], axis=1)
+                        
+                    method = 'Combine'
+                # If SAR begins before Optical
+                
+                else:
+                    result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                    method = 'TMS-OS'
+            except Exception as e:
+                sar_correction = 'Failed'
+                error_message = e
+                
+        if sar_correction=='Failed' or sar_correction=='Not Possible':
+            if sar_correction=='Failed':
+                print(f'SAR trend based correction (TMS-OS) failed due to {error_message}. Using only optical data.')
+            
             result = optical.copy()
             result['non-smoothened optical area'] = result['area']
             result.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
