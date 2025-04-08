@@ -683,7 +683,6 @@ def forecast_outflow_for_res(
         forecast_outflow_st = forecast_scenario_st(forecast_outflow, initial_sa, cust_st, s_max, aec_data, st_percSmax)
         forecast_outflow = forecast_outflow.merge(forecast_outflow_st)
 
-    forecast_outflow_df = forecast_outflow.to_pandas().reset_index()
     if(output_path is not None):
         # read existing file, and append new columns
         new_data = forecast_outflow.to_pandas().drop(columns=['evaporation', 'inflow']).reset_index()
