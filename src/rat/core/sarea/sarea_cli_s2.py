@@ -583,6 +583,8 @@ def run_process_long(res_name,res_polygon, start, end, datadir, results_per_iter
                                         scale_to_use = SPATIAL_SCALE_MEDIUM
                                         success_status = -1
                                         break
+                                else:
+                                    success_status = -1
                             else:
                                 success_status = 1
                         if success_status==1:
