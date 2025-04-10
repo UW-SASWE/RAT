@@ -3,6 +3,7 @@ import glob
 import pandas as pd
 import numpy as np
 import xarray as xr
+import rioxarray as rxr
 import geopandas as gpd
 import warnings
 import datetime
@@ -80,6 +81,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
         log.debug("Checking if grid cells lie inside reservoir")
         last_layer = reqvars.isel(time=-1).to_dataframe().reset_index()
         temp_gdf = gpd.GeoDataFrame(last_layer, geometry=gpd.points_from_xy(last_layer.lon, last_layer.lat))
+        log.debug('Calculating points within')
         points_within = temp_gdf[temp_gdf.within(res_geom)]['geometry']
 
         if len(points_within) == 0:
@@ -94,10 +96,32 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
             P.head()
 
         else:
-            # print(f"[!] {len(points_within)} Grid cells inside reservoir found, averaging their values")
-            data = reqvars.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
-
-            P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
+            log.debug(f"{len(points_within)} Grid cells found inside reservoir, averaging their values")
+            # data = reqvars.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').to_dataframe().reset_index().groupby('time').mean()[1:]
+            # Convert dataset to a spatial-aware dataset
+            reqvars = reqvars.rio.write_crs("EPSG:4326")  # Ensure correct CRS
+            # Clip using geometry
+            reqvars_roi_clip = reqvars.rio.clip([res_geom], reqvars.rio.crs, drop=True)
+            # reqvars_roi_clip = reqvars.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest')          
+            # Averaging the data
+            data = reqvars_roi_clip.mean(dim=['lat','lon']).to_dataframe().reset_index()[1:].set_index('time')
+            forcings = forcings.rio.write_crs("EPSG:4326")
+            # Ensure dataset has proper spatial dimensions
+            forcings_xy = forcings.rename({'lon': 'x', 'lat': 'y'})
+            forcings_roi_clip = forcings_xy.rio.clip([res_geom], reqvars.rio.crs, drop=True)
+            # forcings_roi_clip = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest')
+            P = (
+                forcings_roi_clip.mean(dim=['x', 'y'])  # Average over spatial dimensions
+                .resample(time='1D').mean()  # Resample first!
+                .to_dataframe()  # Convert to DataFrame
+                .reset_index()[1:]
+                .set_index('time') # Optional: Remove first row if necessary
+            )
+            
+            P = P['air_pressure']
+            # P = forcings_roi_clip.mean(dim=['lat','lon']).to_dataframe().resample(time='1D').reset_index()[1:]
+            # P = P['air_pressure']
+            # P = forcings.sel(lat=np.array(points_within.y), lon=np.array(points_within.x), method='nearest').resample({'time':'1D'}).mean().to_dataframe().groupby('time').mean()[1:]
 
         data['P'] = P
     # If no vic result file exists then check if data is there in existing file between start and end time
@@ -127,7 +151,13 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
             ix = pd.date_range(start=first_obs, end=end_date, freq='D')
             sarea_interpolated = sarea_interpolated.reindex(ix).fillna(method='ffill')
         # Slicing is exclusive of end date. But we want inclusive of both start and end dates.
-        sarea_interpolated = sarea_interpolated.loc[sarea_interpolated.index.isin(data.index)]
+        # sarea_interpolated.index = pd.to_datetime(sarea_interpolated.index)
+        # data.index = pd.to_datetime(data.index)
+        # print("Sarea Data:", sarea_interpolated.head(5))
+        # print(sarea_interpolated.index.isin(data.index))
+        # print(data.index.equals(sarea_interpolated.index))
+        # sarea_interpolated = sarea_interpolated.loc[sarea_interpolated.index.isin(data.index)]
+        sarea_interpolated = sarea_interpolated.reindex(data.index)
         
     if isinstance(sarea, pd.DataFrame):
         data['area'] = sarea_interpolated['area']
