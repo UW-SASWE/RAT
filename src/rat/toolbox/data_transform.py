@@ -66,7 +66,7 @@ def create_meterological_ts(roi, nc_file_path, output_csv_path):
     print("Creating meterological timeseries for a given geometry using comibined meteorlogical NetCDF produced by RAT.")
     if os.path.isfile(nc_file_path):
         # Load the NetCDF file as an xarray Dataset
-        ds = xr.open_dataset(nc_file_path)
+        ds = xr.open_dataset(nc_file_path, chunks={"time": 100, "x": 100, "y": 100})
 
         # Ensure spatial dimensions are set correctly as x and y for rioxarray use
         if 'lon' in ds.dims and 'lat' in ds.dims:
@@ -99,7 +99,7 @@ def create_meterological_ts(roi, nc_file_path, output_csv_path):
                 print("Catchment ROI is sufficiently large, no buffer applied.")
                 roi_expanded = roi  # No buffer needed, keep original ROI
         else:
-            raise ValueError("Catchment ROI must be a polygon or a mulipolygon.")
+            raise ValueError("Catchment ROI must be a polygon or a multipolygon.")
 
         # Sets default CRS for the dataset if missing
         if ds.rio.crs is None:
