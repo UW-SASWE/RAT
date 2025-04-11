@@ -684,7 +684,16 @@ def forecast_outflow_for_res(
         forecast_outflow = forecast_outflow.merge(forecast_outflow_st)
 
     if(output_path is not None):
-        forecast_outflow.to_pandas().to_csv(output_path)
+        # read existing file, and append new columns
+        new_data = forecast_outflow.to_pandas().drop(columns=['evaporation', 'inflow']).reset_index()
+        new_data['date'] = pd.to_datetime(new_data['date'])
+        if Path(output_path).exists():
+            old_data = pd.read_csv(output_path, parse_dates = ['date'])
+            combined_data = pd.merge(new_data, old_data, how='outer', on='date', suffixes=(None, "_old"))
+            combined_data = combined_data.loc[:, ~combined_data.columns.str.endswith('_old')] # drop columns that are old, replace them with newly generated scenario outputs
+            combined_data.to_csv(output_path, index=False)
+        else:
+            new_data.to_csv(output_path, index=False)
 
     return forecast_outflow
 
@@ -712,16 +721,16 @@ def forecast_outflow(
             output_fp.parent.mkdir(parents=True, exist_ok=True)
 
             s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
-            reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0]
+            reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0] # reservoir_id will correspond to GRAND_ID if you're using RAT provided rule curves. 
 
             if np.isnan(s_max) and 'ST' in res_scenarios:
                 res_scenarios.remove('ST')
 
-            if (np.isnan(reservoir_id) or rule_curve_dir) and 'RC' in res_scenarios:
+            if (np.isnan(reservoir_id) or rule_curve_dir is None) and 'RC' in res_scenarios: # if reservoir_id is nan or if rule_curve_dir is not passed, remove RC scenario
                 res_scenarios.remove('RC')
                 rule_curve_fp = None
             else:
-                rule_curve_fp = rule_curve_dir / f'{reservoir_id}.txt'
+                rule_curve_fp = rule_curve_dir / f'{int(reservoir_id)}.txt' # if reservoir_id is float, coerce it to int
 
             for scenario in res_scenarios:       
                 forecast_outflow_for_res(
@@ -829,7 +838,7 @@ def convert_forecast_outflow_states(outflow_dir, final_outflow_dir, final_dels_d
         for dels_col in dels_cols:
             if dels_col.startswith('ST'):
                 dels_case = dels_col.split('_')[0] + ' ' + dels_col.split('_')[-1]
-            elif dels_col.startswith('GO') or dels_col.startswith('GC'):
+            elif dels_col.startswith('GO') or dels_col.startswith('GC') or dels_col.startswith('RC'):
                 dels_case = dels_col.split('_')[0]
             
             converted_col_name = f'delS (m) [case: {dels_case}]'

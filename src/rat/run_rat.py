@@ -132,10 +132,10 @@ def run_rat(config_fn, operational_latency=None ):
             # Run RAT for basin
             no_errors, latest_altimetry_cycle = rat_basin(config, log, gfs_days=gfs_days)
             # Run RAT forecast for basin if forecast is True           
-            if config.get('PLUGINS', {}).get('forecasting'):
+            if config.get('PLUGINS', {}).get('forecast'):
                 # Importing the forecast module
                 try:
-                    from plugins.forecasting.forecast_basin import forecast
+                    from rat.plugins.forecasting.forecast_basin import forecast
                 except:
                     log.exception("Failed to import Forecast plugin due to missing package(s).")
                 log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
