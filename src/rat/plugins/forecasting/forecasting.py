@@ -720,8 +720,8 @@ def forecast_outflow(
             output_fp = basin_data_dir / 'rat_outputs' / 'forecast_outflow' / f'{basedate:%Y%m%d}' / f'{res_name}.csv'
             output_fp.parent.mkdir(parents=True, exist_ok=True)
 
-            s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['dam_name_column']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
-            reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['dam_name_column']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0] # reservoir_id will correspond to GRAND_ID if you're using RAT provided rule curves. 
+            s_max = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_capacity']].values[0]
+            reservoir_id = reservoirs[reservoirs[reservoir_shpfile_column_dict['unique_identifier']] == res_name][forecast_reservoir_shpfile_column_dict['column_id']].values[0] # reservoir_id will correspond to GRAND_ID if you're using RAT provided rule curves. 
 
             if np.isnan(s_max) and 'ST' in res_scenarios:
                 res_scenarios.remove('ST')
