@@ -30,7 +30,7 @@ def round_up(n, decimals=0):
     if n>0:
         return math.ceil(n * multiplier) / multiplier
     else:
-        return -math.ceil(abs(n) * multiplier) / multiplier
+        return -math.floor(abs(n) * multiplier) / multiplier
 
 # https://gist.github.com/pritamd47/e7ddc49f25ae7f1b06c201f0a8b98348
 # Clip time-series

@@ -32,9 +32,11 @@ class TMS():
         self.AREA_DEVIATION_THRESHOLD = self.area * AREA_DEVIATION_THRESHOLD_PCNT/100
 
     def tms_os(self,
+            l5_dfpath: str = "",
+            l7_dfpath: str = "",
             l8_dfpath: str = "", 
+            l9_dfpath: str = "",
             s2_dfpath: str = "", 
-            l9_dfpath: str = "", 
             s1_dfpath: str = "", 
             CLOUD_THRESHOLD: float = 90.0,
             MIN_DATE: str = '2019-01-01'
@@ -42,7 +44,10 @@ class TMS():
         ## TODO: add conditional, S1 required, any one of optical datasets required
         """Implements the TMS-OS methodology
         Args:
-            l8_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l8.py` - Landsat derived surface areas
+            l5_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l5.py` - Landsat-5 derived surface areas
+            l7_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l7.py` - Landsat-7 derived surface areas
+            l8_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l8.py` - Landsat-8 derived surface areas
+            l9_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_l9.py` - Landsat-9 derived surface areas
             s2_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_s2.py` - Sentinel-2 derived surface areas
             s1_dfpath (string): Path of the surface area dataframe obtained using `sarea_cli_sar.py` - Sentinel-1  derived surface areas
             CLOUD_THRESHOLD (float): Threshold to use for cloud-masking in % (default: 90.0)
@@ -51,10 +56,90 @@ class TMS():
         MIN_DATE = pd.to_datetime(MIN_DATE, format='%Y-%m-%d')
         S2_TEMPORAL_RESOLUTION = 5
         S1_TEMPORAL_RESOLUTION = 12
+        L5_TEMPORAL_RESOLUTION = 16
+        L7_TEMPORAL_RESOLUTION = 16
         L8_TEMPORAL_RESOLUTION = 16
         L9_TEMPORAL_RESOLUTION = 16
 
         TO_MERGE = []
+
+        if os.path.isfile(l5_dfpath):
+            # Read in Landsat-8
+            l5df = pd.read_csv(l5_dfpath, parse_dates=['mosaic_enddate']).rename({
+                'mosaic_enddate': 'date',
+                'water_area_cordeiro': 'water_area_uncorrected',
+                'non_water_area_cordeiro': 'non_water_area', 
+                'corrected_area_cordeiro': 'water_area_corrected'
+                }, axis=1).set_index('date')
+            l5df = l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            l5df.replace(-1, np.nan, inplace=True)
+            l5df['cloud_percent'] = l5df['cloud_area'] * 100 / l5df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
+
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            l5df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            l5df.loc[l5df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+            l5df.loc[l5df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+
+            # in some cases l5df may have duplicated rows (with same values) that have to be removed
+            if l5df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                l5df = l5df[~l5df.index.duplicated(keep='last')]
+
+            # Fill in the gaps in l5df created due to high cloud cover with np.nan values
+            l5df_interpolated = l5df.reindex(pd.date_range(l5df.index[0], l5df.index[-1], freq=f'{L5_TEMPORAL_RESOLUTION}D'))
+            l5df_interpolated.loc[np.isnan(l5df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['cloud_area']), 'cloud_area'] = max(l5df['cloud_area'])
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['non_water_area']), 'non_water_area'] = 0
+            l5df_interpolated.loc[np.isnan(l5df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+            # Interpolate bad data (max upto 6-7 months (seasonal) for l5)
+            l5df_interpolated.loc[:, "water_area_corrected"] = l5df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward", limit=13)
+            l5df_interpolated['sat'] = 'l5'
+
+            TO_MERGE.append(l5df_interpolated)
+        
+        if os.path.isfile(l7_dfpath):
+            # Read in Landsat-8
+            l7df = pd.read_csv(l7_dfpath, parse_dates=['mosaic_enddate']).rename({
+                'mosaic_enddate': 'date',
+                'water_area_cordeiro': 'water_area_uncorrected',
+                'non_water_area_cordeiro': 'non_water_area', 
+                'corrected_area_cordeiro': 'water_area_corrected'
+                }, axis=1).set_index('date')
+            l7df = l7df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
+            l7df.replace(-1, np.nan, inplace=True)
+            l7df['cloud_percent'] = l7df['cloud_area'] * 100 / l7df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
+
+            # QUALITY_DESCRIPTION
+            #   0: Good, not interpolated either due to missing data or high clouds
+            #   1: Poor, interpolated either due to high clouds
+            #   2: Poor, interpolated either due to missing data
+            l7df.loc[:, "QUALITY_DESCRIPTION"] = 0
+            l7df.loc[l7df['cloud_percent']>=CLOUD_THRESHOLD, ("water_area_uncorrected", "non_water_area", "water_area_corrected")] = np.nan
+            l7df.loc[l7df['cloud_percent']>=CLOUD_THRESHOLD, "QUALITY_DESCRIPTION"] = 1
+
+            # in some cases l7df may have duplicated rows (with same values) that have to be removed
+            if l7df.index.duplicated().sum() > 0:
+                print("Duplicated labels, deleting")
+                l7df = l7df[~l7df.index.duplicated(keep='last')]
+
+            # Fill in the gaps in l7df created due to high cloud cover with np.nan values
+            l7df_interpolated = l7df.reindex(pd.date_range(l7df.index[0], l7df.index[-1], freq=f'{L7_TEMPORAL_RESOLUTION}D'))
+            l7df_interpolated.loc[np.isnan(l7df_interpolated["QUALITY_DESCRIPTION"]), "QUALITY_DESCRIPTION"] = 2
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['cloud_area']), 'cloud_area'] = max(l7df['cloud_area'])
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['cloud_percent']), 'cloud_percent'] = 100
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['non_water_area']), 'non_water_area'] = 0
+            l7df_interpolated.loc[np.isnan(l7df_interpolated['water_area_uncorrected']), 'water_area_uncorrected'] = 0
+
+            # Interpolate bad data (max upto 6-7 months (seasonal) for l7)
+            l7df_interpolated.loc[:, "water_area_corrected"] = l7df_interpolated.loc[:, "water_area_corrected"].interpolate(method="linear", limit_direction="forward", limit=13)
+            l7df_interpolated['sat'] = 'l7'
+
+            TO_MERGE.append(l7df_interpolated)
 
         if os.path.isfile(l8_dfpath):
             # Read in Landsat-8
@@ -65,8 +150,8 @@ class TMS():
                 'corrected_area_cordeiro': 'water_area_corrected'
                 }, axis=1).set_index('date')
             l8df = l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-            l8df['cloud_percent'] = l8df['cloud_area']*100/(l8df['water_area_uncorrected']+l8df['non_water_area']+l8df['cloud_area'])
             l8df.replace(-1, np.nan, inplace=True)
+            l8df['cloud_percent'] = l8df['cloud_area'] * 100 / l8df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -105,8 +190,8 @@ class TMS():
                 'corrected_area_cordeiro': 'water_area_corrected'
                 }, axis=1).set_index('date')
             l9df = l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area', 'water_area_corrected']]
-            l9df['cloud_percent'] = l9df['cloud_area']*100/(l9df['water_area_uncorrected']+l9df['non_water_area']+l9df['cloud_area'])
             l9df.replace(-1, np.nan, inplace=True)
+            l9df['cloud_percent'] = l9df['cloud_area'] * 100 / l9df[['water_area_uncorrected', 'non_water_area', 'cloud_area']].sum(axis=1, skipna=True)
 
             # QUALITY_DESCRIPTION
             #   0: Good, not interpolated either due to missing data or high clouds
@@ -205,13 +290,14 @@ class TMS():
                 sar.loc[extrapolated_date, "sarea"] = extrapolated_value
 
                 sar = sar.rename({'sarea': 'area'}, axis=1)
+                sar_correction = 'Possible'
             # If SAR has less than 3 points
             else:
-                sar = None
+                sar_correction = 'Not Possible'
                 print("Sentinel-1 SAR has less than 3 data points.")
         # If SAR file does not exist
         else:
-            sar = None
+            sar_correction = 'Not Possible'
             print("Sentinel-1 SAR file does not exist.")
         # combine opticals into one dataframes
         
@@ -219,40 +305,91 @@ class TMS():
         optical = optical.loc[~optical.index.duplicated(keep='last')] # when both s2 and l8 are present, keep s2
         optical.rename({'water_area_corrected': 'area'}, axis=1, inplace=True)
 
-
+        error_message = None
         # Apply the trend based corrections
-        if(sar is not None):
-            # If Optical begins before SAR and has a difference of more than 15 days
-            if(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
-                # Optical without SAR
-                optical_with_no_sar = optical[optical.index[0]:sar.index[0]].copy()
-                optical_with_no_sar['non-smoothened optical area'] = optical_with_no_sar['area']
-                optical_with_no_sar.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
-                # Calculate smoothed values with moving weighted average method if more than 7 values; weights are calculated using cloud percent.
-                if len(optical_with_no_sar)>7:
-                    optical_with_no_sar['filled_area'] = weighted_moving_average(optical_with_no_sar['non-smoothened optical area'], weights = (101-optical_with_no_sar['cloud_percent']),window_size=3)
-                # Drop 'area' column from optical_with_no_sar
-                optical_with_no_sar = optical_with_no_sar.drop('area',axis=1)
-                # Optical with SAR
-                optical_with_sar = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
-                # Merge both
-                result = pd.concat([optical_with_no_sar,optical_with_sar],axis=0)
-                # Smoothen the combined surface area estimates to avoid noise or peaks using savgol_filter if more than 9 values (to increase smoothness and include more points as we have both TMS-OS and Optical)
-                if len(result)>9:    
-                    result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
-                method = 'Combine'
-            # If SAR begins before Optical
-            else:
-                result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
-                method = 'TMS-OS'
-        else:
+        if(sar_correction == 'Possible'):
+            try:
+                # If Optical begins before SAR and has a difference of more than 15 days
+                if(sar.index[0]-optical.index[0]>pd.Timedelta(days=15)):
+                    # Optical without SAR
+                    optical_with_no_sar = optical[optical.index[0]:sar.index[0]].copy()
+                    optical_with_no_sar['non-smoothened optical area'] = optical_with_no_sar['area']
+                    optical_with_no_sar.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
+                    # Calculate smoothed values with moving weighted average method if more than 7 values; weights are calculated using cloud percent.
+                    if len(optical_with_no_sar)>7:
+                        # Temporarily interpolate missing values
+                        optical_with_no_sar['interpolated_area'] = optical_with_no_sar['non-smoothened optical area'].interpolate(method='linear')
+                        
+                        # Apply weighted moving average using interpolated values
+                        optical_with_no_sar['smoothed_area'] = weighted_moving_average(
+                            optical_with_no_sar['interpolated_area'], 
+                            weights=(101 - optical_with_no_sar['cloud_percent']), 
+                            window_size=3
+                        )
+                        
+                        # Restore NaN values to preserve the original structure
+                        optical_with_no_sar['filled_area'] = optical_with_no_sar['smoothed_area'].where(
+                            ~optical_with_no_sar['non-smoothened optical area'].isna()
+                        )
+                        
+                        # Drop temporary columns
+                        optical_with_no_sar = optical_with_no_sar.drop(['interpolated_area', 'smoothed_area'], axis=1)
+                        
+                    # Drop 'area' column from optical_with_no_sar
+                    optical_with_no_sar = optical_with_no_sar.drop('area',axis=1)
+                    # Optical with SAR
+                    optical_with_sar = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                    # Merge both
+                    result = pd.concat([optical_with_no_sar,optical_with_sar],axis=0)
+                    # Smoothen the combined surface area estimates to avoid noise or peaks using savgol_filter if more than 9 values (to increase smoothness and include more points as we have both TMS-OS and Optical)
+                    if len(result)>9:    
+                        # Temporarily interpolate missing values for smoothing
+                        result['interpolated_area'] = result['filled_area'].interpolate(method='linear')
+                        
+                        # Apply Savitzky-Golay filter
+                        result['smoothed_filled_area'] = savgol_filter(
+                            result['interpolated_area'], window_length=7, polyorder=3
+                        )
+                        
+                        # Restore NaN values
+                        filled_area_with_nans = result['smoothed_filled_area'].where(
+                            ~result['filled_area'].isna()
+                        )
+                        result['filled_area'] = filled_area_with_nans
+                        
+                        # Drop temporary columns
+                        result = result.drop(['interpolated_area', 'smoothed_filled_area'], axis=1)
+                        
+                    method = 'Combine'
+                # If SAR begins before Optical
+                
+                else:
+                    result = trend_based_correction(optical.copy(), sar.copy(), self.AREA_DEVIATION_THRESHOLD)
+                    method = 'TMS-OS'
+            except Exception as e:
+                sar_correction = 'Failed'
+                error_message = e
+                
+        if sar_correction=='Failed' or sar_correction=='Not Possible':
+            if sar_correction=='Failed':
+                print(f'SAR trend based correction (TMS-OS) failed due to {error_message}. Using only optical data.')
+            
             result = optical.copy()
             result['non-smoothened optical area'] = result['area']
             result.loc[:, 'days_passed'] = optical.index.to_series().diff().dt.days.fillna(0)
             # Calculate smoothed values with Savitzky-Golay method if more than 7 values
             if len(result)>7:
-                result['filled_area'] = weighted_moving_average(result['non-smoothened optical area'], weights = (101-result['cloud_percent']),window_size=3)
-                result['filled_area'] = savgol_filter(result['filled_area'], window_length=7, polyorder=3)
+                filled_area_temp = weighted_moving_average(
+                    result['non-smoothened optical area'].interpolate(method='linear'),  # Temporary interpolate for calculation
+                    weights=(101 - result['cloud_percent']),
+                    window_size=3
+                )
+                
+                # Apply Savitzky-Golay filter
+                smoothed_area_temp = savgol_filter(filled_area_temp, window_length=7, polyorder=3)
+                
+                # Reapply NaN mask to maintain sparse points
+                result['filled_area'] = pd.Series(smoothed_area_temp).where(~result['non-smoothened optical area'].isna())
             method = 'Optical'
         # Returning method used for surface area estimation
         return result,method

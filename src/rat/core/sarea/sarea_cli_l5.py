@@ -1,6 +1,5 @@
-# import geemap as gee
 import ee
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 import time
 import os
@@ -12,32 +11,11 @@ from rat.utils.logging import LOG_NAME, NOTIFICATION
 from rat.utils.utils import days_between
 from logging import getLogger
 
+# Defining global constants
 log = getLogger(f"{LOG_NAME}.{__name__}")
 
-def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
-    "Collect data into non-overlapping fixed-length chunks or blocks"
-    # grouper('ABCDEFG', 3, fillvalue='x') --> ABC DEF Gxx
-    # grouper('ABCDEFG', 3, incomplete='strict') --> ABC DEF ValueError
-    # grouper('ABCDEFG', 3, incomplete='ignore') --> ABC DEF
-    args = [iter(iterable)] * n
-    if incomplete == 'fill':
-        return zip_longest(*args, fillvalue=fillvalue)
-    if incomplete == 'strict':
-        return zip(*args, strict=True)
-    if incomplete == 'ignore':
-        return zip(*args)
-    else:
-        raise ValueError('Expected fill, strict, or ignore')
-
-
-# L8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
-# gswd = ee.Image("JRC/GSW1_3/GlobalSurfaceWater").select("occurrence")
-# Threshold = 0.0
-
-# NEW STUFF
-l8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+l5 = ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")
 gswd = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
-rgb_vis_params = {"bands":["B4","B3","B2"],"min":0,"max":0.4}
 
 NDWI_THRESHOLD = 0.3
 SMALL_SCALE = 30
@@ -45,37 +23,24 @@ MEDIUM_SCALE = 120
 LARGE_SCALE = 500
 BUFFER_DIST = 500
 CLOUD_COVER_LIMIT = 90
-start_date = ee.Date('2019-01-01')
-end_date = ee.Date('2019-02-01')
 TEMPORAL_RESOLUTION = 16
 RESULTS_PER_ITER = 5
 MIN_RESULTS_PER_ITER = 1
 QUALITY_PIXEL_BAND_NAME = 'QA_PIXEL'
-BLUE_BAND_NAME = 'SR_B2'
-GREEN_BAND_NAME = 'SR_B3'
-RED_BAND_NAME = 'SR_B4'
-NIR_BAND_NAME = 'SR_B5'
-SWIR1_BAND_NAME = 'SR_B6'
+BLUE_BAND_NAME = 'SR_B1'
+GREEN_BAND_NAME = 'SR_B2'
+RED_BAND_NAME = 'SR_B3'
+NIR_BAND_NAME = 'SR_B4'
+SWIR1_BAND_NAME = 'SR_B5'
 SWIR2_BAND_NAME = 'SR_B7'
-
-
-# s2_subset = s2.filterBounds(aoi).filterDate(start_date, end_date)
-
-##############################################
-##       Defining necessary functions       ##
-##############################################
-
-
-##########################
-## Dealing with Cloud   ##
-##########################
+MISSION_END_DATE = date(2012,5,6) # last date of landsat 5 data on GEE
 
 def preprocess(im):
     clipped = im   # clipping adds processing overhead, setting clipped = im
     
     # clipped = ee.Image(ee.Algorithms.If('BQA' in clipped.bandNames(), preprocess_image_mask(im), clipped.updateMask(ee.Image.constant(1))))
     # Mask appropriate QA bits
-    QA = im.select(['QA_PIXEL'])
+    QA = im.select([QUALITY_PIXEL_BAND_NAME])
     
     cloudShadowBitMask = 1 << 3
     cloudsBitMask = 1 << 4
@@ -125,6 +90,7 @@ def identify_water_cluster(im, max_cluster_value):
     water_cluster = clusters.get(max_mbwi_index)
 
     return water_cluster
+
 
 def cordeiro(im):
     ## Agglomerative Clustering isn't available, using Cascade K-Means Clustering based on
@@ -195,21 +161,20 @@ def cordeiro(im):
 
 
 def process_image(im):
-    ## FOR SENTINEL-2
-    # im = im.select(['B3', 'B12', 'B2', 'B4', 'B8', 'B11', 'cloud'])
-    ndwi = im.normalizedDifference(['SR_B5', 'SR_B6']).rename('NDWI')
+    ndwi = im.normalizedDifference([NIR_BAND_NAME, SWIR1_BAND_NAME]).rename('NDWI')
     im = im.addBands(ndwi)
-    mndwi = im.normalizedDifference(['SR_B3', 'SR_B6']).rename('MNDWI')
+    mndwi = im.normalizedDifference([GREEN_BAND_NAME, SWIR1_BAND_NAME]).rename('MNDWI')
     im = im.addBands(mndwi)
-    mbwi = im.expression("MBWI = 3*SR_B3-SR_B4-SR_B5-SR_B6-SR_B7", {
-        'SR_B3': im.select('SR_B3'),
-        'SR_B4': im.select('SR_B4'),
-        'SR_B5': im.select('SR_B5'),
-        'SR_B6': im.select('SR_B6'),
-        'SR_B7': im.select('SR_B7')
+    mbwi = im.expression("MBWI = 3*green-red-nir-swir1-swir2", {
+        'green': im.select(GREEN_BAND_NAME),
+        'red': im.select(RED_BAND_NAME),
+        'nir': im.select(NIR_BAND_NAME),
+        'swir1': im.select(SWIR1_BAND_NAME),
+        'swir2': im.select(SWIR2_BAND_NAME)
     })
     im = im.addBands(mbwi)
-
+    
+    #cloud_area = AOI area - area od pixels in cloud band where there is no data because we masked it coz of clouds
     cloud_area = aoi.area().subtract(im.select('cloud').Not().multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(),
         geometry = aoi,
@@ -221,9 +186,10 @@ def process_image(im):
     cordeiro_will_run_when = cloud_percent.lt(CLOUD_COVER_LIMIT)
     # NDWI based water map: Classify water wherever NDWI is greater than NDWI_THRESHOLD and add water_map_NDWI band.
     im = im.addBands(ndwi.gte(NDWI_THRESHOLD).select(['NDWI'], ['water_map_NDWI']))
-    # Clusting based
+    # Clustering based classification of water pixels for cloud pixels when cloud cover is less than CLOUD_COVER_LIMIT
     im = im.addBands(ee.Image(ee.Algorithms.If(cordeiro_will_run_when, cordeiro(im), ee.Image.constant(-1e6))))  # run cordeiro only if cloud percent is < 90%
 
+    # Calculate water area in water_area_cordeiro map
     water_area_cordeiro = ee.Number(ee.Algorithms.If(cordeiro_will_run_when,
         ee.Number(im.select('water_map_cordeiro').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
             reducer = ee.Reducer.sum(), 
@@ -233,6 +199,7 @@ def process_image(im):
         ).get('water_map_cordeiro')),
         ee.Number(-1e6)
     ))
+    # Calculate non-water area in water_area_cordeiro map.
     non_water_area_cordeiro = ee.Number(ee.Algorithms.If(cordeiro_will_run_when,
         ee.Number(im.select('water_map_cordeiro').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
             reducer = ee.Reducer.sum(), 
@@ -243,13 +210,14 @@ def process_image(im):
         ee.Number(-1e6)
     ))
 
-    
+    # Calculate water area in water_map_NDWI.
     water_area_NDWI = ee.Number(im.select('water_map_NDWI').eq(1).multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(), 
         geometry = aoi, 
         scale = SMALL_SCALE, 
         maxPixels = 1e10
     ).get('water_map_NDWI'))
+    # Calculate non-water area in water_map_NDWI.
     non_water_area_NDWI = ee.Number(im.select('water_map_NDWI').neq(1).multiply(ee.Image.pixelArea()).reduceRegion(
         reducer = ee.Reducer.sum(), 
         geometry = aoi, 
@@ -292,8 +260,9 @@ def process_image(im):
         geometry = aoi, 
         scale = SMALL_SCALE, 
         maxPixels = 1e10
-    ).get('water_map_NDWI')) 
+    ).get('water_map_NDWI'))
     
+    # Set attributes to retrive later
     im = im.set('cloud_area', cloud_area.multiply(1e-6))
     im = im.set('cloud_percent', cloud_percent)
     im = im.set('water_area_cordeiro', water_area_cordeiro.multiply(1e-6))
@@ -363,7 +332,6 @@ def postprocess_wrapper(im, bandName, raw_area):
             hist, if_hist_not_null(im,hist), if_hist_null(im)
         ))
         return improved
-        
 
     def dont_post_process():
         improved = ee.Image.constant(-1)
@@ -382,23 +350,25 @@ def postprocess_wrapper(im, bandName, raw_area):
 ## Code from here takes care of the time-series generation   ##
 ############################################################/
 def calc_ndwi(im):
-    return im.addBands(im.normalizedDifference(['SR_B5', 'SR_B6']).rename('NDWI'))
+    return im.addBands(im.normalizedDifference([NIR_BAND_NAME, SWIR1_BAND_NAME]).rename('NDWI'))
 
 def process_date(date):
+    # Given date, calculate end date by adding TEMPORAL_RESOLUTION - 1 days
     date = ee.Date(date)
     from_date = date
     to_date = date.advance(TEMPORAL_RESOLUTION - 1, 'day')
-    l8_subset = l8.filterDate(from_date, to_date).filterBounds(aoi).map(preprocess)
+    # Filter the image collection for these dates and AOI and run preprocess function (cloud calculations, scaling, adding & setting start and end) on them
+    l5_subset = l5.filterDate(from_date, to_date).filterBounds(aoi).map(preprocess)
 
-    # im = ee.Image(ee.Algorithms.If(s2_subset.size().neq(0), s2_subset.map(process_image).qualityMosaic('NDWI'), ee.Image.constant(0)))
-    im = ee.Image(ee.Algorithms.If(l8_subset.size().neq(0), l8_subset.map(calc_ndwi).qualityMosaic('NDWI'), ee.Image.constant(0)))
-    
-    im = ee.Image(ee.Algorithms.If(l8_subset.size().neq(0), process_image(im), ee.Image.constant(0)))
+    # Get mosaic of images if there is atleast one image for this time duration with NDWI as the quality factor (keep High NDWI)
+    im = ee.Image(ee.Algorithms.If(l5_subset.size().neq(0), l5_subset.map(calc_ndwi).qualityMosaic('NDWI'), ee.Image.constant(0)))
+    # Process NDWI Image if there is atleast one image for this time duration
+    im = ee.Image(ee.Algorithms.If(l5_subset.size().neq(0), process_image(im), ee.Image.constant(0)))
 
-    ## im = ee.Algorithms.If(im.bandNames process_image(im))
+    # Set attributes of from and to date along with number of images during the time duration
     im = im.set('from_date', from_date.format("YYYY-MM-dd"))
     im = im.set('to_date', to_date.format("YYYY-MM-dd"))
-    im = im.set('l8_images', l8_subset.size())
+    im = im.set('l5_images', l5_subset.size())
     
     # im = ee.Algorithms.If(im.bandNames().size().eq(1), ee.Number(0), im)
     
@@ -415,7 +385,7 @@ def generate_timeseries(dates):
 def get_first_obs(start_date, end_date):
     # Filter collection, sort by date, and get the first image's timestamp
     first_im = (
-        l8.filterBounds(aoi)
+        l5.filterBounds(aoi)
         .filterDate(start_date, end_date)
         .limit(1, 'system:time_start')  # Explicitly limit by earliest date
         .reduceColumns(ee.Reducer.first(), ['system:time_start'])
@@ -427,71 +397,85 @@ def get_first_obs(start_date, end_date):
     return first_date
 
 def run_process_long(res_name, res_polygon, start, end, datadir, results_per_iter=RESULTS_PER_ITER):
-    fo = start
+    fo = start #fo: first observation
     enddate = end
 
     # Extracting reservoir geometry 
     global aoi
     aoi = poly2feature(res_polygon,BUFFER_DIST).geometry()
-    ## Checking if time interval is small then the image collection should not be empty in GEE
-    if (days_between(start,end) < 30):     # less than a month difference
-        number_of_images = l8.filterBounds(aoi).filterDate(start, end).size().getInfo()
-    else:
-        number_of_images = 1     # more than a month difference simply run, so no need to calculate number_of_images
+
+    ## Checking the number of images in the interval as Landsat 5 might have missing data for a lot of places for longer durations.
+    number_of_images = l5.filterBounds(aoi).filterDate(start, end).size().getInfo()
     
     if(number_of_images):
-        fo = get_first_obs(start, end).getInfo()
+        # getting first observation in the filtered collection
+        print('Checking first observation date in the given time interval.')
+        fo = get_first_obs(start, end).getInfo() 
         first_obs = datetime.strptime(fo, '%Y-%m-%d')
+        print(f"First Observation: {first_obs}")
 
         scratchdir = os.path.join(datadir, "_scratch")
 
         # If data already exists, only get new data starting from the last one
         savepath = os.path.join(datadir, f"{res_name}.csv")
         
+        # If an existing file exists, 
         if os.path.isfile(savepath):
+            # Read the existing file
             temp_df = pd.read_csv(savepath, parse_dates=['mosaic_enddate']).set_index('mosaic_enddate')
 
+            # Get the last date in the existing file and adjust the first observation to before last date (last date might not be for this satellite. Its TMS-OS data's last date.)
             last_date = temp_df.index[-1].to_pydatetime()
             fo = (last_date - timedelta(days=TEMPORAL_RESOLUTION*2)).strftime("%Y-%m-%d")
+            # Create an array with filepath
             to_combine = [savepath]
             print(f"Existing file found - Last observation ({TEMPORAL_RESOLUTION*2} day lag): {last_date}")
 
-            # If 16 days have not passed since last observation, skip the processing
+            # If {TEMPORAL_RESOLUTION} days have not passed since last observation, skip the processing
             days_passed = (datetime.strptime(end, "%Y-%m-%d") - last_date).days
             print(f"No. of days passed since: {days_passed}")
             if days_passed < TEMPORAL_RESOLUTION:
                 print(f"No new observation expected. Quitting early")
                 return None
+        # If no file exists already, create an empty array 
         else:
             to_combine = []
         
-        savedir = os.path.join(scratchdir, f"{res_name}_l8_cordeiro_zhao_gao_{fo}_{enddate}")
+        # Extracting data in scratch directory
+        savedir = os.path.join(scratchdir, f"{res_name}_l5_cordeiro_zhao_gao_{fo}_{enddate}")
         if not os.path.isdir(savedir):
             os.makedirs(savedir)
         
         print(f"Extracting SA for the period {fo} -> {enddate}")
 
+        # Creating list of dates from fo to enddate with frequency of TEMPORAL_RESOLUTION
         dates = pd.date_range(fo, enddate, freq=f'{TEMPORAL_RESOLUTION}D')
+        # Grouping dates into smaller arrays to process in GEE
         grouped_dates = grouper(dates, results_per_iter)
-
+        
         # Until results per iteration is less than min results per iteration
         while results_per_iter >= MIN_RESULTS_PER_ITER:
             # try to run for each subset of dates
             try:
+                # For each smaller array of dates
                 for subset_dates in grouped_dates:
                     try:
                         print(subset_dates)
+                        # Check if the start of subset_dates is after the end date of the mission. If so quit.
+                        if subset_dates[0].date() > MISSION_END_DATE:
+                            print(f"Reached mission end date. No further data available from Landsat-5 satellite mission in GEE - {MISSION_END_DATE}")
+                            break
+                        # Convert dates list to earth engine object
                         dates = ee.List([ee.Date(d) for d in subset_dates if d is not None])
-                        
-                        res = generate_timeseries(dates).filterMetadata('l8_images', 'greater_than', 0)
-                        # pprint.pprint(res.getInfo())
-
-                        uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l8_images',
+                        # Generate Timeseries of one image corresponding to each date with water area in its attributes
+                        res = generate_timeseries(dates).filterMetadata('l5_images', 'greater_than', 0)
+                        # Extracting uncorrected water area and other information from attributes 
+                        uncorrected_columns_to_extract = ['from_date', 'to_date', 'water_area_cordeiro', 'non_water_area_cordeiro', 'cloud_area', 'l5_images',
                                                         'water_red_sum', 'water_green_sum', 'water_nir_sum','water_red_green_mean','water_nir_red_mean']
                         uncorrected_final_data_ee = res.reduceColumns(ee.Reducer.toList(len(uncorrected_columns_to_extract)), uncorrected_columns_to_extract).get('list')
                         uncorrected_final_data = uncorrected_final_data_ee.getInfo()
                         print("Uncorrected", uncorrected_final_data)
-
+                        # Extracting corrected area after corrrecting for cloud covered pixels using zhao gao correction.
                         res_corrected_cordeiro = res.map(lambda im: postprocess_wrapper(im, 'water_map_cordeiro', im.get('water_area_cordeiro')))
                         corrected_columns_to_extract = ['to_date', 'corrected_area']
                         corrected_final_data_cordeiro_ee = res_corrected_cordeiro \
@@ -503,25 +487,12 @@ def run_process_long(res_name, res_polygon, start, end, datadir, results_per_ite
                                                                     ).get('list')
                         corrected_final_data_cordeiro = corrected_final_data_cordeiro_ee.getInfo()
                         print("Corrected - Cordeiro", corrected_final_data_cordeiro)
-
-                        # res_corrected_NDWI = res.map(lambda im: postprocess_wrapper(im, 'water_map_NDWI', im.get('water_area_NDWI')))
-                        # corrected_final_data_NDWI_ee = res_corrected_NDWI \
-                        #                                     .filterMetadata('corrected_area', 'not_equals', None) \
-                        #                                     .reduceColumns(
-                        #                                         ee.Reducer.toList(
-                        #                                             len(corrected_columns_to_extract)), 
-                        #                                             corrected_columns_to_extract
-                        #                                             ).get('list')
-                        
-                        # corrected_final_data_NDWI = corrected_final_data_NDWI_ee.getInfo()
-                        
-                        # print(uncorrected_final_data, corrected_final_data_cordeiro)
+                        # If no data point for this duration, then skip
                         if len(uncorrected_final_data) == 0:
                             continue
+                        # Create pandas dataframes with the extracted information and merge them
                         uncorrected_df = pd.DataFrame(uncorrected_final_data, columns=uncorrected_columns_to_extract)
                         corrected_cordeiro_df = pd.DataFrame(corrected_final_data_cordeiro, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_cordeiro'}, axis=1)
-                        # corrected_NDWI_df = pd.DataFrame(corrected_final_data_NDWI, columns=corrected_columns_to_extract).rename({'corrected_area': 'corrected_area_NDWI'}, axis=1)
-                        # corrected_df = pd.merge(corrected_cordeiro_df, corrected_NDWI_df, 'left', 'to_date')
                         df = pd.merge(uncorrected_df, corrected_cordeiro_df, 'left', 'to_date')
 
                         df['from_date'] = pd.to_datetime(df['from_date'], format="%Y-%m-%d")
@@ -529,10 +500,10 @@ def run_process_long(res_name, res_polygon, start, end, datadir, results_per_ite
                         df['mosaic_enddate'] = df['to_date'] - pd.Timedelta(1, unit='day')
                         df = df.set_index('mosaic_enddate')
                         print(df.head(2))
-
+                        # Save the dataframe on the disk
                         fname = os.path.join(savedir, f"{df.index[0].strftime('%Y%m%d')}_{df.index[-1].strftime('%Y%m%d')}_{res_name}.csv")
                         df.to_csv(fname)
-
+                        # Create a randonm sleep time
                         s_time = randint(20, 30)
                         print(f"Sleeping for {s_time} seconds")
                         time.sleep(randint(20, 30))
@@ -569,25 +540,40 @@ def run_process_long(res_name, res_polygon, start, end, datadir, results_per_ite
             else:
                 break
         
-
-
         # Combine the files into one database
         to_combine.extend([os.path.join(savedir, f) for f in os.listdir(savedir) if f.endswith(".csv")])
         if len(to_combine):
             files = [pd.read_csv(f, parse_dates=["mosaic_enddate"]).set_index("mosaic_enddate") for f in to_combine]
-            data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
 
+            data = pd.concat(files).drop_duplicates().sort_values("mosaic_enddate")
             data.to_csv(savepath)
 
             return savepath
         else:
             print(f"Observed data between {start} and {end} could not be processed to get surface area. It may be due to cloud cover or other issues, Quitting!")
             return None
-        
     else:
         print(f"No observation observed between {start} and {end}. Quitting!")
         return None
 
 # User-facing wrapper function
-def sarea_l8(res_name,res_polygon, start, end, datadir):
+def sarea_l5(res_name,res_polygon, start, end, datadir):
     return run_process_long(res_name,res_polygon, start, end, datadir)
+
+
+
+def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
+    "Collect data into non-overlapping fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, fillvalue='x') --> ABC DEF Gxx
+    # grouper('ABCDEFG', 3, incomplete='strict') --> ABC DEF ValueError
+    # grouper('ABCDEFG', 3, incomplete='ignore') --> ABC DEF
+    args = [iter(iterable)] * n
+    if incomplete == 'fill':
+        return zip_longest(*args, fillvalue=fillvalue)
+    if incomplete == 'strict':
+        return zip(*args, strict=True)
+    if incomplete == 'ignore':
+        return zip(*args)
+    else:
+        raise ValueError('Expected fill, strict, or ignore')
+    

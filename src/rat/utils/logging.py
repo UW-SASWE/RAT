@@ -83,9 +83,13 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False, lo
         if(for_basin):
             log_file = os.path.join(log_dir, 'RAT-'+ basin_name + strftime('%Y%m%d-%H%M%S',
                                 gmtime()) + '.log')
+            log_detail = 'LEVEL 2'
+            log_mode = 'DETAILED'
         else:
             log_file = os.path.join(log_dir, 'RAT_run-'+ strftime('%Y%m%d-%H%M%S',
                                 gmtime()) + '.log')
+            log_detail = 'LEVEL 1'
+            log_mode = 'BRIEF'
         fh = logging.FileHandler(log_file)
         fh.setLevel(log_level)
         fh.setFormatter(FORMATTER)
@@ -126,9 +130,12 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False, notify=False, lo
     logger.info('Logging To Console: %s', verbose)
     logger.info('LOG FILE: %s', log_file)
     logger.info('NOTIFY: %s', notify)
-    logger.info('----------------------------------------------------------\n')
+    logger.info('----------------------------------------------------------------')
+    logger.info('LOG DETAIL: %s', log_detail)  
+    logger.info('LOG MODE: %s', log_mode) 
+    logger.info('----------------------------------------------------------------\n')
 
-    return logger
+    return logger, log_file
 # -------------------------------------------------------------------- #
 
 

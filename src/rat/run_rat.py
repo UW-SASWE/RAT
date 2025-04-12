@@ -3,6 +3,7 @@ from io import StringIO
 import datetime
 import copy
 import os
+import sys
 
 import pandas as pd
 import numpy as np
@@ -38,8 +39,7 @@ def run_rat(config_fn, operational_latency=None ):
 
     # Logging this run
     log_dir = os.path.join(config['GLOBAL']['data_dir'],'runs','logs','')
-    print(f"Logging this run at {log_dir}")
-    log = init_logger(
+    log, log_file_path = init_logger(
         log_dir,
         verbose=False,
         # notify=True,
@@ -48,6 +48,7 @@ def run_rat(config_fn, operational_latency=None ):
         logger_name=LOG_LEVEL1_NAME,
         for_basin=False
     )
+    print(f"Logging this run at {log_file_path}")
 
     log.debug("Initiating Dask Client ... ")
     cluster = LocalCluster(name="RAT", n_workers=config['GLOBAL']['multiprocessing'], threads_per_worker=1)
@@ -66,12 +67,15 @@ def run_rat(config_fn, operational_latency=None ):
         with StringIO() as fake_stderr, redirect_stderr(fake_stderr):
             ee_credentials = ee.ServiceAccountCredentials(ee_configuration.service_account,ee_configuration.key_file)
             ee.Initialize(ee_credentials)
-        log.info("Connected to earth engine succesfully.")
+        log.info("Connected to earth engine successfully.\n")
     except Exception as e:
         log.error(f"Failed to connect to Earth Engine. RAT will not be able to use Surface Area Estimations. Error: {e}")
+    finally:
+        # Ensure sys.stderr is restored
+        sys.stderr = sys.__stderr__
 
     ############################ ----------- Single basin run ---------------- ######################################
-    if(not config['GLOBAL']['multiple_basin_run']):
+    if(not config['GLOBAL'].get('multiple_basin_run')):
         log.info('############## Starting RAT for '+config['BASIN']['basin_name']+' #################')
         
         # Checking if Rat is running operationally with some latency. If yes, update start, end and vic_init_state dates.
@@ -143,7 +147,7 @@ def run_rat(config_fn, operational_latency=None ):
                 if(forecast_no_errors>0):
                     log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                 elif(forecast_no_errors==0):
-                    log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                    log.info('############## Successfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
                 else:
                     log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
         # Displaying and storing RAT function outputs in the copy (non-mutabled as it was not passes to function)
@@ -153,7 +157,7 @@ def run_rat(config_fn, operational_latency=None ):
         if(no_errors>0):
             log.info('############## RAT run finished for '+config['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
         elif(no_errors==0):
-            log.info('############## Succesfully run RAT for '+config['BASIN']['basin_name']+' #################')
+            log.info('############## Successfully run RAT for '+config['BASIN']['basin_name']+' #################')
         else:
             log.error('############## RAT run failed for '+config['BASIN']['basin_name']+' #################')
 
@@ -163,7 +167,7 @@ def run_rat(config_fn, operational_latency=None ):
         try:
             basins_metadata = pd.read_csv(config['GLOBAL']['basins_metadata'],header=[0,1])
         except:
-            raise("Please provide the proper path of a csv file in basins_metadata in the Global section of RAT's config file")
+            raise Exception("Please provide the proper path of a csv file in basins_metadata in the Global section of RAT's config file")
         if ('BASIN','run') in basins_metadata.columns:
             basins_metadata_filtered = basins_metadata[basins_metadata['BASIN','run']==1]
         ####### Remove in future version : Deprecation (start)########
@@ -172,13 +176,13 @@ def run_rat(config_fn, operational_latency=None ):
             if ('BASIN','basin_name') in basins_metadata.columns:
                 basins_metadata_filtered = basins_metadata[basins_metadata['BASIN','basin_name'].isin(config['GLOBAL']['basins_to_process'])]
             else:
-                raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
+                raise Exception("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
         ####### Remove in future version : Deprecation (end) ########
         
         if ('BASIN','basin_name') in basins_metadata.columns:
             basins_to_process = basins_metadata_filtered['BASIN','basin_name'].tolist()
         else:
-            raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
+            raise Exception("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
 
         # For each basin
         for basin in basins_to_process:
@@ -294,7 +298,7 @@ def run_rat(config_fn, operational_latency=None ):
                 if config.get('PLUGINS', {}).get('forecasting'):
                     # Importing the forecast module
                     try:
-                        from plugins.forecasting.forecast_basin import forecast
+                        from rat.plugins.forecasting.forecast_basin import forecast
                     except:
                         log.exception("Failed to import Forecast plugin due to missing package(s).")
                     log.info('############## Starting RAT forecast for '+config['BASIN']['basin_name']+' #################')
@@ -302,7 +306,7 @@ def run_rat(config_fn, operational_latency=None ):
                     if(forecast_no_errors>0):
                         log.info('############## RAT-Forecasting run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(forecast_no_errors)+' error(s). #################')
                     elif(forecast_no_errors==0):
-                        log.info('############## Succesfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
+                        log.info('############## Successfully run RAT-Forecasting for '+config_copy['BASIN']['basin_name']+' #################')
                     else:
                         log.error('############## RAT-Forecasting run failed for '+config_copy['BASIN']['basin_name']+' #################')
             # Displaying and storing RAT function outputs
@@ -313,11 +317,11 @@ def run_rat(config_fn, operational_latency=None ):
                 basins_metadata['ALTIMETER','last_cycle_number'].where(basins_metadata['BASIN','basin_name']!= basin, latest_altimetry_cycle, inplace=True)
                 basins_metadata.to_csv(config_copy['GLOBAL']['basins_metadata'], index=False)
             if(no_errors>0):
-                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################')
+                log.info('############## RAT run finished for '+config_copy['BASIN']['basin_name']+ ' with '+str(no_errors)+' error(s). #################\n')
             elif(no_errors==0):
-                log.info('############## Succesfully run RAT for '+config_copy['BASIN']['basin_name']+' #################')
+                log.info('############## Successfully run RAT for '+config_copy['BASIN']['basin_name']+' #################\n')
             else:
-                log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################')
+                log.error('############## RAT run failed for '+config_copy['BASIN']['basin_name']+' #################\n')
 
     # Closing logger
     close_logger('rat_run')

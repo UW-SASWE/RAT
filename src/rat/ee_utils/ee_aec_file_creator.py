@@ -4,12 +4,14 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from itertools import zip_longest,chain
-from rat.ee_utils.ee_utils import poly2feature
+from rat.ee_utils.ee_utils import poly2feature, simplify_geometry
 from pathlib import Path
 from scipy.optimize import minimize
 from scipy.integrate import cumulative_trapezoid
 from shapely.geometry import Point
 
+
+WATER_SAREA_DIFF_Z_THRESHOLD = 3.0
 BUFFER_DIST = 500
 DEM = ee.Image('USGS/SRTMGL1_003')
 
@@ -35,7 +37,9 @@ def _aec(n,elev_dem,roi, scale=30):
     DEM141Count = DEM141.reduceRegion(
         geometry= roi,
         scale= scale,
-        reducer= ee.Reducer.sum()
+        reducer= ee.Reducer.sum(),
+        maxPixels = 1e16,
+        bestEffort=True
     )
     area=ee.Number(DEM141Count.get('elevation')).multiply(30*30).divide(1e6)
     return area
@@ -49,15 +53,25 @@ def get_obs_aec_above_water_surface(aec):
 
     Returns:
         pd.DataFrame: A DataFrame containing the filtered and processed AEC data with 'Elevation' and 'CumArea' columns.
+        Boolean: Boolean indicating whether the AEC data has water surface or not.
     """
     obs_aec_above_water = aec.sort_values('Elevation')
     obs_aec_above_water['CumArea_diff'] = obs_aec_above_water['CumArea'].diff()
-    obs_aec_above_water['z_score'] = (obs_aec_above_water['CumArea_diff'] - obs_aec_above_water['CumArea'].mean()) / obs_aec_above_water['CumArea'].std()
+    obs_aec_above_water['z_score'] = (obs_aec_above_water['CumArea_diff'] - obs_aec_above_water['CumArea_diff'].mean()) / obs_aec_above_water['CumArea_diff'].std()
+    max_z_score = obs_aec_above_water['z_score'].max()
     max_z_core_idx = obs_aec_above_water['z_score'].idxmax()
-    obs_aec_above_water = obs_aec_above_water.loc[max_z_core_idx:, :]
-    obs_aec_above_water = obs_aec_above_water[['Elevation', 'CumArea']]
-
-    return obs_aec_above_water
+    if max_z_score > WATER_SAREA_DIFF_Z_THRESHOLD:
+        obs_aec_above_water = obs_aec_above_water.loc[max_z_core_idx:, :]
+        obs_aec_above_water = obs_aec_above_water[['Elevation', 'CumArea']]
+        water_surface_exists = True
+        print(f"Clipped to elevations above water surface. Max Sarea difference zscore is {max_z_score}.")
+    else:
+        obs_aec_above_water = obs_aec_above_water[['Elevation', 'CumArea']]
+        water_surface_exists = False
+        print(f"Skipped clipping as No water surface was found using AEC because max 'sarea difference' zscore is {max_z_score}. Either the reservoir was created after DEM data was aquired or the AEC is already extrapolated.")
+        pass
+    
+    return obs_aec_above_water, water_surface_exists
 
 def calculate_storage(aec_df):
     """
@@ -269,7 +283,7 @@ def get_dam_bottom(
         # Load GRWL data
         grwl = gpd.read_file(grwl_fp)
         # Check if GRWL intersects with reservoir geometry
-        intersection = grwl.intersects(reservoir.union_all())
+        intersection = grwl.intersects(reservoir.unary_union)
     else:
         intersection = np.array([False])
 
@@ -331,13 +345,27 @@ def extrapolate_reservoir(
     Returns:
         pd.DataFrame: DataFrame containing the predicted storage values with columns 'CumArea', 'Elevation', 'Storage', 'Storage (mil. m3)', and 'Elevation_Observed'.
     """
+    aec_original = aec.copy()
+    
     dam_bottom_elevation, method = get_dam_bottom(reservoir, buffer_distance=buffer_distance, dam_location=dam_location, grwl_fp=grwl_fp) # from GRWL downstream point
-    dam_top_elevation = dam_bottom_elevation + dam_height
-
     print(f"Dam bottom elevation for {reservoir_name} is {dam_bottom_elevation}")
-    print(f"Dam top elevation for {reservoir_name} is {dam_top_elevation}")
+    
+    if dam_height>0:
+        dam_top_elevation = dam_bottom_elevation + dam_height
+        print(f"Dam height for {reservoir_name} is {dam_height}")
+        print(f"Dam top elevation for {reservoir_name} is {dam_top_elevation}")
 
-    aec = aec[(aec['Elevation'] > dam_bottom_elevation)&(aec['Elevation'] <= dam_top_elevation)]
+        # Remove elevations below and above dam's bottom and top elevation. If less than 5 observations are left, then just remove elevations below dam bottom.
+        aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)&(aec_original['Elevation'] <= dam_top_elevation)]
+        if len(aec) > 5:
+            pass
+        else:
+            aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)]
+    else:
+        print(f"Dam height is not available for {reservoir_name} : {dam_height}")
+        print("Using all the elevation data above dam bottom elevation.")
+        aec = aec_original[(aec_original['Elevation'] > dam_bottom_elevation)]
+        
     x = aec['CumArea']
     y = aec['Elevation']
 
@@ -387,7 +415,7 @@ def extrapolate_reservoir(
     return predicted_storage_df
 
 
-def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=False):
+def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=False, simplification=True):
     """
     Generates an observed Area-Elevation Curve (AEC) file for a given reservoir using SRTM data.
     The function checks if an AEC file already exists for the given reservoir. If it does, it reads the file and returns the data.
@@ -399,9 +427,11 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
         reservoir (object): The reservoir object containing geometry information.
         reservoir_name (str): The name of the reservoir.
         clip_to_water_surf (bool): If True, clips the AEC data to elevations above the water surface. Default is False.
+        simplification (bool): If true, reservoir geometry will be simplified before use (only if shape index is extremely high). Default is True.
         
     Returns:
         pd.DataFrame: A DataFrame containing the elevation and cumulative area data.
+        Boolean : Boolean indicating whether the AEC data has water surface or not.
     """
     print(f"Generating observed AEC file for {reservoir_name} from SRTM")
     aec_dst_fp = os.path.join(aec_dir_path,reservoir_name+'.csv')
@@ -413,11 +443,14 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
         # done already. In that case, the 'CumArea' and 'Elevation_Observed' represent the SRTM 
         # observed AEC.
         if 'Elevation_Observed' in aec_df.columns:
-            aec_df = aec_df[['CumArea', 'Elevation_Observed']].rename({'Elevation_Observed': 'Elevation'}, axis=1)
-            aec_df = aec_df.dropna(subset='Elevation')
+            # aec_df = aec_df[['CumArea', 'Elevation_Observed']].rename({'Elevation_Observed': 'Elevation'}, axis=1)
+            # aec_df = aec_df.dropna(subset='Elevation')
             clip_to_water_surf = False # in this case, clipping is not required. set it to false
     else:
         reservoir_polygon = reservoir.geometry
+        if simplification:
+            # Below function simplifies geometry with shape index (complexity) higher than a threshold, otherwise original geometry is retained
+            reservoir_polygon = simplify_geometry(reservoir_polygon)
         aoi = poly2feature(reservoir_polygon,BUFFER_DIST).geometry()
         min_elev = DEM.reduceRegion( reducer = ee.Reducer.min(),
                             geometry = aoi,
@@ -458,14 +491,12 @@ def get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_wat
         print(f"Observed AEC obtained from SRTM for {reservoir_name}")
 
     if clip_to_water_surf:
-        aec_df = get_obs_aec_above_water_surface(
-            aec_df
-        )
-        print(f"Clipped to elevations above water surface")
-
+        aec_df,water_surface_exists = get_obs_aec_above_water_surface(aec_df)
+    else:
+        water_surface_exists = False
     aec_df.to_csv(aec_dst_fp,index=False)
 
-    return aec_df
+    return aec_df, water_surface_exists
 
 def aec_file_creator(
         reservoir_shpfile, shpfile_column_dict, aec_dir_path, 
@@ -511,19 +542,22 @@ def aec_file_creator(
         reservoir_gpd = reservoir_gpd.set_crs(reservoirs_polygon.crs)
 
         reservoir_name = str(reservoir[shpfile_column_dict['unique_identifier']])
-        dam_height = float(reservoir[shpfile_column_dict['dam_height']])
+        if reservoir[shpfile_column_dict['dam_height']] is not None:
+            dam_height = float(reservoir[shpfile_column_dict['dam_height']])
+        else:
+            dam_height = np.nan
         dam_lat = float(reservoir[shpfile_column_dict['dam_lat']])
         dam_lon = float(reservoir[shpfile_column_dict['dam_lon']])
         dam_location = Point(dam_lon, dam_lat)
 
-        aec = get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=True)
+        aec, water_surface_exists = get_obs_aec_srtm(aec_dir_path, scale, reservoir, reservoir_name, clip_to_water_surf=True)
 
-        if dam_height > 0:
+        if water_surface_exists:
             extrapolate_reservoir(
                 reservoir_gpd, dam_location, reservoir_name, dam_height, aec,
                 aec_dir_path, grwl_fp=grwl_fp
             )
         else:
-            print(f"Dam height can't be used to extrapolate aev: {dam_height}")
+            print(f"No extrapolation was done in AEC for reservoir {reservoir_name} because of absence of water surface in AEC.")
 
     return 1

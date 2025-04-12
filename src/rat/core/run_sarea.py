@@ -3,19 +3,24 @@ import geopandas as gpd
 
 from logging import getLogger
 from rat.utils.logging import LOG_NAME, NOTIFICATION, LOG_LEVEL1_NAME
+from rat.ee_utils.ee_utils import simplify_geometry
 
 from rat.core.sarea.sarea_cli_s2 import sarea_s2
+from rat.core.sarea.sarea_cli_l5 import sarea_l5
+from rat.core.sarea.sarea_cli_l7 import sarea_l7
 from rat.core.sarea.sarea_cli_l8 import sarea_l8
 from rat.core.sarea.sarea_cli_l9 import sarea_l9
 from rat.core.sarea.sarea_cli_sar import sarea_s1
 from rat.core.sarea.bot_filter import bot_filter
 from rat.core.sarea.TMS import TMS
+from rat.core.sarea.multisensor_ssc_integrator import multi_sensor_ssc_integration, normalize_ssc
+
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
 
-def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_dict, filt_options = None):
+def run_sarea(start_date, end_date, sarea_save_dir, reservoirs_shpfile, shpfile_column_dict, filt_options = None, nssc_save_dir = None):
     if isinstance(reservoirs_shpfile, gpd.GeoDataFrame):
         reservoirs_polygon = reservoirs_shpfile
     else:
@@ -34,7 +39,7 @@ def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_
             reservoir_area = float(reservoir[shpfile_column_dict['area_column']])
             reservoir_polygon = reservoir.geometry
             log.info(f"Calculating surface area for {reservoir_name}.")
-            method = run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir)
+            method = run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, sarea_save_dir, nssc_save_dir)
             log.info(f"Calculated surface area for {reservoir_name} successfully using {method} method.")
             if method == 'Optical':
                 Optical_files += 1
@@ -60,35 +65,60 @@ def run_sarea(start_date, end_date, datadir, reservoirs_shpfile, shpfile_column_
                 log_level1.error(f"BOT Filter run failed for all reservoirs.")
                 log_level1.error("Filter values out of bounds. Please ensure that a value in between 0 and 9 is selected")
         else:
-            bot_filter(datadir,shpfile_column_dict,reservoirs_shpfile,**filt_options)    
+            bot_filter(sarea_save_dir,shpfile_column_dict,reservoirs_shpfile,**filt_options)    
 
-def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, datadir):
-
+def run_sarea_for_res(reservoir_name, reservoir_area, reservoir_polygon, start_date, end_date, sarea_save_dir, nssc_save_dir, simplification=True):
+    
+    if simplification:
+        # Below function simplifies geometry with shape index (complexity) higher than a threshold, otherwise original geometry is retained
+        reservoir_polygon = simplify_geometry(reservoir_polygon)
+    
     # Obtain surface areas
     # Sentinel-2
     log.debug(f"Reservoir: {reservoir_name}; Downloading Sentinel-2 data from {start_date} to {end_date}")
-    sarea_s2(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 's2'))
-    s2_dfpath = os.path.join(datadir, 's2', reservoir_name+'.csv')
+    sarea_s2(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(sarea_save_dir, 's2'))
+    s2_dfpath = os.path.join(sarea_save_dir, 's2', reservoir_name+'.csv')
+
+    # Landsat-5
+    log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-5 data from {start_date} to {end_date}")
+    sarea_l5(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(sarea_save_dir, 'l5'))
+    l5_dfpath = os.path.join(sarea_save_dir, 'l5', reservoir_name+'.csv')
+    
+    # Landsat-7
+    log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-7 data from {start_date} to {end_date}")
+    sarea_l7(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(sarea_save_dir, 'l7'))
+    l7_dfpath = os.path.join(sarea_save_dir, 'l7', reservoir_name+'.csv')
 
     # Landsat-8
     log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-8 data from {start_date} to {end_date}")
-    sarea_l8(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'l8'))
-    l8_dfpath = os.path.join(datadir, 'l8', reservoir_name+'.csv')
+    sarea_l8(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(sarea_save_dir, 'l8'))
+    l8_dfpath = os.path.join(sarea_save_dir, 'l8', reservoir_name+'.csv')
     
     # Landsat-9
     log.debug(f"Reservoir: {reservoir_name}; Downloading Landsat-9 data from {start_date} to {end_date}")
-    sarea_l9(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'l9'))
-    l9_dfpath = os.path.join(datadir, 'l9', reservoir_name+'.csv')
+    sarea_l9(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(sarea_save_dir, 'l9'))
+    l9_dfpath = os.path.join(sarea_save_dir, 'l9', reservoir_name+'.csv')
 
     # Sentinel-1
     log.debug(f"Reservoir: {reservoir_name}; Downloading Sentinel-1 data from {start_date} to {end_date}")
-    s1_dfpath = sarea_s1(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(datadir, 'sar'))
-    s1_dfpath = os.path.join(datadir, 'sar', reservoir_name+'_12d_sar.csv')
+    s1_dfpath = sarea_s1(reservoir_name, reservoir_polygon, start_date, end_date, os.path.join(sarea_save_dir, 'sar'))
+    s1_dfpath = os.path.join(sarea_save_dir, 'sar', reservoir_name+'_12d_sar.csv')
 
+    # Using TMSOS to ensemble surface area data
     tmsos = TMS(reservoir_name, reservoir_area)
-    result,method = tmsos.tms_os(l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath, s2_dfpath=s2_dfpath, s1_dfpath=s1_dfpath)
-
-    tmsos_savepath = os.path.join(datadir, reservoir_name+'.csv')
+    result,method = tmsos.tms_os(l5_dfpath=l5_dfpath, l7_dfpath=l7_dfpath, l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath,
+                                  s2_dfpath=s2_dfpath, s1_dfpath=s1_dfpath)
+    tmsos_savepath = os.path.join(sarea_save_dir, reservoir_name+'.csv')
     log.debug(f"Saving surface area of {reservoir_name} at {tmsos_savepath}")
     result.reset_index().rename({'index': 'date', 'filled_area': 'area'}, axis=1).to_csv(tmsos_savepath, index=False)
+    
+    # NSSC calculations
+    if nssc_save_dir:
+        ssc_components_df = multi_sensor_ssc_integration(l5_dfpath=l5_dfpath, l7_dfpath=l7_dfpath, l9_dfpath=l9_dfpath, l8_dfpath=l8_dfpath,
+                                    s2_dfpath=s2_dfpath)
+        nssc_df = normalize_ssc(ssc_components_df)
+        nssc_savepath = os.path.join(nssc_save_dir, reservoir_name+'.csv')
+        log.debug(f"Saving NSSC data of {reservoir_name} at {nssc_savepath}")
+        nssc_df.to_csv(nssc_savepath, index=False)
+    
     return method

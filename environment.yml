@@ -16,8 +16,14 @@ dependencies:
   - ruamel_yaml
   - yaml
   - gdown
+  - plotly
   - cfgrib
   - conda-build
+  - gfortran
+  - make
+  - gdal
+  - libnetcdf
+  - libgdal-netcdf
   - pip 
   - pip:
     - geonetworkx
