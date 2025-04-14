@@ -4,7 +4,7 @@ RAT {{rat_version.major}}.{{rat_version.minor}} can be executed and implemented 
 
 ## Execution/Operationalization
 
-`run_rat` function is used to execxute RAT {rat_version.major}}.{{rat_version.minor}} in python. It can also be used to operationalize RAT. This function has the following paramters:
+`run_rat` function is used to execxute RAT {{rat_version.major}}.{{rat_version.minor}} in python. It can also be used to operationalize RAT. This function has the following paramters:
 
 * <h6 class="parameter_heading">*`config_fn`* :</h6> 
     <span class="requirement">Required parameter</span>

@@ -6,9 +6,10 @@ To implement this feature RAT uses `basins_metadata` which is a csv file that is
 
 ![Screenshot of Basins_Metadata.csv](../images/configure/basins_metadata_sample.jpg)
 
-It should definitely have the index `basin_name` for section `BASIN` as it needs to be different for all basins and same is true for `basin_id`. Rest all those parameters which do not vary between basins can be provided in the configuration file and those which will vary must be provided in the `basins_metadata` csv file. 
+It should definitely have the index `basin_name` for section `BASIN` as it needs to be different for all basins and same is true for `basin_id` and `run`. Please note that `run` is a parameter in `BASIN` section required in `basins_metadata` when `multiple_basin_run` in `GLOBAL` section is `true`. Rest all those parameters which do not vary between basins can be provided in the configuration file and those which will vary must be provided in the `basins_metadata` csv file. 
 
 !!! tip_note "Tip"
     1. To make use of `basins_metadata`, `multiple_basin_run` in `GLOBAL` section should be `true`.
     2. The values of `basin_name` from  `basins_metadata` should be provided in the list `basins_to_process` for all the river basins for which you want to run RAT for.
-    3. A sample copy of `basins_metadata` is provided in 'params' folder inside `project_dir` with the name of 'basins_metadata_sample.csv'.
+    3. Multi-index column ['BASIN']['run'] in 'basins_metadata' file is required and should have value 1 corresponding to each ['BASIN']['basin_name'] for which you want to run RAT for, otherwise 0.
+    4. A sample copy of `basins_metadata` is provided in 'params' folder inside `project_dir` with the name of 'basins_metadata_sample.csv'.

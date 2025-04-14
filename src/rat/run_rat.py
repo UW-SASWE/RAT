@@ -174,6 +174,8 @@ def run_rat(config_fn, operational_latency=None ):
             else:
                 raise("No column in 'basins_metadata' file corresponding to 'basin_name' in 'BASIN' section of RAT's config file.")
         ####### Remove in future version : Deprecation (end) ########
+        else:
+            raise ValueError("Multi-index column ['BASIN']['run'] in 'basins_metadata' file is missing. It is required and should have value either 1 or 0 corresponding to each ['BASIN']['basin_name'].")
         
         if ('BASIN','basin_name') in basins_metadata.columns:
             basins_to_process = basins_metadata_filtered['BASIN','basin_name'].tolist()
