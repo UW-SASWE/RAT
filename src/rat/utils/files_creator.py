@@ -61,39 +61,28 @@ def create_vic_domain_param_file(global_vic_param_file,global_vic_domain_file,ba
 
     #Inserting run_cell as mask of basin_grid in vic_param.nc
     basin_vic_param=gl_param.interp(lon=np.array([round_up(x,5) for x in basin_grid.lon.data ]),lat=np.array([round_up(x,5) for x in basin_grid.lat.data ]),method='nearest')
-    # Identify cells where 'run_cell' is NaN in original vic soil params (coz of oceanic region)
-    mask = basin_vic_param['run_cell'].isnull()
-    # Change run_cell to basin grid cells
     basin_vic_param['run_cell']=(('lat','lon'),basin_grid.data.astype('int32'))
-    if mask.sum()!=0:
-        # Make run_cell 0 over the null cells of original vic soil params (oceanic regions)
-        basin_vic_param['run_cell'] = basin_vic_param['run_cell'].where(~mask, 0)
-    
     #Saving vic_param.nc
     basin_vic_param.to_netcdf(os.path.join(output_dir_path,'vic_soil_param.nc'))
 
-    #Inserting mask as mask of basin_grid in vic_param.nc
+    #Inserting run_cell as mask of basin_grid in vic_param.nc
     basin_vic_domain=gl_domain.interp(lon=np.array([round_up(x,5) for x in basin_grid.lon.data ]),lat=np.array([round_up(x,5) for x in basin_grid.lat.data ]),method='nearest')
     basin_vic_domain['mask']=(('lat','lon'),basin_grid.data.astype('int32'))
-    if mask.sum()!=0:
-        # Make mask 0 over the null cells of original vic soil params (oceanic regions)
-        basin_vic_domain['mask'] = basin_vic_domain['mask'].where(~mask, 0)
     #Saving vic_domain.nc
     basin_vic_domain.to_netcdf(os.path.join(output_dir_path,'vic_domain.nc'))
 
 def create_basin_grid_flow_asc(global_flow_grid_dir_tif, basingridfile_path, savepath, flow_direction_replace_dict = None):
-    if not os.path.exists(savepath+'.tif'):
-        global_flow_grid_dir=rxr.open_rasterio(global_flow_grid_dir_tif)
-        basin_grid=rxr.open_rasterio(basingridfile_path)
-        basin_flow_grid_dir = global_flow_grid_dir.interp(x=np.array([round_up(i,5) for i in basin_grid.x.data ]),
-                                                                        y=np.array([round_up(i,5) for i in basin_grid.y.data ]),method='nearest')
-        if (flow_direction_replace_dict):
-            for i in flow_direction_replace_dict:
-                basin_flow_grid_dir = basin_flow_grid_dir.where(basin_flow_grid_dir!=i, flow_direction_replace_dict[i])
+    global_flow_grid_dir=rxr.open_rasterio(global_flow_grid_dir_tif)
+    basin_grid=rxr.open_rasterio(basingridfile_path)
+    basin_flow_grid_dir = global_flow_grid_dir.interp(x=np.array([round_up(i,5) for i in basin_grid.x.data ]),
+                                                                    y=np.array([round_up(i,5) for i in basin_grid.y.data ]),method='nearest')
+    if (flow_direction_replace_dict):
+        for i in flow_direction_replace_dict:
+            basin_flow_grid_dir = basin_flow_grid_dir.where(basin_flow_grid_dir!=i, flow_direction_replace_dict[i])
 
-        basin_flow_grid_dir = basin_flow_grid_dir.rio.write_nodata(0)
-        basin_flow_grid_dir = basin_flow_grid_dir.where(basin_grid.data==1,0)
-        basin_flow_grid_dir.rio.to_raster(savepath+'.tif', dtype='int16')
+    basin_flow_grid_dir = basin_flow_grid_dir.rio.write_nodata(0)
+    basin_flow_grid_dir = basin_flow_grid_dir.where(basin_grid.data==1,0)
+    basin_flow_grid_dir.rio.to_raster(savepath+'.tif', dtype='int16')
 
     # Change format, and save as asc file
     cmd = [
@@ -169,11 +158,11 @@ def create_basin_reservoir_shpfile(reservoir_shpfile,reservoir_shpfile_column_di
     reservoirs_gdf_column_dict = reservoir_shpfile_column_dict
 
     if routing_station_global_data:
-        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, predicate="within", how="inner")[reservoirs.columns]
+        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, "inner")[reservoirs.columns]
         reservoirs_spatialjoin['uniq_id'] = reservoirs_spatialjoin[reservoirs_gdf_column_dict['id_column']].astype(str)+'_'+ \
                             reservoirs_spatialjoin[reservoirs_gdf_column_dict['dam_name_column']].astype(str).str.replace(' ','_')
     else:
-        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, predicate="within", how="inner")[reservoirs.columns]
+        reservoirs_spatialjoin = gpd.sjoin(reservoirs, basin_data_crs_changed, "inner")[reservoirs.columns]
     
     if(reservoirs_spatialjoin.empty):
         raise Exception('Reservoir names in reservoir shapefile are not matching with the station names in the station file used for routing.')

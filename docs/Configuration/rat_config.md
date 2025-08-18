@@ -37,22 +37,7 @@ RAT config file has 12 major sections that defines several parameters which are 
             -1
             -2
     ```
-
-* <h6 class="parameter_heading">*`cleaning`* :</h6> 
-    <span class="requirement">Optional parameter</span>
-
-    <span class="parameter_property">Description </span>: Boolean flag indicating whether to do cleaning during RAT run. If True, it cleans the data specified by the [`CLEAN UP`](#clean-up) section in the configuration file.
-
-    <span class="parameter_property">Default </span>: False 
-
-    <span class="parameter_property">Syntax </span>: If you want to delete data produced by RAT and want to use `CLEAN UP` section, then
-    ```
-    GLOBAL:
-        cleaning: True
-    ```
-    !!! note
-    If you want to use [`CLEAN UP` section](#clean-up), `cleaning` must be True.
-
+    
 * <h6 class="parameter_heading">*`project_dir`* :</h6> 
     <span class="requirement">Required parameter</span>
 
@@ -156,6 +141,19 @@ RAT config file has 12 major sections that defines several parameters which are 
     ```
     GLOBAL:
         basins_metadata: /Cheetah/rat_project/params/basins_metadata_sample.csv
+    ```
+
+* <h6 class="parameter_heading">*`basins_to_process`* :</h6> 
+    <span class="requirement">Required parameter</span>
+
+    <span class="parameter_property">Description </span>: List of basins to run RAT for within the `basins_metadata`. The list values must match with the values of `basin_name` in `BASIN` section in `basins_metadata`.  For more information, please look [multiple basin run](../basins_metadata).
+
+    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
+
+    <span class="parameter_property">Syntax </span>: If you want to run RAT for basins Sabine and Nueces, then
+    ```
+    GLOBAL:
+        basins_to_process: ['Sabine','Nueces']
     ```
 
 ### Basin 
@@ -714,74 +712,38 @@ This section of the configuration file describes the parameters defined by `rout
     2. If `station_global_data` is `False`, AEC file names should be <'dam_name_column' value where spaces are replaced by '_'>. For example, the file name for a reservoir with 'dam_name' as 'Tehri Dam' will be 'Tehri_Dam.csv'.
     3. Each AEC file should have two columns with headers as 'Elevation' and 'CumArea'. 'Elevation' should be in meters and 'CumArea' should be in square Kilometers.
 
-* <h6 class="parameter_heading">*`catchment_vector_file`* :</h6> 
-    <span class="requirement">Optional parameter</span>
-
-    <span class="parameter_property">Description </span>: Absolute path of the catchment vector file where the geometry is represented by reservoirs' catchment polygons. It can be "global" (relative to basin) and will be automatically filtered for the basin. It can have unique id column and dam name column.  
-
-    <span class="parameter_property">Default </span>: It is blank by default and can be filled by the user.
-
-    <span class="parameter_property">Syntax </span>: If `catchment_vector_file` has the path *'/Cheetah/rat_project/custom_files/catchments.geojson/'*, then
-    ```
-    POST_PROCESSING:
-        catchment_vector_file : /Cheetah/rat_project/custom_files/catchments.geojson
-    ```
-
-* <h6 class="parameter_heading">*`catchment_vector_file_columns_dict`* :</h6> 
-    <span class="requirement">Optional parameter</span>
-
-    <span class="parameter_property">Description </span>: Dictionary of column names for `catchment_vector_file`. The dictionary must have keys 'id_column' and 'dam_name_column' and their values should be the actual name of the corresponding columns respectively.   
-
-    <span class="parameter_property">Default </span>: `{id_column : 'GRAND_ID', dam_name_column : 'DAM_NAME'}` 
-
-    <span class="parameter_property">Syntax </span>: If `catchment_vector_file` has column names 'GRAND_ID' and 'DAM_NAME', then 
-    ```
-    POST_PROCESSIN:
-        catchment_vector_file_columns_dict: {id_column : 'GRAND_ID', dam_name_column : 'DAM_NAME'}
-    ```
-    or
-    ```
-    POST_PROCESSIN:
-        catchment_vector_file_columns_dict: 
-            id_column: GRAND_ID
-            dam_name_column: DAM_NAME
-    ```
-
 ### Clean Up
 
-!!!note
-    To use this section, `cleaning` should be set to True in [Global Section](#global) of the configuration file. This section is Optional if `cleaning` is `False` or not provided in Global section.
+* <h6 class="parameter_heading">*`clean_preprocessing`* :</h6> 
+    <span class="requirement">Required parameter</span>
 
-* <h6 class="parameter_heading">*`clean_processing`* :</h6> 
-    <span class="requirement">Optional parameter</span>
-
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate pre-processed and post-processed data for a river basin except global raw data downloaded from servers after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate pre-processed data for a river basin except global raw data downloaded from servers after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to delete intermediate pre-processed and post-processed data for a river basin, 
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate pre-processed data for a river basin, 
     ```
     CLEAN_UP:
-        clean_processing: True
+        clean_preprocessing: True
     ```
 
 * <h6 class="parameter_heading">*`clean_metsim`* :</h6> 
-    <span class="requirement">Optional parameter</span>
+    <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate metsim inputs and outputs for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate metsim outputs for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
-    <span class="parameter_property">Syntax </span>: If you want to delete intermediate metsim inputs and outputs for a river basin, 
+    <span class="parameter_property">Syntax </span>: If you want to delete intermediate metsim outputs for a river basin, 
     ```
     CLEAN_UP:
         clean_metsim: True
     ```
 
 * <h6 class="parameter_heading">*`clean_vic`* :</h6> 
-    <span class="requirement">Optional parameter</span>
+    <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 20 days, for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate vic inputs and outputs, and any vic initial soil state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
@@ -792,9 +754,9 @@ This section of the configuration file describes the parameters defined by `rout
     ```
 
 * <h6 class="parameter_heading">*`clean_routing`* :</h6> 
-    <span class="requirement">Optional parameter</span>
+    <span class="requirement">Required parameter</span>
 
-    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 20 days, for a river basin after the RAT run. Otherwise, `False`.
+    <span class="parameter_property">Description </span>: `True` if  you want to delete intermediate routing inputs and outputs, and any routing initial state file that is older than 15 days, for a river basin after the RAT run. Otherwise, `False`.
 
     <span class="parameter_property">Default </span>: `False`
 
@@ -805,7 +767,7 @@ This section of the configuration file describes the parameters defined by `rout
     ```
 
 * <h6 class="parameter_heading">*`clean_gee`* :</h6> 
-    <span class="requirement">Optional parameter</span>
+    <span class="requirement">Required parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete gee produced small chunk files of surface area time series for a river basin after the RAT run. Otherwise, `False`.
 
@@ -820,7 +782,7 @@ This section of the configuration file describes the parameters defined by `rout
         If `clean_gee` is `True`, it will not delete the final gee outputs that will be appended with new data in next RAT run. To delete that, use `clean_previous_outputs`.
 
 * <h6 class="parameter_heading">*`clean_altimetry`* :</h6> 
-    <span class="requirement">Optional parameter</span>
+    <span class="requirement">Required parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete raw altimetry data that takes a lot of time to download for a river basin after the RAT run. Otherwise, `False`.
 
@@ -834,36 +796,8 @@ This section of the configuration file describes the parameters defined by `rout
     !!!note
         If `clean_altimetry` is `True`, it will not delete the extracted altimetry data that will be appended with new data in next RAT run. To delete that, use `clean_previous_outputs`.
 
-* <h6 class="parameter_heading">*`clean_basin_parameter_files`* :</h6> 
-    <span class="requirement">Optional parameter</span>
-
-    <span class="parameter_property">Description </span>: `True` if  you want to delete parameter files related to the basin. Otherwise, `False`.
-
-    <span class="parameter_property">Default </span>: `False`
-
-    <span class="parameter_property">Syntax </span>: If you want to delete parameter files related to basin, 
-    ```
-    CLEAN_UP:
-        clean_basin_parameter_files: True
-    ```
-
-* <h6 class="parameter_heading">*`clean_basin_meteorological_data`* :</h6> 
-    <span class="requirement">Optional parameter</span>
-
-    <span class="parameter_property">Description </span>: `True` if  you want to delete combined meteorological data of the basin which is required to hot-start RAT for next RAT run. Otherwise, `False`.
-
-    <span class="parameter_property">Default </span>: `False`
-
-    <span class="parameter_property">Syntax </span>: If you want to delete combined meteorological data of the basin, 
-    ```
-    CLEAN_UP:
-        clean_basin_meteorological_data: True
-    ```
-    !!! note
-        It should be noted that combined meteorological data is the data that helps in running VIC (hydrological model) without any spin-up for next run. Without this data, RAT needs to run the hydrological model for extra 2-3 years. You should use `clean_basin_meteorological_data` if you want to recreate combined meteorological data file for a river basin in the next RAT run.
-
 * <h6 class="parameter_heading">*`clean_previous_outputs`* :</h6> 
-    <span class="requirement">Optional parameter</span>
+    <span class="requirement">Required parameter</span>
 
     <span class="parameter_property">Description </span>: `True` if  you want to delete previous outputs, gee extracted surface area time series and altimetry extracted height data produced by last RAT run. Otherwise, `False`.
 
@@ -895,7 +829,3 @@ This section of the configuration file describes the parameters defined by `rout
     ```
     !!! note 
         It will be left blank if '-s' argument is not provided in `rat init` command.
-
-### Plugins
-
-This section of the configuration file is optional and can be used to run different Plugins as mentioned [here](../../Plugins/). It should be used to describe the parameters required by a plugin that you want to use.

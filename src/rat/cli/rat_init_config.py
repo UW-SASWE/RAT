@@ -1,14 +1,13 @@
 DOWNLOAD_LINKS_DROPBOX = {
     'route_model': "https://www.dropbox.com/scl/fi/1kjivr13kyf6gn7wlhbzt/routing.zip?rlkey=zq8j501amqyirfprcgb9dquec&dl=1",
-    'params': "https://www.dropbox.com/scl/fi/zvluibsnhz36k4smzcavv/params.zip?rlkey=uqbxdi4ulr9dv4u4imktf605m&st=r0qrt2gd&dl=1",
+    'params': "https://www.dropbox.com/scl/fi/9qk9bwrbawryx79o7cclg/params.zip?rlkey=j5dqxipkvwuo3nso4dl1cxaux&dl=1",
     'global_data': "https://www.dropbox.com/scl/fi/dhy3y3e9dw6tg89vt6x66/global_data.zip?rlkey=uvy6772cj5bpdfvtvqa4u8enj&st=4sti44e7&dl=1",
     'global_vic_params': "https://www.dropbox.com/s/jsg2wu62qi2ltwz/global_vic_params.zip?dl=1",
 }
 
-## For google drive link, https://drive.google.com/file/d/<ID>/view?usp=sharing, use https://drive.google.com/uc?id=<ID>
 DOWNLOAD_LINKS_GOOGLE = {
     'route_model': "https://drive.google.com/uc?id=1zr3VH0wy-XN-yF2_n0xic89_PiT_V_Mb",
-    'params': "https://drive.google.com/uc?id=1o5TH8GBmP4rjvFFROQmbid-ILMJw7xiS",
+    'params': "https://drive.google.com/uc?id=1LAGivWvgBdtJvDWzkGKorzfjPEKvO69k",
     'global_data': "https://drive.google.com/uc?id=1Obm_cKPFoumJKhcNTvFxIZNkSU3OmgT_",
     'global_vic_params': "https://drive.google.com/uc?id=16P95eu2yG0i77ac_NrmTSVutNtVXWNeA",
 }

@@ -27,9 +27,6 @@ class Verify_Tests:
 
         print("############################## Test-6 (Surface Area) ##############################",end="\n")
         self._verify_test_results_for_var('sarea_tmsos','Surface Area')
-        
-        print("############################## Test-7 (NSSC) ##############################",end="\n")
-        self._verify_test_results_for_var('nssc','Normalized Suspended Sediment Concentration')
 
     # Comparing true and estimated files for a variable
     def _verify_test_results_for_var(self, var_to_observe, var_to_display):
