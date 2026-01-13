@@ -11,44 +11,108 @@ import datetime
 warnings.filterwarnings("ignore")
 
 from logging import getLogger
+from rat.utils.utils import create_directory
 from rat.utils.logging import LOG_NAME,LOG_LEVEL1_NAME,NOTIFICATION
 from rat.utils.science import penman
 
 log = getLogger(f"{LOG_NAME}.{__name__}")
 log_level1 = getLogger(f"{LOG_LEVEL1_NAME}.{__name__}")
 
+def calc_dels(aecpath, savepath, sareapath=None, elevpath=None, using="area"):
+    """
+    Calculate storage change (ΔS) from reservoir area-elevation curves and 
+    either surface area time series, water surface elevation (WSE) time series, 
+    or both.
 
-def calc_dels(aecpath, sareapath, savepath):
-    aec = pd.read_csv(aecpath, comment='#')
-    df = pd.read_csv(sareapath, parse_dates=['date'])
+    Parameters
+    ----------
+    aecpath : str
+        Path to CSV file containing the area-elevation curve. Should have 
+        columns: 'area' or 'CumArea', and 'elevation' or 'Elevation'.
+        Not used if using='both'.
+    savepath : str
+        Path where the output CSV will be saved.
+    sareapath : str, optional
+        Path to CSV containing surface area time series with columns ['date', 'area'].
+        Required if using='area' or 'both'.
+    elevpath : str, optional
+        Path to CSV containing WSE time series with columns ['date', 'wse'].
+        Required if using='elevation' or 'both'.
+    using : str, default "area"
+        Determines which input dataset to use. Options:
+        - 'area': uses sareapath (area → WSE via interpolation from AEC).
+        - 'elevation': uses elevpath (WSE given, interpolate area from AEC).
+        - 'both': uses both sareapath and elevpath directly (no AEC).
 
-    df = df.drop_duplicates('date')
-    area_column = 'area' if 'area' in aec.columns else 'CumArea'  # patch to handle either CumArea or area as column name. 
-    elevation_column = 'elevation' if 'elevation' in aec.columns else 'Elevation'
-    get_elev = lambda area: np.interp(area, aec[area_column], aec[elevation_column])
+    Functions
+    --------
+    Saves Storage Change (ΔS) file at savepath with columns ['date', 'dS', 'area', 'wse']. 
+    Area in m², WSE in m and dS in BCM.
+    Optionally saves WSE file with columns ['date', 'wse'] if using='area' and elevpath is provided. 'wse' in meters. 
+    optionally saves area file with columns ['date', 'area'] if using='elevation' and sareapath is provided. 'area' in km².
+    
+    Returns
+    -------
+    None
+    """
 
-    df['wl (m)'] = df['area'].apply(get_elev)
+    if using in ["area", "elevation"]:
+        # Load AEC
+        aec = pd.read_csv(aecpath, comment='#')
+        area_column = 'area' if 'area' in aec.columns else 'CumArea'
+        elevation_column = 'elevation' if 'elevation' in aec.columns else 'Elevation'
 
-    # Even after filtering, use the rolling mean
-    # df['wl (m)'] = df['wl (m)'].rolling(5).mean()
-    # df['area'] = df['area'].rolling(5).mean()
+    if using == "area":
+        if sareapath is None:
+            raise ValueError("sareapath must be provided when using='area'")
+        df = pd.read_csv(sareapath, parse_dates=['date']).drop_duplicates('date')
 
-    # Convert area from km^2 to m^2
-    df['area'] = df['area'] * 1e6
+        # Interpolate WSE from area
+        get_elev = lambda area: np.interp(area, aec[area_column], aec[elevation_column])
+        df['wse'] = df['area'].apply(get_elev)
+        # Saves wse file
+        if elevpath is not None:
+            df[['date','wse']].to_csv(elevpath, index=False)
+        # Convert area from km² → m²
+        df['area'] = df['area'] * 1e6
 
-    A0 = df['area'].iloc[:-1]
-    A1 = df['area'].iloc[1:]
+    elif using == "elevation":
+        if elevpath is None:
+            raise ValueError("elevpath must be provided when using='elevation'")
+        df = pd.read_csv(elevpath, parse_dates=['date']).drop_duplicates('date')
 
-    h0 = df['wl (m)'].iloc[:-1]
-    h1 = df['wl (m)'].iloc[1:]
+        # Interpolate Area from WSE
+        get_area = lambda wse: np.interp(wse, aec[elevation_column], aec[area_column])
+        df['area'] = df['wse'].apply(get_area) 
+        # Saves area file
+        if sareapath is not None:
+            df[['date','area']].to_csv(sareapath, index=False)
+        # Convert area from km² → m²
+        df['area'] = df['area'] * 1e6  # km² → m²
 
-    S = (h1.values - h0.values)*(A1.values + A0.values)/2
-    S = np.insert(S, 0, np.nan)
+    elif using == "both":
+        if sareapath is None or elevpath is None:
+            raise ValueError("Both sareapath and elevpath must be provided when using='both'")
+        df_area = pd.read_csv(sareapath, parse_dates=['date']).drop_duplicates('date')
+        df_wse = pd.read_csv(elevpath, parse_dates=['date']).drop_duplicates('date')
 
-    S =  S * 1e-9                               # Convert to BCM
+        # Merge on date
+        df = pd.merge(df_area, df_wse, on='date', how='outer').sort_values('date')
+        # Convert area from km² → m²
+        df['area'] = df['area'] * 1e6
 
-    df['dS'] = S
+    else:
+        raise ValueError("Invalid 'using' argument. Must be 'area', 'elevation', or 'both'.")
 
+    # Compute storage change ΔS using trapezoidal rule
+    A0, A1 = df['area'].iloc[:-1], df['area'].iloc[1:]
+    h0, h1 = df['wse'].iloc[:-1], df['wse'].iloc[1:]
+
+    S = (h1.values - h0.values) * (A1.values + A0.values) / 2
+    S = np.insert(S, 0, np.nan)  # align length
+    df['dS'] = S * 1e-9          # Convert to BCM
+
+    # Save output
     df.to_csv(savepath, index=False)
 
 def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, savepath, forecast_mode=False):
@@ -135,7 +199,7 @@ def calc_E(res_data, start_date, end_date, forcings_path, vic_res_path, sarea, s
         data = data.set_index('time').sort_values(by='time')
         
     else:
-        raise ValueError("VIC result file or any existing evaporation rat_outputs file not found.")
+        raise ValueError(f"VIC result file or any existing evaporation rat_outputs file not found.")
     
     # get sarea - if string, read from file, else use same surface area value for all time steps
     log.debug(f"Getting surface areas - {sarea}")
@@ -235,7 +299,7 @@ def calc_outflow(inflowpath, dspath, epath, area, savepath):
 
 
 def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_shpfile_column_dict, aec_dir_path, start_date, end_date, rout_init_state_save_file, use_rout_state,
-                            evap_datadir, dels_savedir, nssc_savedir, outflow_savedir, vic_status, routing_status, gee_status, forecast_mode=False):
+                            evap_datadir, dels_savedir, elevation_savedir, nssc_savedir, outflow_savedir, vic_status, routing_status, gee_status, swot_run=False, swot_post_processing_paths=None, forecast_mode=False):
     # read file defining mapped resrvoirs
     # reservoirs_fn = os.path.join(project_dir, 'backend/data/ancillary/RAT-Reservoirs.geojson')
     if os.path.isfile(reservoir_shpfile):
@@ -252,37 +316,106 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     EVAP_STATUS = 0
     DELS_STATUS = 0
     OUTFLOW_STATUS = 0
-
+    # Defining SWOT methods:
+    swot_methods = {
+                        'sarea_based': 'area',
+                        'elevation_based': 'elevation',
+                        'elevation_sarea_based': 'both'
+                    }
     # SArea
     sarea_raw_dir = os.path.join(basin_data_dir,'gee', "gee_sarea_tmsos")
-
+    
     ## No of failed files (no_failed_files) is tracked and used to print a warning message in log level 1 file.
     # DelS calculation
     if(gee_status):
         log.debug("Calculating ∆S")
         no_failed_files = 0
+        no_swot_failed_files = 0
         aec_dir = aec_dir_path
 
         for reservoir_no,reservoir in reservoirs.iterrows():
+            ## TMSOS based dels
             try:
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
                 sarea_path = os.path.join(sarea_raw_dir, reservoir_name + ".csv")
                 dels_savepath = os.path.join(dels_savedir, reservoir_name + ".csv")
                 aecpath = os.path.join(aec_dir, reservoir_name + ".csv")
+                elev_savepath = os.path.join(elevation_savedir, reservoir_name + ".csv")
 
                 if os.path.isfile(sarea_path):
                     log.debug(f"Calculating ∆S for {reservoir_name}, saving at: {dels_savepath}")
-                    calc_dels(aecpath, sarea_path, dels_savepath)
+                    calc_dels(
+                                aecpath=aecpath,
+                                savepath=dels_savepath,
+                                sareapath=sarea_path,
+                                elevpath=elev_savepath,
+                                using='area'
+                            )
                 else:
-                    raise Exception("Surface area file not found; skipping ∆S calculation")
-                
+                    raise Warning("TMSOS Surface area file for {reservoir_name} not found; skipping TMSOS based ∆S calculation.")
             except:
-                log.exception(f"∆S for {reservoir_name} could not be calculated.")
-                no_failed_files += 1 
+                log.exception(f"TMSOS based ∆S for {reservoir_name} could not be calculated.")
+                no_failed_files += 1
+            
+            ## SWOT based dels
+            try:
+                if swot_run and swot_post_processing_paths:
+                    swot_hydrocron_path = os.path.join(
+                        swot_post_processing_paths['swot_hydrocron_dir'], f"{reservoir_name}.csv"
+                    )
+
+                    if os.path.isfile(swot_hydrocron_path):
+                        log.debug(f"Reading SWOT hydrocron data for {reservoir_name}.")
+                        swot_hydrocron_df = pd.read_csv(swot_hydrocron_path)
+                        swot_hydrocron_df = swot_hydrocron_df.rename(columns={'time': 'date'})
+
+                        # Save the raw SWOT hydrocron files (area & elevation)
+                        swot_sarea_df = swot_hydrocron_df[['date', 'area']]
+                        swot_elev_df = swot_hydrocron_df[['date', 'wse']]
+
+                        for method, using in swot_methods.items():
+                            log.debug(f"Calculating ∆S for {reservoir_name} using SWOT method: {method}.")
+
+                            # Build method-specific paths
+                            sarea_path = os.path.join(
+                                swot_post_processing_paths[method]['sarea'], f"{reservoir_name}.csv"
+                            )
+                            elev_path = os.path.join(
+                                swot_post_processing_paths[method]['elevation'], f"{reservoir_name}.csv"
+                            )
+                            dels_path = os.path.join(
+                                swot_post_processing_paths[method]['dels'], f"{reservoir_name}.csv"
+                            )
+
+                            # Save area/elevation inputs depending on method
+                            if using in ["area", "both"]:
+                                log.debug(f"Saving area input for {reservoir_name}, method {method}.")
+                                swot_sarea_df.to_csv(sarea_path, index=False)
+                            if using in ["elevation", "both"]:
+                                log.debug(f"Saving elevation input for {reservoir_name}, method {method}.")
+                                swot_elev_df.to_csv(elev_path, index=False)
+
+                            # Run ∆S calculation
+                            log.debug(f"Running calc_dels for {reservoir_name}, method {method}.")
+                            calc_dels(
+                                aecpath=aecpath,
+                                savepath=dels_path,
+                                sareapath=sarea_path,
+                                elevpath=elev_path,
+                                using=using
+                            )
+                    else:
+                        raise Exception(f"SWOT hydrocron file not found; skipping SWOT based ∆S calculation.")
+            except:
+                log.exception(f"SWOT based ∆S for {reservoir_name} could not be calculated.")
+                no_swot_failed_files += 1
         DELS_STATUS=1
         if no_failed_files:
-            log_level1.warning(f"∆S was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+            log_level1.warning(f"TMSOS based ∆S was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+        if no_swot_failed_files:
+            log_level1.warning(f"SWOT based ∆S was not calculated for {no_swot_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+        log.debug("∆S calculation completed.")
     else:
         log.debug("Cannot Calculate ∆S because GEE Run Failed.")
     
@@ -304,14 +437,14 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                     nssc_df = pd.read_csv(nssc_path)
                     nssc_df.to_csv(nssc_savepath, index=False)
                 else:
-                    raise Exception(f"NSSC file not found for {reservoir_name}; skipping copy to RAT Outputs")
+                    raise Warning(f"NSSC file not found for {reservoir_name}; skipping copy to RAT Outputs")
                 
             except:
                 log.exception(f"NSSC for {reservoir_name} could not be calculated.")
                 no_failed_files += 1 
         DELS_STATUS=1
         if no_failed_files:
-            log_level1.warning(f"NSSC was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+            log_level1.warning(f"GEE based NSSC was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     else:
         log.debug("Cannot Calculate NSSC because GEE Run Failed.")    
 
@@ -319,6 +452,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     if(vic_status and gee_status):
         log.debug("Retrieving Evaporation")
         no_failed_files = 0
+        no_swot_failed_files = 0
         if(use_rout_state):
             vic_results_path = rout_init_state_save_file
         else:
@@ -332,6 +466,7 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
             forcings_path = os.path.join(basin_data_dir,'vic', "vic_inputs/*.nc")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
+            ## Tmsos Evaporation
             try:
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
@@ -342,17 +477,47 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                     sarea = sarea_path
                 e_path = os.path.join(evap_datadir, reservoir_name + ".csv")
                 
-                if os.path.isfile(sarea) or isinstance(sarea, float):
+                if isinstance(sarea, float) or os.path.isfile(sarea):
                     log.debug(f"Calculating Evaporation for {reservoir_name}")
                     calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea, e_path, forecast_mode=forecast_mode)
                 else:
                     raise Exception("Surface area or VIC result file not found; skipping evaporation calculation")          
             except:
-                log.exception(f"Evaporation for {reservoir_name} could not be calculated.")
+                log.exception(f"TMSOS based Evaporation for {reservoir_name} could not be calculated.")
                 no_failed_files +=1
+            
+            ## SWOT Evaporation
+            try:
+                if swot_run and swot_post_processing_paths:
+                    log.debug(f"Calculating SWOT Evaporation for {reservoir_name}")
+                    
+                    for method, using in swot_methods.items():
+                        log.debug(f"Calculating evaporation for {reservoir_name} using SWOT method: {method}.")
+
+                        # Build method-specific paths
+                        ## sarea
+                        sarea_path = os.path.join(
+                            swot_post_processing_paths[method]['sarea'], f"{reservoir_name}.csv"
+                            )
+                        if not os.path.isfile(sarea_path):
+                            sarea = float(reservoir[reservoir_shpfile_column_dict['area_column']])
+                        else:
+                            sarea = sarea_path
+                        ## evaporation
+                        e_path = os.path.join(
+                            swot_post_processing_paths[method]['evaporation'], f"{reservoir_name}.csv"
+                        )
+                        # Evaporation calculation
+                        log.debug(f"Running calc_E for {reservoir_name}, method {method}. Saving at {e_path}")
+                        calc_E(reservoir, start_date_str_evap, end_date_str, forcings_path, vic_results_path, sarea, e_path, forecast_mode=forecast_mode)
+            except:
+                log.exception(f"SWOT based evaporation for {reservoir_name} could not be calculated.")
+                no_swot_failed_files += 1    
         EVAP_STATUS = 1
         if no_failed_files:
-            log_level1.warning(f"Evaporation was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+            log_level1.warning(f"TMSOS based Evaporation was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+        if no_swot_failed_files:
+            log_level1.warning(f"SWOT based evaporation was not calculated for {no_swot_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     elif((not vic_status) and (not gee_status)):
         log.debug("Cannot Retrieve Evaporation because both VIC and GEE Run Failed.")
     elif(vic_status):
@@ -364,9 +529,11 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
     if((routing_status) and (EVAP_STATUS) and (DELS_STATUS)):
         log.debug("Calculating Outflow")
         no_failed_files = 0
+        no_swot_failed_files = 0
         inflow_dir = os.path.join(basin_data_dir, "rat_outputs", "inflow")
 
         for reservoir_no,reservoir in reservoirs.iterrows():
+            ## Tmsos Outflow
             try:
                 # Reading reservoir information
                 reservoir_name = str(reservoir[reservoir_shpfile_column_dict['unique_identifier']])
@@ -379,11 +546,39 @@ def run_postprocessing(basin_name, basin_data_dir, reservoir_shpfile, reservoir_
                 log.debug(f"Calculating Outflow for {reservoir_name} saving at: {savepath}")
                 calc_outflow(inflowpath, deltaS, epath, a, savepath)
             except:
-                log.exception(f"Outflow for {reservoir_name} could not be calculated")
+                log.exception(f"TMSOS based Outflow for {reservoir_name} could not be calculated")
                 no_failed_files+=1
+            
+            ## SWOT Outflow 
+            try:
+                if swot_run and swot_post_processing_paths:
+                    log.debug(f"Calculating SWOT Outflow for {reservoir_name}")
+
+                    for method, using in swot_methods.items():
+                        log.debug(f"Calculating outflow for {reservoir_name} using SWOT method: {method}.")
+
+                        # Build method-specific paths
+                        dels_path = os.path.join(
+                            swot_post_processing_paths[method]['dels'], f"{reservoir_name}.csv"
+                        )
+                        epath = os.path.join(
+                            swot_post_processing_paths[method]['evaporation'], f"{reservoir_name}.csv"
+                        )
+                        savepath = os.path.join(
+                            swot_post_processing_paths[method]['outflow'], f"{reservoir_name}.csv"
+                        )
+                        # Run outflow calculation
+                        log.debug(f"Running calc_outflow for {reservoir_name}, method {method}. Saving at {savepath}")
+                        calc_outflow(inflowpath, dels_path, epath, a, savepath)
+            except:
+                log.exception(f"SWOT based Outflow for {reservoir_name} could not be calculated.")
+                no_swot_failed_files += 1
+                
         OUTFLOW_STATUS = 1
         if no_failed_files:
-            log_level1.warning(f"Outflow was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+            log_level1.warning(f"TMSOS based Outflow was not calculated for {no_failed_files} reservoir(s). Please check Level-2 log file for more details.")
+        if no_swot_failed_files:
+            log_level1.warning(f"SWOT based outflow was not calculated for {no_swot_failed_files} reservoir(s). Please check Level-2 log file for more details.")
     else:
         log.debug("Cannot Calculate Outflow because either evaporation, ∆S or Inflow is missing.")
     

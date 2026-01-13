@@ -32,8 +32,7 @@ from rat.core.run_altimetry import run_altimetry
 
 from rat.core.run_postprocessing import run_postprocessing
 
-from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files, convert_nssc, convert_meteorological_ts
-
+from rat.utils.convert_to_final_outputs import convert_sarea, convert_inflow, convert_dels, convert_evaporation, convert_outflow, convert_altimeter, copy_aec_files, convert_nssc, convert_meteorological_ts, convert_elevation
 # Step-(-1): Reading Configuration settings to run RAT
 # Step-0: Creating required directory structure for RAT
 # Step-1: Downloading and Pre-processing of meteorolgical data
@@ -113,9 +112,9 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
         basin_id = config['BASIN']['basin_id']                  # Unique identifier for each basin used to map basin polygon in basins_shapefile
         basin_data = basins_shapefile[basins_shapefile[basins_shapefile_column_dict['id']]==basin_id] # Getting the particular basin related information corresponding to basin_id
         if(len(basin_data)>1):
-            raise(f"More than one basins have the same ID which is {basin_id}.")
+            raise ValueError(f"More than one basins have the same ID which is {basin_id}.")
         elif( len(basin_data)==0):
-            raise(f"No basin was found for the {basin_id}.")
+            raise ValueError(f"No basin was found for the {basin_id}.")
         basin_bounds = basin_data.bounds                          # Obtaining bounds of the particular basin
         basin_bounds = np.array(basin_bounds)[0]
         basin_geometry = basin_data.geometry                      # Obtaining geometry of the particular basin
@@ -182,9 +181,9 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             gfs_data_download_start = config['BASIN']['end'] - datetime.timedelta(days=gfs_days-1)
             gfs_data_download_end = config['BASIN']['end']
         
-
-
-            
+        ## Reading Plugins configuration
+        # swot plugin
+        run_swot_plugin = config.get('PLUGINS',{}).get('swot',False)
 
         # Defining logger
         log, log_file_path = init_logger(
@@ -339,6 +338,23 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
         # Defining paths to save surface area from gee and heights from altimetry
         sarea_savepath = create_directory(os.path.join(basin_data_dir,'gee','gee_sarea_tmsos',''), True)
         nssc_savepath = create_directory(os.path.join(basin_data_dir,'gee','gee_nssc',''), True)
+        if run_swot_plugin:
+            swot_methods = ['sarea_based','elevation_based','elevation_sarea_based']
+            swot_folders = ['dels','sarea','elevation','evaporation','outflow']
+            swot_savepath = create_directory(os.path.join(basin_data_dir,'swot',''), True)
+            swot_post_processing_paths = {
+                'swot_hydrocron_dir' : create_directory(os.path.join(swot_savepath, "hydrocron"), True),
+            }
+            for method in swot_methods:
+                swot_post_processing_paths[method] = {}
+                for folder in swot_folders:
+                    swot_post_processing_paths[method][folder] = create_directory(
+                                    os.path.join(swot_savepath,method,folder), True)
+        else:
+            swot_savepath = None
+            swot_post_processing_paths = None
+            swot_methods = None
+            swot_folders = None
         altimetry_savepath = os.path.join(basin_data_dir,'altimetry','altimetry_timeseries')
         #----------- Paths Necessary for running of Surface Area Calculation and Altimetry-----------#
 
@@ -368,6 +384,7 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
         else:
             evap_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', 'Evaporation'), True)
         dels_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "dels"), True)
+        elevation_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "elevation"), True)
         nssc_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "nssc"), True)
         outflow_savedir = create_directory(os.path.join(basin_data_dir,'rat_outputs', "rat_outflow"),True)
         aec_savedir = Path(create_directory(os.path.join(basin_data_dir,'rat_outputs', "aec"),True))
@@ -715,9 +732,21 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                 else: 
                     raise Exception('Step-9 was not run OR There was an error in creating reservoir shapefile using spatial join for this basin from the global reservoir vector file.')
             # Get Sarea
-            filt_options = config['GEE'].get('bot_filter') 
-            run_sarea(gee_start_date.strftime("%Y-%m-%d"), config['BASIN']['end'].strftime("%Y-%m-%d"), sarea_savepath, 
-                                                                                    basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,filt_options,nssc_savepath)
+            filt_options = config['GEE'].get('bot_filter')
+            run_sarea(
+                start_date=gee_start_date.strftime("%Y-%m-%d"),
+                end_date=config['BASIN']['end'].strftime("%Y-%m-%d"),
+                sarea_save_dir=sarea_savepath,
+                reservoirs_shpfile=basin_reservoir_shpfile_path,
+                shpfile_column_dict=reservoirs_gdf_column_dict,
+                basin_bounds= basin_bounds,
+                swot_run= run_swot_plugin,
+                swot_prior_lake_shpfile=config.get('PLUGINS',{}).get('swot_prior_lake_shpfile', None),
+                swot_prior_lake_shpfile_column_dict=config.get('PLUGINS',{}).get('swot_prior_lake_shpfile_column_dict', None),
+                swot_save_dir= swot_savepath,
+                filt_options=filt_options,
+                nssc_save_dir=nssc_savepath
+            ) 
             GEE_STATUS = 1         
         except:
             no_errors = no_errors+1
@@ -778,9 +807,28 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             except:
                 rat_logger.warning("AEC files could not be copied to rat_outputs directory.", exc_info=True)
             #Generating evaporation, storage change and outflow.    
-            DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(basin_name, basin_data_dir, basin_reservoir_shpfile_path, reservoirs_gdf_column_dict,
-                                aec_savedir, config['BASIN']['start'], config['BASIN']['end'], rout_init_state_save_file, use_state, evap_savedir, dels_savedir,
-                                nssc_savedir, outflow_savedir, VIC_STATUS, ROUTING_STATUS, GEE_STATUS, forecast_mode=forecast_mode)
+            DELS_STATUS, EVAP_STATUS, OUTFLOW_STATUS = run_postprocessing(
+                                                basin_name=basin_name,
+                                                basin_data_dir=basin_data_dir,
+                                                reservoir_shpfile=basin_reservoir_shpfile_path,
+                                                reservoir_shpfile_column_dict=reservoirs_gdf_column_dict,
+                                                aec_dir_path=aec_savedir,
+                                                start_date=config['BASIN']['start'],
+                                                end_date=config['BASIN']['end'],
+                                                rout_init_state_save_file=rout_init_state_save_file,
+                                                use_rout_state=use_state,
+                                                evap_datadir=evap_savedir,
+                                                dels_savedir=dels_savedir,
+                                                elevation_savedir=elevation_savedir,
+                                                nssc_savedir=nssc_savedir,
+                                                outflow_savedir=outflow_savedir,
+                                                vic_status=VIC_STATUS,
+                                                routing_status=ROUTING_STATUS,
+                                                gee_status=GEE_STATUS,
+                                                swot_run=run_swot_plugin,
+                                                swot_post_processing_paths=swot_post_processing_paths,
+                                                forecast_mode=forecast_mode
+                                            )
         except:
             no_errors = no_errors+1
             rat_logger.exception("Error Executing Step-13: Calculation of Outflow, Evaporation, Storage change and Inflow")
@@ -826,8 +874,11 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
             if(DELS_STATUS):
                 convert_dels(dels_savedir, final_output_path)
                 rat_logger.info("Converted ∆S to the Output Format.")
+                convert_elevation(elevation_savedir, final_output_path)
+                rat_logger.info("Converted Elevation to the Output Format.")
             else:
-                rat_logger.info("Could not convert ∆S to the Output Format as GEE run failed.")
+                rat_logger.info("Could not convert ∆S and elevation to the Output Format as GEE run failed.")
+            ## E
             
             ## Evaporation
             if(EVAP_STATUS):
@@ -865,7 +916,29 @@ def rat_basin(config, rat_logger, forecast_mode=False, gfs_days=0, forecast_base
                         rat_logger.info("Converted Area Elevation Curve to the Output Format.")
                 else:
                     rat_logger.info("Converted Area Elevation Curve to the Output Format.")
-           
+            ## SWOT
+            if (run_swot_plugin):
+                swot_final_output_path = Path(final_output_path,'swot')
+                for method in swot_methods:
+                    swot_method_final_output_path = Path(swot_final_output_path,method)
+                    # Converting SWOT based Sarea
+                    swot_sarea_method_data = swot_post_processing_paths[method]['sarea']
+                    convert_sarea(swot_sarea_method_data, swot_method_final_output_path, swot=True)
+                    # Converting SWOT based Elevation
+                    swot_elevation_method_data = swot_post_processing_paths[method]['elevation']
+                    convert_elevation(swot_elevation_method_data, swot_method_final_output_path)
+                    # Converting SWOT based Dels
+                    swot_dels_method_data = swot_post_processing_paths[method]['dels']
+                    convert_dels(swot_dels_method_data, swot_method_final_output_path)
+                    # Converting SWOT based Evaporation 
+                    swot_evap_method_data = swot_post_processing_paths[method]['evaporation']
+                    convert_evaporation(swot_evap_method_data, swot_method_final_output_path)
+                    # Converting SWOT based Outflow
+                    swot_outflow_method_data = swot_post_processing_paths[method]['outflow']
+                    convert_outflow(swot_outflow_method_data, swot_method_final_output_path)
+                    
+                    rat_logger.info(f"Converted SWOT data using {method} method to the Output Format.")
+            
             ## Plugins: RESORR
             if config.get('PLUGINS', {}).get('resorr'):
                 # Importing ResORR

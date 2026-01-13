@@ -60,11 +60,13 @@ nav:
 - Plugins:
     - 'Forecasting': 'Plugins/Forecasting.md'
     - 'ResORR': 'Plugins/Resorr.md'
+    - 'SWOT': 'Plugins/Swot.md'
 - Data Description:
     - 'Directory Structure': 'RAT_Data/DirectoryStructure.md'
     - 'Global Database': 'RAT_Data/GlobalDatabase.md'
 - Tutorials:
-    - 'Kickstart RAT for Beginners': 'Tutorials/KarnatakaFloods.md' 
+    - 'Kickstart RAT for Beginners': 'Tutorials/KarnatakaFloods.md'
+    - 'SWOT for Reservoir Management': 'Tutorials/SWOT_Gunnison.md' 
 - Application:
     - 'Web App': 'Applications/WebApp.md'
 - Development:

@@ -6,10 +6,13 @@ from pathlib import Path
 from rat.utils.utils import create_directory
 from rat.toolbox.data_transform import create_meterological_ts
 
-def convert_sarea(sarea_dir, website_v_dir):
+def convert_sarea(sarea_dir, website_v_dir, swot=False):
     # Surface Area
     sarea_paths = [os.path.join(sarea_dir, f) for f in os.listdir(sarea_dir) if f.endswith(".csv")]
-    sarea_web_dir = create_directory(os.path.join(website_v_dir,'sarea_tmsos' ),True)
+    if swot:
+        sarea_web_dir = create_directory(os.path.join(website_v_dir,'sarea_swot'),True)
+    else:
+        sarea_web_dir = create_directory(os.path.join(website_v_dir,'sarea_tmsos'),True)
     for sarea_path in sarea_paths:
         res_name = os.path.splitext(os.path.split(sarea_path)[-1])[0]
 
@@ -23,7 +26,37 @@ def convert_sarea(sarea_dir, website_v_dir):
         print(f"Converting [Surface Area]: {res_name}")
         df.to_csv(savepath, index=False)
 
-
+def convert_elevation(elev_dir, final_out_dir):
+    """
+    Convert SWOT elevation CSV files to the final output format.
+    Reads all CSVs in elev_dir, renames the 'wse' column to 'wse (m)',
+    and saves them in a new 'elevation_tmsos' directory under final_out_dir.
+    
+    Parameters
+    ----------
+    elev_dir : str
+        Directory containing elevation CSV files.
+    final_out_dir : str
+        Directory where converted elevation files will be saved.
+    """
+    # List all CSV files in elevation directory
+    elev_paths = [os.path.join(elev_dir, f) for f in os.listdir(elev_dir) if f.endswith(".csv")]
+    
+    # Create output directory
+    elev_final_dir = create_directory(os.path.join(final_out_dir, 'elevation'), True)
+    
+    for elev_path in elev_paths:
+        res_name = os.path.splitext(os.path.split(elev_path)[-1])[0]
+        savepath = os.path.join(elev_final_dir, f"{res_name}.csv")
+        
+        df = pd.read_csv(elev_path, parse_dates=['date'])
+        df = df[['date', 'wse']]
+        df['wse'] = np.round(df['wse'], 2)
+        df.rename({'wse': 'wse (m)'}, axis=1, inplace=True)
+        
+        print(f"Converting [Elevation]: {res_name}")
+        df.to_csv(savepath, index=False)
+        
 def convert_inflow(inflow_dir,  final_out_dir):
     # Inflow
 
@@ -55,9 +88,12 @@ def convert_dels(dels_dir, website_v_dir):
 
         savepath = os.path.join(dels_web_dir , f"{savename}.csv")
 
-        df = pd.read_csv(dels_path, parse_dates=['date'])[['date', 'dS', 'days_passed']]
+        df = pd.read_csv(dels_path, parse_dates=['date'])[['date', 'dS']]
         df['dS (m3)'] = df['dS'] * 1e9                                     # indicate units, convert from BCM to m3
-        df = df[['date', 'dS (m3)']]
+        # find days passed between measurements
+        df['days_passed'] = df['date'].diff().dt.days
+        df['ds (m3/day)'] = (df['dS (m3)'] / df['days_passed']).where(df['days_passed'].notna() & (df['days_passed'] != 0))  # add rate column
+        df = df[['date', 'dS (m3)', 'ds (m3/day)']]
 
         print(f"Converting [∆S]: {res_name}, {savepath}")
         df.to_csv(savepath, index=False)
