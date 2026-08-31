@@ -546,15 +546,15 @@ def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATI
     area['filtered_area'] = deviation_from_sar(area['area'], sar['area'], AREA_DEVIATION_THRESHOLD)
     area.rename({'area': 'unfiltered_area'}, axis=1, inplace=True)
     # area.rename({'filtered_area': 'area'}, axis=1, inplace=True)
-    
+
     area_filtered = area.dropna(subset=['filtered_area'])
 
     area_filtered.loc[:, 'days_passed'] = area_filtered.index.to_series().diff().dt.days
     area_filtered.loc[:, 'trend'] = area_filtered['filtered_area'].diff()/area_filtered['days_passed']
-    
+
     sar, area_filtered = clip_ts(sar, area_filtered, which='left')
     # sometimes the sar time-series has duplicate values which have to be removed
-    sar = sar[~sar.index.duplicated(keep='first')]   # https://stackoverflow.com/a/34297689/4091712
+    sar = sar[~sar.index.duplicated(keep='first')]
     trend_generator = lambda arg: sar_trend(arg.index[0], arg.index[-1], sar)
 
     area_filtered.loc[:, 'sar_trend'] = area_filtered['filtered_area'].rolling(2, min_periods=0).apply(trend_generator)
@@ -562,13 +562,13 @@ def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATI
     deviation_correction_results = deviation_correction(area_filtered, TREND_DEVIATION_THRESHOLD, AREA_COL_NAME='filtered_area')
     area_filtered['corrected_areas_1'] = deviation_correction_results['filtered_area']
     area_filtered['corrected_trend_1'] = deviation_correction_results['corrected_trend']
-    
+
     area['corrected_areas_1'] = area_filtered['corrected_areas_1']
     area['corrected_trend_1'] = area_filtered['corrected_trend_1']
 
     area.loc[:, 'sar_trend'] = area['unfiltered_area'].rolling(2, min_periods=0).apply(trend_generator)
     area.loc[:, 'days_passed'] = area.index.to_series().diff().dt.days
-    
+
     area, sar = clip_ts(area, sar, which="left")
     first_non_nan = area['corrected_areas_1'].first_valid_index()
     area = area.loc[first_non_nan:, :]
@@ -577,3 +577,4 @@ def trend_based_correction(area, sar, AREA_DEVIATION_THRESHOLD=25, TREND_DEVIATI
     area['filled_area'] = filled_by_trend(area['corrected_areas_1'], area['sar_trend'], area['days_passed'])
 
     return area
+
